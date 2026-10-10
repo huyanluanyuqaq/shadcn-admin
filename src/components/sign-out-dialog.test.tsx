@@ -3,54 +3,37 @@ import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
 import { SignOutDialog } from './sign-out-dialog'
 
-const navigate = vi.fn()
-const reset = vi.fn()
+const { logout } = vi.hoisted(() => ({ logout: vi.fn() }))
 
-const MOCK_HREF = 'https://app.test/dashboard?tab=1'
-
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: () => ({
-    auth: { reset },
-  }),
+// 组件契约只剩「确认 → useAuth().logout()」：mock 掉 auth context，避免装配
+// 真实 AuthProvider（依赖 QueryClient、Router 与 api 网络层）。redirect 回跳
+// 由 main.tsx 的过期处理与 sign-in 流程负责，不归本组件管。
+vi.mock('@/context/auth-context', () => ({
+  useAuth: () => ({ logout }),
 }))
-
-vi.mock('@tanstack/react-router', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('@tanstack/react-router')>()
-  return {
-    ...actual,
-    useNavigate: () => navigate,
-    useLocation: () => ({ href: MOCK_HREF }),
-  }
-})
 
 describe('SignOutDialog', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('calls auth.reset and navigates to sign-in with current location as redirect', async () => {
+  it('calls logout when the confirm button is clicked', async () => {
     const { getByRole } = await render(
       <SignOutDialog open onOpenChange={vi.fn()} />
     )
 
     await userEvent.click(getByRole('button', { name: /^退出登录$/ }))
 
-    expect(reset).toHaveBeenCalledOnce()
-    expect(navigate).toHaveBeenCalledWith({
-      to: '/sign-in',
-      search: { redirect: MOCK_HREF },
-      replace: true,
-    })
+    expect(logout).toHaveBeenCalledOnce()
   })
 
-  it('does not call reset or navigate when Cancel is clicked', async () => {
+  it('does not call logout when the cancel button is clicked', async () => {
     const { getByRole } = await render(
       <SignOutDialog open onOpenChange={vi.fn()} />
     )
 
     await userEvent.click(getByRole('button', { name: /^取消$/ }))
 
-    expect(reset).not.toHaveBeenCalled()
-    expect(navigate).not.toHaveBeenCalled()
+    expect(logout).not.toHaveBeenCalled()
   })
 })
