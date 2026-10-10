@@ -1,0 +1,78 @@
+# ---------------------------------------------------------------------------
+# 自动构建并推送 Docker 镜像到 DockerHub
+#
+# 触发条件：
+#   - push 到 main 分支后自动执行（含本工作流自身的首次推送）
+#   - 也可在 GitHub Actions 页面手动触发（workflow_dispatch）
+#
+# 前置配置（在仓库 Settings → Secrets and variables → Actions 中添加）：
+#   DOCKERHUB_USERNAME  : 你的 DockerHub 用户名
+#   DOCKERHUB_TOKEN     : DockerHub Access Token（需 Read & Write 权限，
+#                         在 DockerHub → Account Settings → Security → Access Tokens 生成）
+#
+# 推送后的镜像：
+#   docker.io/<DOCKERHUB_USERNAME>/subscription-admin:latest
+#   docker.io/<DOCKERHUB_USERNAME>/subscription-admin:<短commit-sha>
+#
+# 注意：镜像构建不需要 JWT_SECRET / ADMIN_PASSWORD（这些是容器运行时变量，
+#       由 docker-compose.yml 在 `docker compose up` 时注入）。
+# ---------------------------------------------------------------------------
+
+name: Build and Push Docker Image
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 避免同一分支的多次推送产生重叠构建
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Extract metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ secrets.DOCKERHUB_USERNAME }}/subscription-admin
+          tags: |
+            # 仅默认分支打 latest
+            type=raw,value=latest,enable={{is_default_branch}}
+            # 提交短 SHA，便于追溯
+            type=sha,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          # 如需多架构（如 Apple Silicon / ARM 服务器），改为：
+          # platforms: linux/amd64,linux/arm64
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # 利用 GitHub Actions 缓存层，显著加速重复构建
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
