@@ -127,6 +127,54 @@ Requires Human Approval: false
 | 文案残留 | 全量扫描 `src/**` 排除 `ui/`、`routeTree.gen.ts`、测试与资源 | ✅ 仅余技术性字符串 |
 | 格式 | `prettier --check` | ⚠️ 184 文件告警，**改动前后计数一致**，属既存问题 |
 | 测试 | `pnpm test` | ⚠️ 未执行：需 `pnpm test:browser:install` 装 Playwright Chromium |
+| 提交 | `9fefc87` → 推送到 `origin/main` | ✅ 远端已同步（`2dc393f..9fefc87`） |
+| CI | GitHub Actions `Continuous Integration` | ❌ 失败，但**失败点在 `pnpm install`，早于任何代码步骤** |
+
+### 提交与 CI
+
+提交 `9fefc87`（46 files，+435/-278）已推送至 `origin/main`。
+
+推送触发两个工作流：
+
+| 工作流 | 结果 | 说明 |
+|--------|------|------|
+| `Continuous Integration` | ❌ 失败 | 见下方「CI 失败归因」 |
+| `Build and Push Docker Image` | 见运行记录 | 构建镜像中 |
+
+### CI 失败归因（既存问题，与本次改动无关）
+
+失败发生在 **`Install dependencies`** 步骤，`pnpm install --frozen-lockfile` 报：
+
+```
+Error: ERR_PNPM_IGNORED_BUILDS
+##[error]Process completed with exit code 1.
+```
+
+**证据表明这是既存缺陷，非本次引入：**
+
+- 上一个提交 `2dc393f`（不含本次任何改动）的 CI 失败日志为
+  **完全相同**的 `ERR_PNPM_IGNORED_BUILDS`，同样停在 `Install dependencies`。
+- 本次改动只涉及 `.tsx` / `.html` / `.md`，**未触碰任何依赖或锁文件**。
+
+**根因：** pnpm 10.x 已不再读取 `package.json` 中的 `pnpm` 字段。
+CI 日志明确警告：
+
+> `The "pnpm" field in package.json is no longer read by pnpm.
+> The following keys were ignored: "pnpm.onlyBuiltDependencies".`
+
+而本项目把 `onlyBuiltDependencies`（`better-sqlite3`、`esbuild`）
+放在根 `package.json` 的 `pnpm` 字段里（见 AGENTS.md §13.6 —— 该处正是
+为放行这两个包的构建脚本而写的）。pnpm 10.29.3 环境下该配置**已失效**，
+故 `pnpm install` 直接以 `ERR_PNPM_IGNORED_BUILDS` 终止。
+
+> ⚠️ **潜在影响**：`onlyBuiltDependencies` 失效意味着 `better-sqlite3`
+> 与 `esbuild` 的构建脚本可能不被放行。AGENTS.md §13.6 记载
+> 「若未放行则 better-sqlite3 会回退 node-gyp 源码编译并必然失败」。
+> 本地为 lockfile 已装好的状态，故本地 `tsc`/`build` 未暴露此问题。
+>
+> **修复方向（本次未做，需人类确认）**：把 `onlyBuiltDependencies`
+> 从 `package.json` 的 `pnpm` 字段迁到 `pnpm-workspace.yaml`。
+> 属独立于本次翻译任务的配置缺陷，建议单开 Task 处理。
 
 ### 保留的英文（技术性，非遗漏）
 
@@ -158,6 +206,12 @@ Requires Human Approval: false
    切换语言不会真的改变界面语言（无 i18n 运行时）。这与改前行为一致，未做改变。
 5. **RTL 方向未适配** —— 文案已含 `从左到右` / `从右到左`，
    但界面未引入 RTL 样式镜像。改前亦如此。
+6. **CI 红灯：`ERR_PNPM_IGNORED_BUILDS`（既存缺陷，未修复）** ——
+   `pnpm install` 在 CI 上失败，`format:check` 与 `test` 两个步骤**从未被执行**，
+   故本次的格式与测试状态仍未获 CI 背书。根因是 `onlyBuiltDependencies`
+   配置位置过时（详见上方「CI 失败归因」）。
+   **这意味着即便日后 CI 转绿，也仍需确认 `prettier` 与 `test` 两步的真实结果**
+   —— 它们目前是「未知」而非「通过」。
 
 ---
 
