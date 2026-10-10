@@ -1,5 +1,5 @@
 import { type ColumnDef } from '@tanstack/react-table'
-import { type EmailAccount } from '@shared/index'
+import { type EmailBinding } from '@shared/index'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -7,15 +7,19 @@ import { DataTableColumnHeader } from '@/components/data-table'
 import { LongText } from '@/components/long-text'
 import { DataTableRowActions } from './data-table-row-actions'
 
-export type EmailRelationMaps = {
-  providerNames: Map<number, string>
+export type EmailBindingRelationMaps = {
+  /** subscriptionId → 订阅展示名（名称优先，回退 URL） */
+  subscriptionLabels: Map<number, string>
+  /** subscriptionId → 该订阅的客户 id（客户归属由订阅派生，本表不存） */
+  customerIdBySubscription: Map<number, number | null>
+  /** customerId → 客户名 */
   customerNames: Map<number, string>
 }
 
-/** providerId / customerId 以字符串形式暴露给筛选器（值来自下拉选项） */
-export function getEmailsColumns(
-  maps: EmailRelationMaps
-): ColumnDef<EmailAccount>[] {
+/** subscriptionId 以字符串形式暴露给筛选器（值来自下拉选项） */
+export function getEmailBindingColumns(
+  maps: EmailBindingRelationMaps
+): ColumnDef<EmailBinding>[] {
   return [
     {
       id: 'select',
@@ -61,41 +65,44 @@ export function getEmailsColumns(
       enableHiding: false,
     },
     {
-      accessorKey: 'password',
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title='密码' />
-      ),
-      cell: () => <div className='text-muted-foreground'>••••••</div>,
-      meta: { className: 'w-24' },
-      enableSorting: false,
-    },
-    {
-      id: 'providerId',
+      id: 'subscriptionId',
       accessorFn: (row) =>
-        row.providerId === null ? '' : String(row.providerId),
+        row.subscriptionId === null ? '' : String(row.subscriptionId),
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title='提供商' />
+        <DataTableColumnHeader column={column} title='绑定订阅' />
       ),
       cell: ({ row }) => {
-        const id = row.original.providerId
+        const id = row.original.subscriptionId
         return (
-          <div>{id == null ? '-' : (maps.providerNames.get(id) ?? '-')}</div>
+          <div className='truncate'>
+            {id == null ? (
+              <span className='text-muted-foreground'>未绑定</span>
+            ) : (
+              (maps.subscriptionLabels.get(id) ?? `#${id}`)
+            )}
+          </div>
         )
       },
-      meta: { className: 'w-32' },
+      meta: { className: 'w-44' },
       enableSorting: false,
     },
     {
-      id: 'customerId',
-      accessorFn: (row) =>
-        row.customerId === null ? '' : String(row.customerId),
+      id: 'customerName',
+      accessorFn: () => '',
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title='客户' />
+        <DataTableColumnHeader column={column} title='所属客户' />
       ),
       cell: ({ row }) => {
-        const id = row.original.customerId
+        const subscriptionId = row.original.subscriptionId
+        if (subscriptionId == null) {
+          return <span className='text-muted-foreground'>-</span>
+        }
+        const customerId = maps.customerIdBySubscription.get(subscriptionId)
+        if (customerId == null) {
+          return <span className='text-muted-foreground'>未分配</span>
+        }
         return (
-          <div>{id == null ? '-' : (maps.customerNames.get(id) ?? '-')}</div>
+          <div className='truncate'>{maps.customerNames.get(customerId) ?? '-'}</div>
         )
       },
       meta: { className: 'w-32' },
@@ -107,7 +114,7 @@ export function getEmailsColumns(
         <DataTableColumnHeader column={column} title='状态' />
       ),
       cell: ({ row }) => {
-        const status = row.getValue('status') as EmailAccount['status']
+        const status = row.getValue('status') as EmailBinding['status']
         return (
           <Badge
             variant='outline'

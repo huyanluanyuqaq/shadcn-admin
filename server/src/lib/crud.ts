@@ -8,8 +8,8 @@ import { writeLog } from '../services/logger.js'
 /**
  * 通用 CRUD 路由工厂。
  *
- * 7 个资源（分类/套餐/客户/订阅/订阅池/邮箱提供商/邮箱账号）共用同一套语义，
- * 避免复制 7 份几乎相同的代码。
+ * 6 个资源（分类/套餐/客户/订阅/订阅池/邮箱绑定）共用同一套语义，
+ * 避免复制 6 份几乎相同的代码。
  *
  * 约定：
  * - 分页/排序/筛选一律在**服务端**执行（禁止前端全量拉取后过滤）
@@ -34,6 +34,8 @@ export interface CrudOptions {
   /** 需要 number ↔ Date 转换的时间戳字段（camelCase） */
   dateKeys?: string[]
   defaultSort?: string
+  /** 唯一约束冲突时返回给用户的中文提示 */
+  uniqueHint?: string
 }
 
 function serialize<T>(row: Record<string, unknown>): T {
@@ -69,6 +71,29 @@ function parseId(raw: string | undefined): number | null {
 
 const badRequest = (c: any, message: string) => c.json({ error: 'Bad Request', message }, 400)
 const notFound = (c: any, message: string) => c.json({ error: 'Not Found', message }, 404)
+const conflict = (c: any, message: string) =>
+  c.json({ error: 'Conflict', message }, 409)
+
+/**
+ * 把「唯一约束冲突」翻译为 409 + 可读提示。
+ *
+ * 邮箱绑定表对 `email` 建了唯一索引（一对一），重复提交同一邮箱是
+ * 预期内的用户操作，不该以 500 + 原始 SQLite 报文回应。
+ *
+ * @returns 命中唯一约束时返回 409 响应；否则返回 null，由调用方继续抛出原异常
+ */
+function handleConstraintError(
+  c: any,
+  err: unknown,
+  opts: { uniqueHint?: string },
+): Response | null {
+  const code = (err as { code?: string } | null)?.code
+  const message = err instanceof Error ? err.message : String(err)
+  if (code !== 'SQLITE_CONSTRAINT_UNIQUE' && !message.includes('UNIQUE constraint failed')) {
+    return null
+  }
+  return conflict(c, opts.uniqueHint ?? '已存在相同记录，请检查唯一字段')
+}
 
 export function createCrudRoutes(opts: CrudOptions): Hono {
   const {
@@ -80,6 +105,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     sortCols = { createdAt: table.createdAt, id: table.id },
     dateKeys = [],
     defaultSort = 'createdAt',
+    uniqueHint,
   } = opts
 
   const app = new Hono()
@@ -140,7 +166,14 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
       return badRequest(c, parsed.error.issues[0]?.message ?? '入参校验失败')
     }
     const values = toDb(parsed.data as Record<string, unknown>, dateKeys)
-    const row = db.insert(table).values(values).returning().get() as Record<string, unknown>
+    let row: Record<string, unknown>
+    try {
+      row = db.insert(table).values(values).returning().get() as Record<string, unknown>
+    } catch (err) {
+      const handled = handleConstraintError(c, err, { uniqueHint })
+      if (handled) return handled
+      throw err
+    }
     void writeLog('info', name, `创建${name} #${row.id}`)
     return c.json(serialize(row), 201)
   })
@@ -156,12 +189,19 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     }
     const values = toDb(parsed.data as Record<string, unknown>, dateKeys)
     if (Object.keys(values).length === 0) return badRequest(c, '没有需要更新的字段')
-    const row = db
-      .update(table)
-      .set(values)
-      .where(eq(table.id, id))
-      .returning()
-      .get() as Record<string, unknown> | null
+    let row: Record<string, unknown> | null
+    try {
+      row = db
+        .update(table)
+        .set(values)
+        .where(eq(table.id, id))
+        .returning()
+        .get() as Record<string, unknown> | null
+    } catch (err) {
+      const handled = handleConstraintError(c, err, { uniqueHint })
+      if (handled) return handled
+      throw err
+    }
     if (!row) return notFound(c, `${name} 不存在`)
     void writeLog('info', name, `更新${name} #${id}`)
     return c.json(serialize(row))

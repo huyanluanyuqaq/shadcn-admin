@@ -28,11 +28,11 @@ import {
 import { DataTablePagination, DataTableToolbar } from '@/components/data-table'
 import {
   useCustomerOptionsQuery,
-  useEmailProvidersQuery,
-  useEmailsQuery,
+  useEmailBindingsQuery,
+  useSubscriptionOptionsQuery,
 } from '../queries'
 import { DataTableBulkActions } from './data-table-bulk-actions'
-import { getEmailsColumns } from './emails-columns'
+import { getEmailBindingColumns } from './emails-columns'
 
 type DataTableProps = {
   search: Record<string, unknown>
@@ -98,8 +98,7 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
     globalFilter: { enabled: false },
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: 'providerId', searchKey: 'providerId', type: 'array' },
-      { columnId: 'customerId', searchKey: 'customerId', type: 'array' },
+      { columnId: 'subscriptionId', searchKey: 'subscriptionId', type: 'array' },
     ],
   })
 
@@ -128,8 +127,7 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
       pageSize: pagination.pageSize,
       q: (search.q as string)?.trim() || undefined,
       status: firstString(search.status),
-      providerId: firstNumber(search.providerId),
-      customerId: firstNumber(search.customerId),
+      subscriptionId: firstNumber(search.subscriptionId),
       sortBy: search.sortBy as string | undefined,
       sortOrder: search.sortOrder as 'asc' | 'desc' | undefined,
     }),
@@ -138,23 +136,33 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
       pagination.pageSize,
       search.q,
       search.status,
-      search.providerId,
-      search.customerId,
+      search.subscriptionId,
       search.sortBy,
       search.sortOrder,
     ]
   )
 
   const { data, isPending, isFetching, isError, error, refetch } =
-    useEmailsQuery(params)
-  const providersQuery = useEmailProvidersQuery()
+    useEmailBindingsQuery(params)
+  const subscriptionsQuery = useSubscriptionOptionsQuery()
   const customersQuery = useCustomerOptionsQuery()
 
-  const maps = useMemo(
-    () => ({
-      providerNames: new Map<number, string>(
-        (providersQuery.data?.items ?? []).map(
-          (provider) => [provider.id, provider.name] as [number, string]
+  const maps = useMemo(() => {
+    const subscriptions = subscriptionsQuery.data?.items ?? []
+    return {
+      subscriptionLabels: new Map<number, string>(
+        subscriptions.map(
+          (subscription) =>
+            [
+              subscription.id,
+              subscription.name?.trim() || subscription.url,
+            ] as [number, string]
+        )
+      ),
+      customerIdBySubscription: new Map<number, number | null>(
+        subscriptions.map(
+          (subscription) =>
+            [subscription.id, subscription.customerId] as [number, number | null]
         )
       ),
       customerNames: new Map<number, string>(
@@ -162,11 +170,10 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
           (customer) => [customer.id, customer.name] as [number, string]
         )
       ),
-    }),
-    [providersQuery.data, customersQuery.data]
-  )
+    }
+  }, [subscriptionsQuery.data, customersQuery.data])
 
-  const columns = useMemo(() => getEmailsColumns(maps), [maps])
+  const columns = useMemo(() => getEmailBindingColumns(maps), [maps])
 
   const items = data?.items ?? []
   const total = data?.total ?? 0
@@ -210,7 +217,7 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
     return (
       <Alert variant='destructive'>
         <AlertCircle />
-        <AlertTitle>加载邮箱失败</AlertTitle>
+        <AlertTitle>加载邮箱绑定失败</AlertTitle>
         <AlertDescription className='flex items-center justify-between gap-2'>
           <span>{error instanceof Error ? error.message : '请稍后重试'}</span>
           <Button
@@ -240,20 +247,14 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
           filters={[
             { columnId: 'status', title: '状态', options: statusFilterOptions },
             {
-              columnId: 'providerId',
-              title: '提供商',
-              options: (providersQuery.data?.items ?? []).map((provider) => ({
-                label: provider.name,
-                value: String(provider.id),
-              })),
-            },
-            {
-              columnId: 'customerId',
-              title: '客户',
-              options: (customersQuery.data?.items ?? []).map((customer) => ({
-                label: customer.name,
-                value: String(customer.id),
-              })),
+              columnId: 'subscriptionId',
+              title: '绑定订阅',
+              options: (subscriptionsQuery.data?.items ?? []).map(
+                (subscription) => ({
+                  label: subscription.name?.trim() || subscription.url,
+                  value: String(subscription.id),
+                })
+              ),
             },
           ]}
         />

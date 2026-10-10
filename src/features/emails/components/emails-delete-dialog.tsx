@@ -1,32 +1,32 @@
 import { useState } from 'react'
-import { type EmailAccount } from '@shared/index'
+import { type EmailBinding } from '@shared/index'
 import { AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { useDeleteEmail } from '../queries'
+import { useDeleteEmailBinding } from '../queries'
 
-type EmailDeleteDialogProps = {
+type EmailBindingDeleteDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  currentRow: EmailAccount
+  currentRow: EmailBinding
 }
 
-export function EmailsDeleteDialog({
+export function EmailBindingDeleteDialog({
   open,
   onOpenChange,
   currentRow,
-}: EmailDeleteDialogProps) {
+}: EmailBindingDeleteDialogProps) {
   const [value, setValue] = useState('')
-  const deleteEmail = useDeleteEmail()
+  const deleteBinding = useDeleteEmailBinding()
 
   const handleDelete = () => {
     if (value.trim() !== currentRow.email) return
-    deleteEmail.mutate(currentRow.id, {
+    deleteBinding.mutate(currentRow.id, {
       onSuccess: () => {
-        toast.success('邮箱已删除')
+        toast.success('邮箱绑定已删除')
         setValue('')
         onOpenChange(false)
       },
@@ -42,23 +42,23 @@ export function EmailsDeleteDialog({
       onOpenChange={onOpenChange}
       handleConfirm={handleDelete}
       disabled={value.trim() !== currentRow.email}
-      isLoading={deleteEmail.isPending}
+      isLoading={deleteBinding.isPending}
       title={
         <span className='text-destructive'>
           <AlertTriangle
             className='me-1 inline-block stroke-destructive'
             size={18}
           />{' '}
-          删除邮箱
+          删除邮箱绑定
         </span>
       }
       desc={
         <div className='space-y-4'>
           <p className='mb-2'>
-            确定要删除邮箱 <span className='font-bold'>{currentRow.email}</span>{' '}
-            吗？
+            确定要删除邮箱绑定{' '}
+            <span className='font-bold'>{currentRow.email}</span> 吗？
             <br />
-            该操作不可撤销。
+            该操作只解除绑定关系，不会删除订阅本身。该操作不可撤销。
           </p>
 
           <Label className='my-2'>

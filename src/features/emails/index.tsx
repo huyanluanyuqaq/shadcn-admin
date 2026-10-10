@@ -30,7 +30,7 @@ export function Emails() {
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>邮箱管理</h2>
             <p className='text-muted-foreground'>
-              在这里管理邮箱账号及其所属提供商与关联客户。
+              在这里管理邮箱与订阅的绑定关系：把邮箱地址绑定到对应的订阅。
             </p>
           </div>
           <EmailsPrimaryButtons />

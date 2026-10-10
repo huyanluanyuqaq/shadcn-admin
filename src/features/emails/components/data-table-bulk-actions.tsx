@@ -8,7 +8,7 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip'
 import { DataTableBulkActions as BulkActionsToolbar } from '@/components/data-table'
-import { EmailsMultiDeleteDialog } from './emails-multi-delete-dialog'
+import { EmailBindingMultiDeleteDialog } from './emails-multi-delete-dialog'
 
 type DataTableBulkActionsProps<TData> = {
   table: Table<TData>
@@ -21,7 +21,7 @@ export function DataTableBulkActions<TData>({
 
   return (
     <>
-      <BulkActionsToolbar table={table} entityName='邮箱'>
+      <BulkActionsToolbar table={table} entityName='邮箱绑定'>
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
@@ -29,20 +29,20 @@ export function DataTableBulkActions<TData>({
               size='icon'
               onClick={() => setShowDeleteConfirm(true)}
               className='size-8'
-              aria-label='删除选中的邮箱'
-              title='删除选中的邮箱'
+              aria-label='删除选中的邮箱绑定'
+              title='删除选中的邮箱绑定'
             >
               <Trash2 />
-              <span className='sr-only'>删除选中的邮箱</span>
+              <span className='sr-only'>删除选中的邮箱绑定</span>
             </Button>
           </TooltipTrigger>
           <TooltipContent>
-            <p>删除选中的邮箱</p>
+            <p>删除选中的邮箱绑定</p>
           </TooltipContent>
         </Tooltip>
       </BulkActionsToolbar>
 
-      <EmailsMultiDeleteDialog
+      <EmailBindingMultiDeleteDialog
         table={table}
         open={showDeleteConfirm}
         onOpenChange={setShowDeleteConfirm}

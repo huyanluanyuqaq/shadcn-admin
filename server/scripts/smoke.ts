@@ -5,7 +5,7 @@
  *   pnpm --filter server dev        # 另开一个终端启动服务（默认 :3000）
  *   pnpm --filter server smoke      # 本脚本
  *
- * 覆盖：健康检查、鉴权、7 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步。
+ * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步。
  * 退出码非 0 表示存在失败项。
  */
 
@@ -106,25 +106,11 @@ async function main() {
       expireAt: Date.now() + 3 * 86400000,
     },
   })
-  check(
+check(
     '创建客户且 expireAt 为 epoch 毫秒',
     customer.status === 201 && typeof customer.json?.expireAt === 'number',
     customer.json,
   )
-
-  const provider = await req('/api/email-providers', {
-    method: 'POST',
-    token,
-    body: { name: `smoke-provider-${suffix}`, domain: 'example.com' },
-  })
-  check('创建邮箱提供商', provider.status === 201, provider.json)
-
-  const email = await req('/api/emails', {
-    method: 'POST',
-    token,
-    body: { email: `mail${suffix}@example.com`, providerId: provider.json?.id },
-  })
-  check('创建邮箱账号', email.status === 201, email.json)
 
   const pool = await req('/api/subscription-pools', {
     method: 'POST',
@@ -148,6 +134,32 @@ async function main() {
     subscription.status === 201 && subscription.json?.syncStatus === 'idle',
     subscription.json,
   )
+
+  // 邮箱绑定：邮箱 ↔ 订阅（不是邮箱账号，无密码/提供商/客户字段）
+  const email = await req('/api/email-bindings', {
+    method: 'POST',
+    token,
+    body: { email: `mail${suffix}@example.com`, subscriptionId: subscription.json?.id },
+  })
+  check('创建邮箱绑定', email.status === 201 && email.json?.subscriptionId === subscription.json?.id, email.json)
+
+  const dupEmail = await req('/api/email-bindings', {
+    method: 'POST',
+    token,
+    body: { email: `mail${suffix}@example.com` },
+  })
+  check(
+    '同一邮箱重复绑定返回 409（非 500）',
+    dupEmail.status === 409 && typeof dupEmail.json?.message === 'string',
+    dupEmail.json,
+  )
+
+  const badEmail = await req('/api/email-bindings', {
+    method: 'POST',
+    token,
+    body: { email: 'not-an-email' },
+  })
+  check('非法邮箱格式返回 400', badEmail.status === 400, badEmail.json)
 
   // 6. 列表：分页 + 搜索 + 筛选
   const list = await req(`/api/customers?page=1&pageSize=5&q=${suffix}`, { token })
@@ -225,13 +237,15 @@ async function main() {
   // 13. 删除：订阅须先于客户删除（客户删除会级联删除其订阅）
   for (const [label, path] of [
     ['订阅', `/api/subscriptions/${subscription.json?.id}`],
-    ['邮箱账号', `/api/emails/${email.json?.id}`],
-    ['邮箱提供商', `/api/email-providers/${provider.json?.id}`],
     ['订阅池', `/api/subscription-pools/${pool.json?.id}`],
   ] as const) {
     const del = await req(path, { method: 'DELETE', token })
     check(`删除${label}`, del.status === 200, del.json)
   }
+
+  // 级联验证：订阅被删则其邮箱绑定（外键 ON DELETE CASCADE）一并消失
+  const cascadedBinding = await req(`/api/email-bindings/${email.json?.id}`, { token })
+  check('删除订阅后其邮箱绑定被级联删除', cascadedBinding.status === 404, cascadedBinding.status)
 
   const bulk = await req('/api/customers/bulk-delete', {
     method: 'POST',

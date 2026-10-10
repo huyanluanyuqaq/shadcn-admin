@@ -44,7 +44,7 @@
 
 ## 资源 CRUD
 
-以下 7 个资源均提供同一组接口（`<r>` 为资源路径）：
+以下 6 个资源均提供同一组接口（`<r>` 为资源路径）：
 
 | 资源 | 路径 | 输出类型 |
 |------|------|---------|
@@ -53,8 +53,7 @@
 | 客户 | `/api/customers` | `Customer` |
 | 订阅 | `/api/subscriptions` | `Subscription` |
 | 订阅池 | `/api/subscription-pools` | `Pool` |
-| 邮箱提供商 | `/api/email-providers` | `EmailProvider` |
-| 邮箱账号 | `/api/emails` | `EmailAccount` |
+| 邮箱绑定 | `/api/email-bindings` | `EmailBinding` |
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
@@ -67,7 +66,25 @@
 
 **客户额外支持筛选：** `status`、`categoryId`、`planId`
 **订阅额外支持筛选：** `customerId`、`syncStatus`、`enabled`
-**邮箱账号额外支持筛选：** `providerId`、`customerId`、`status`
+**邮箱绑定额外支持筛选：** `subscriptionId`、`status`
+
+### 邮箱绑定（EmailBinding）
+
+邮箱模块管理的是**「邮箱 ↔ 订阅」的绑定关系**，不是邮箱账号：
+
+| 字段 | 类型 | 说明 |
+|------|------|------|
+| `email` | string(email) | 邮箱地址，**唯一**（一对一） |
+| `subscriptionId` | int \| null | 绑定的订阅；null 表示暂未绑定 |
+| `status` | `active` \| `disabled` | — |
+| `remark` | string \| null | — |
+
+约束与副作用：
+
+- `email` 唯一：重复提交返回 **409 Conflict**（message 为中文提示），而非 500。
+- `subscription_id` 外键 `ON DELETE CASCADE`：订阅被删除时其邮箱绑定自动失效。
+- 删除绑定**不会**删除订阅本身，只解除关系。
+- 不存密码 / 提供商 / 客户：客户归属由 `subscriptions.customerId` 承载，不在本表冗余。
 
 ---
 

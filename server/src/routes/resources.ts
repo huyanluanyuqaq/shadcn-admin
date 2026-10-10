@@ -2,8 +2,7 @@ import { Hono } from 'hono'
 import {
   categoryInputSchema,
   customerInputSchema,
-  emailAccountInputSchema,
-  emailProviderInputSchema,
+  emailBindingInputSchema,
   planInputSchema,
   poolInputSchema,
   subscriptionInputSchema,
@@ -11,8 +10,7 @@ import {
 import {
   categories,
   customers,
-  emailAccounts,
-  emailProviders,
+  emailBindings,
   plans,
   subscriptionPool,
   subscriptions,
@@ -20,7 +18,7 @@ import {
 import { createCrudRoutes } from '../lib/crud.js'
 
 /**
- * 7 个资源的 CRUD 路由。
+ * 6 个资源的 CRUD 路由。
  * 每个资源自动获得：分页列表 / 单条 / 创建 / 更新 / 删除 / 批量删除。
  * 契约见 docs/technical/api-contract.md。
  */
@@ -102,28 +100,22 @@ resourceRoutes.route(
 )
 
 resourceRoutes.route(
-  '/email-providers',
+  '/email-bindings',
   createCrudRoutes({
-    table: emailProviders,
-    input: emailProviderInputSchema,
-    name: '邮箱提供商',
-    searchCols: [emailProviders.name, emailProviders.domain],
-    sortCols: { createdAt: emailProviders.createdAt, id: emailProviders.id, name: emailProviders.name },
-  }),
-)
-
-resourceRoutes.route(
-  '/emails',
-  createCrudRoutes({
-    table: emailAccounts,
-    input: emailAccountInputSchema,
-    name: '邮箱账号',
-    searchCols: [emailAccounts.email, emailAccounts.remark],
+    table: emailBindings,
+    input: emailBindingInputSchema,
+    name: '邮箱绑定',
+    searchCols: [emailBindings.email, emailBindings.remark],
     filterCols: {
-      providerId: emailAccounts.providerId,
-      customerId: emailAccounts.customerId,
-      status: emailAccounts.status,
+      subscriptionId: emailBindings.subscriptionId,
+      status: emailBindings.status,
     },
-    sortCols: { createdAt: emailAccounts.createdAt, id: emailAccounts.id, email: emailAccounts.email },
+    sortCols: {
+      createdAt: emailBindings.createdAt,
+      id: emailBindings.id,
+      email: emailBindings.email,
+      status: emailBindings.status,
+    },
+    uniqueHint: '该邮箱已存在，每个邮箱只能绑定一条订阅，请直接编辑已有绑定',
   }),
 )

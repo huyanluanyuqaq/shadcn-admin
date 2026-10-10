@@ -8,6 +8,7 @@ import type {
   BatchSyncResult,
   Customer,
   Pool,
+  PoolInput,
   Subscription,
   SubscriptionInput,
   SyncResult,
@@ -31,6 +32,16 @@ export const subscriptionKeys = {
   root: ['subscriptions'] as const,
   list: (params: SubscriptionListParams) =>
     ['subscriptions', 'list', params] as const,
+}
+
+/**
+ * 订阅池（机场提供商）的缓存键。
+ * 下拉选项、表格列映射、筛选面板与管理弹窗共用同一份缓存，
+ * 新增/删除后 invalidate 一次即可全部刷新。
+ */
+export const subscriptionPoolKeys = {
+  root: ['subscription-pools'] as const,
+  list: ['subscription-pools', 'list'] as const,
 }
 
 export function useSubscriptionsQuery(params: SubscriptionListParams) {
@@ -62,13 +73,44 @@ export function useCustomerOptions() {
   })
 }
 
-/** 订阅池下拉选项 */
+/**
+ * 订阅池（机场提供商）全量列表。
+ * 同时服务于：订阅编辑弹窗的下拉、表格列名映射、筛选面板、提供商管理弹窗。
+ * 一次性取满 200 条，避免多处重复请求。
+ */
 export function usePoolOptions() {
   return useQuery({
-    queryKey: ['subscription-pools', 'options'],
+    queryKey: subscriptionPoolKeys.list,
     queryFn: () =>
       api.list<Pool>('/subscription-pools', { page: 1, pageSize: 200 }),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+/** 新增订阅池（机场提供商） */
+export function useCreateSubscriptionPool() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: PoolInput) =>
+      api.post<Pool>('/subscription-pools', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: subscriptionPoolKeys.root,
+      })
+    },
+  })
+}
+
+/** 删除订阅池（机场提供商） */
+export function useDeleteSubscriptionPool() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/subscription-pools/${id}`),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: subscriptionPoolKeys.root,
+      })
+    },
   })
 }
 
@@ -147,6 +189,7 @@ export function useSyncSubscriptions() {
 /** 按数据库中的 cron 表达式重建调度任务 */
 export function useReloadScheduler() {
   return useMutation({
-    mutationFn: () => api.post<{ ok: boolean }>('/subscriptions/scheduler/reload'),
+    mutationFn: () =>
+      api.post<{ ok: boolean }>('/subscriptions/scheduler/reload'),
   })
 }

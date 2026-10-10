@@ -29,7 +29,7 @@ dashboardRoutes.get('/stats', (c) => {
   const subscriptionsFailed = scalar(
     sql`select count(*) as count from subscriptions where sync_status = 'failed'`,
   )
-  const emailsTotal = scalar(sql`select count(*) as count from email_accounts`)
+  const emailsTotal = scalar(sql`select count(*) as count from email_bindings`)
   const plansTotal = scalar(sql`select count(*) as count from plans`)
   const remindersUnread = scalar(sql`select count(*) as count from reminders where is_read = 0`)
 

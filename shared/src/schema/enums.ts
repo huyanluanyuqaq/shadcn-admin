@@ -3,8 +3,8 @@ import { z } from 'zod'
 /** 客户状态 */
 export const customerStatusSchema = z.enum(['active', 'expired', 'disabled'])
 
-/** 邮箱账号状态 */
-export const emailAccountStatusSchema = z.enum(['active', 'disabled'])
+/** 邮箱绑定状态 */
+export const emailBindingStatusSchema = z.enum(['active', 'disabled'])
 
 /** 套餐状态 */
 export const planStatusSchema = z.enum(['active', 'disabled'])
@@ -35,7 +35,7 @@ export const logModuleSchema = z.enum([
 export const reminderTypeSchema = z.enum(['expire', 'traffic'])
 
 export type CustomerStatus = z.infer<typeof customerStatusSchema>
-export type EmailAccountStatus = z.infer<typeof emailAccountStatusSchema>
+export type EmailBindingStatus = z.infer<typeof emailBindingStatusSchema>
 export type PlanStatus = z.infer<typeof planStatusSchema>
 export type SyncStatus = z.infer<typeof syncStatusSchema>
 export type LogLevel = z.infer<typeof logLevelSchema>

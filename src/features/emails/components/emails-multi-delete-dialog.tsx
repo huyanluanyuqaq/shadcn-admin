@@ -6,9 +6,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { ConfirmDialog } from '@/components/confirm-dialog'
-import { useBulkDeleteEmails } from '../queries'
+import { useBulkDeleteEmailBindings } from '../queries'
 
-type EmailMultiDeleteDialogProps<TData> = {
+type EmailBindingMultiDeleteDialogProps<TData> = {
   open: boolean
   onOpenChange: (open: boolean) => void
   table: Table<TData>
@@ -16,13 +16,13 @@ type EmailMultiDeleteDialogProps<TData> = {
 
 const CONFIRM_WORD = 'DELETE'
 
-export function EmailsMultiDeleteDialog<TData>({
+export function EmailBindingMultiDeleteDialog<TData>({
   open,
   onOpenChange,
   table,
-}: EmailMultiDeleteDialogProps<TData>) {
+}: EmailBindingMultiDeleteDialogProps<TData>) {
   const [value, setValue] = useState('')
-  const bulkDelete = useBulkDeleteEmails()
+  const bulkDelete = useBulkDeleteEmailBindings()
   const selectedRows = table.getFilteredSelectedRowModel().rows
 
   const handleDelete = () => {
@@ -33,7 +33,7 @@ export function EmailsMultiDeleteDialog<TData>({
     const ids = selectedRows.map((row) => (row.original as { id: number }).id)
     bulkDelete.mutate(ids, {
       onSuccess: (result) => {
-        toast.success(`已删除 ${result?.deleted ?? ids.length} 个邮箱`)
+        toast.success(`已删除 ${result?.deleted ?? ids.length} 条邮箱绑定`)
         setValue('')
         table.resetRowSelection()
         onOpenChange(false)
@@ -57,15 +57,15 @@ export function EmailsMultiDeleteDialog<TData>({
             className='me-1 inline-block stroke-destructive'
             size={18}
           />{' '}
-          删除 {selectedRows.length} 个邮箱
+          删除 {selectedRows.length} 条邮箱绑定
         </span>
       }
       desc={
         <div className='space-y-4'>
           <p className='mb-2'>
-            确定要删除已选中的 {selectedRows.length} 个邮箱吗？
+            确定要删除已选中的 {selectedRows.length} 条邮箱绑定吗？
             <br />
-            该操作不可撤销。
+            该操作只解除绑定关系，不会删除订阅本身。该操作不可撤销。
           </p>
 
           <Label className='my-4 flex flex-col items-start gap-1.5'>

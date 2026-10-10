@@ -6,117 +6,95 @@ import {
 } from '@tanstack/react-query'
 import {
   type Customer,
-  type EmailAccount,
-  type EmailAccountInput,
-  type EmailProvider,
-  type EmailProviderInput,
+  type EmailBinding,
+  type EmailBindingInput,
   type ListResult,
+  type Subscription,
 } from '@shared/index'
 import { api } from '@/lib/api'
 
-/** 邮箱账号列表查询参数（筛选由服务端执行） */
-export type EmailListParams = {
+/** 邮箱绑定列表查询参数（筛选由服务端执行） */
+export type EmailBindingListParams = {
   page: number
   pageSize: number
   q?: string
-  providerId?: number
-  customerId?: number
+  subscriptionId?: number
   status?: string
   sortBy?: string
   sortOrder?: 'asc' | 'desc'
 }
 
-export const emailKeys = {
-  all: ['emails'] as const,
-  list: (params: EmailListParams) => ['emails', 'list', params] as const,
+export const emailBindingKeys = {
+  all: ['email-bindings'] as const,
+  list: (params: EmailBindingListParams) =>
+    ['email-bindings', 'list', params] as const,
 }
 
-export const emailProviderKeys = {
-  all: ['email-providers'] as const,
+export const subscriptionKeys = {
+  all: ['subscriptions'] as const,
 }
 
 export const customerKeys = {
   all: ['customers'] as const,
 }
 
-export function useEmailsQuery(params: EmailListParams) {
-  return useQuery<ListResult<EmailAccount>>({
-    queryKey: emailKeys.list(params),
-    queryFn: () => api.list<EmailAccount>('/emails', params),
+export function useEmailBindingsQuery(params: EmailBindingListParams) {
+  return useQuery<ListResult<EmailBinding>>({
+    queryKey: emailBindingKeys.list(params),
+    queryFn: () => api.list<EmailBinding>('/email-bindings', params),
     placeholderData: keepPreviousData,
   })
 }
 
-export function useCreateEmail() {
+export function useCreateEmailBinding() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: EmailAccountInput) =>
-      api.post<EmailAccount>('/emails', input),
+    mutationFn: (input: EmailBindingInput) =>
+      api.post<EmailBinding>('/email-bindings', input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: emailKeys.all })
+      void queryClient.invalidateQueries({ queryKey: emailBindingKeys.all })
     },
   })
 }
 
-export function useUpdateEmail() {
+export function useUpdateEmailBinding() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (vars: { id: number; input: Partial<EmailAccountInput> }) =>
-      api.patch<EmailAccount>(`/emails/${vars.id}`, vars.input),
+    mutationFn: (vars: { id: number; input: Partial<EmailBindingInput> }) =>
+      api.patch<EmailBinding>(`/email-bindings/${vars.id}`, vars.input),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: emailKeys.all })
+      void queryClient.invalidateQueries({ queryKey: emailBindingKeys.all })
     },
   })
 }
 
-export function useDeleteEmail() {
+export function useDeleteEmailBinding() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => api.delete<void>(`/emails/${id}`),
+    mutationFn: (id: number) => api.delete<void>(`/email-bindings/${id}`),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: emailKeys.all })
+      void queryClient.invalidateQueries({ queryKey: emailBindingKeys.all })
     },
   })
 }
 
-export function useBulkDeleteEmails() {
+export function useBulkDeleteEmailBindings() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: (ids: number[]) =>
-      api.post<{ deleted: number }>('/emails/bulk-delete', { ids }),
+      api.post<{ deleted: number }>('/email-bindings/bulk-delete', { ids }),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: emailKeys.all })
+      void queryClient.invalidateQueries({ queryKey: emailBindingKeys.all })
     },
   })
 }
 
-/** 邮箱提供商（下拉与管理弹窗共用） */
-export function useEmailProvidersQuery() {
-  return useQuery<ListResult<EmailProvider>>({
-    queryKey: [...emailProviderKeys.all, 'list'],
+/** 订阅下拉选项（绑定目标）；同时用于列表列的 id → 名称映射 */
+export function useSubscriptionOptionsQuery() {
+  return useQuery<ListResult<Subscription>>({
+    queryKey: [...subscriptionKeys.all, 'options'],
     queryFn: () =>
-      api.list<EmailProvider>('/email-providers', { page: 1, pageSize: 200 }),
-  })
-}
-
-export function useCreateEmailProvider() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (input: EmailProviderInput) =>
-      api.post<EmailProvider>('/email-providers', input),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: emailProviderKeys.all })
-    },
-  })
-}
-
-export function useDeleteEmailProvider() {
-  const queryClient = useQueryClient()
-  return useMutation({
-    mutationFn: (id: number) => api.delete<void>(`/email-providers/${id}`),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: emailProviderKeys.all })
-    },
+      api.list<Subscription>('/subscriptions', { page: 1, pageSize: 200 }),
   })
 }
 

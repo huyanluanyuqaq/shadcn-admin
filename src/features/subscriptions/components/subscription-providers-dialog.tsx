@@ -2,11 +2,7 @@ import { useState } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import {
-  type EmailProvider,
-  type EmailProviderInput,
-  emailProviderInputSchema,
-} from '@shared/index'
+import { type Pool, type PoolInput } from '@shared/index'
 import { Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -37,63 +33,71 @@ import {
 } from '@/components/ui/table'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import {
-  useCreateEmailProvider,
-  useDeleteEmailProvider,
-  useEmailProvidersQuery,
-} from '../queries'
+  useCreateSubscriptionPool,
+  useDeleteSubscriptionPool,
+  usePoolOptions,
+} from '../api'
+import { getErrorMessage } from '../utils'
 
-const providerFormSchema = emailProviderInputSchema.extend({
-  domain: z.string().nullable(),
-  remark: z.string().nullable(),
+/**
+ * 提供商（机场）新增表单。
+ *
+ * 数据落在既有的 `subscription_pool` 表（复用其 CRUD 接口）。
+ * UI 只要求「名称」——`url` 已由 `poolInputSchema` 提供空串默认值，
+ * 该字段在界面上不暴露、也不参与业务语义。
+ */
+const providerFormSchema = z.object({
+  name: z.string().min(1, '名称不能为空'),
 })
 type ProviderForm = z.infer<typeof providerFormSchema>
 
-type EmailProvidersDialogProps = {
+type SubscriptionProvidersDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
-export function EmailProvidersDialog({
+export function SubscriptionProvidersDialog({
   open,
   onOpenChange,
-}: EmailProvidersDialogProps) {
-  const [deleting, setDeleting] = useState<EmailProvider | null>(null)
-  const providersQuery = useEmailProvidersQuery()
-  const createProvider = useCreateEmailProvider()
-  const deleteProvider = useDeleteEmailProvider()
+}: SubscriptionProvidersDialogProps) {
+  const [deleting, setDeleting] = useState<Pool | null>(null)
+  const poolsQuery = usePoolOptions()
+  const createPool = useCreateSubscriptionPool()
+  const deletePool = useDeleteSubscriptionPool()
 
   const form = useForm<ProviderForm>({
     resolver: zodResolver(providerFormSchema),
-    defaultValues: { name: '', domain: '', remark: '' },
+    defaultValues: { name: '' },
   })
 
   const onSubmit = (values: ProviderForm) => {
-    const payload: EmailProviderInput = {
+    const payload: PoolInput = {
       name: values.name.trim(),
-      domain: values.domain?.trim() ? values.domain : null,
-      remark: values.remark?.trim() ? values.remark : null,
+      // 表单不暴露该字段；空串表示「尚未登记落地地址」，与库中 NOT NULL 列对齐
+      url: '',
+      remark: null,
     }
-    createProvider.mutate(payload, {
+    createPool.mutate(payload, {
       onSuccess: () => {
         toast.success('提供商已创建')
         form.reset()
       },
       onError: (error) => {
-        toast.error(error.message || '创建失败')
+        toast.error(getErrorMessage(error, '创建失败'))
       },
     })
   }
 
-  const items = providersQuery.data?.items ?? []
+  const items = poolsQuery.data?.items ?? []
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className='sm:max-w-2xl'>
+        <DialogContent className='sm:max-w-xl'>
           <DialogHeader className='text-start'>
-            <DialogTitle>邮箱提供商管理</DialogTitle>
+            <DialogTitle>订阅提供商管理</DialogTitle>
             <DialogDescription>
-              管理邮箱所属的提供商，创建邮箱账号时可从中选择。
+              管理机场提供商，新增订阅时可从「订阅池」中选择归属。
             </DialogDescription>
           </DialogHeader>
 
@@ -102,38 +106,30 @@ export function EmailProvidersDialog({
               <TableHeader>
                 <TableRow>
                   <TableHead>名称</TableHead>
-                  <TableHead>域名</TableHead>
-                  <TableHead>备注</TableHead>
                   <TableHead className='w-16 text-end'>操作</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {providersQuery.isPending ? (
+                {poolsQuery.isPending ? (
                   Array.from({ length: 3 }).map((_, index) => (
                     <TableRow key={`provider-skeleton-${index}`}>
-                      <TableCell colSpan={4}>
+                      <TableCell colSpan={2}>
                         <Skeleton className='h-5 w-full' />
                       </TableCell>
                     </TableRow>
                   ))
                 ) : items.length ? (
-                  items.map((provider) => (
-                    <TableRow key={provider.id}>
-                      <TableCell className='font-medium'>
-                        {provider.name}
-                      </TableCell>
-                      <TableCell>{provider.domain ?? '-'}</TableCell>
-                      <TableCell className='text-muted-foreground'>
-                        {provider.remark ?? '-'}
-                      </TableCell>
+                  items.map((pool) => (
+                    <TableRow key={pool.id}>
+                      <TableCell className='font-medium'>{pool.name}</TableCell>
                       <TableCell className='text-end'>
                         <Button
                           variant='ghost'
                           size='icon'
                           className='size-8 text-destructive'
-                          onClick={() => setDeleting(provider)}
-                          aria-label={`删除 ${provider.name}`}
-                          title={`删除 ${provider.name}`}
+                          onClick={() => setDeleting(pool)}
+                          aria-label={`删除 ${pool.name}`}
+                          title={`删除 ${pool.name}`}
                         >
                           <Trash2 />
                         </Button>
@@ -142,7 +138,7 @@ export function EmailProvidersDialog({
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={4} className='h-24 text-center'>
+                    <TableCell colSpan={2} className='h-24 text-center'>
                       暂无提供商
                     </TableCell>
                   </TableRow>
@@ -153,9 +149,9 @@ export function EmailProvidersDialog({
 
           <Form {...form}>
             <form
-              id='email-provider-form'
+              id='subscription-provider-form'
               onSubmit={form.handleSubmit(onSubmit)}
-              className='grid gap-3 sm:grid-cols-[2fr_2fr_2fr_auto]'
+              className='grid gap-3 sm:grid-cols-[2fr_auto]'
             >
               <FormField
                 control={form.control}
@@ -164,41 +160,7 @@ export function EmailProvidersDialog({
                   <FormItem className='space-y-1'>
                     <FormLabel>名称</FormLabel>
                     <FormControl>
-                      <Input placeholder='例如：Gmail' {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='domain'
-                render={({ field }) => (
-                  <FormItem className='space-y-1'>
-                    <FormLabel>域名</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder='gmail.com'
-                        {...field}
-                        value={field.value ?? ''}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='remark'
-                render={({ field }) => (
-                  <FormItem className='space-y-1'>
-                    <FormLabel>备注</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder='可选'
-                        {...field}
-                        value={field.value ?? ''}
-                      />
+                      <Input placeholder='例如：Nyaa' {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -208,10 +170,10 @@ export function EmailProvidersDialog({
                 <FormLabel className='invisible'>&nbsp;</FormLabel>
                 <Button
                   type='submit'
-                  form='email-provider-form'
-                  disabled={createProvider.isPending}
+                  form='subscription-provider-form'
+                  disabled={createPool.isPending}
                 >
-                  {createProvider.isPending ? '添加中...' : '添加'}
+                  {createPool.isPending ? '添加中...' : '添加'}
                 </Button>
               </FormItem>
             </form>
@@ -224,24 +186,24 @@ export function EmailProvidersDialog({
         onOpenChange={(state) => setDeleting(state ? deleting : null)}
         handleConfirm={() => {
           if (!deleting) return
-          deleteProvider.mutate(deleting.id, {
+          deletePool.mutate(deleting.id, {
             onSuccess: () => {
               toast.success('提供商已删除')
               setDeleting(null)
             },
             onError: (error) => {
-              toast.error(error.message || '删除失败')
+              toast.error(getErrorMessage(error, '删除失败'))
             },
           })
         }}
-        isLoading={deleteProvider.isPending}
+        isLoading={deletePool.isPending}
         title='删除提供商'
         desc={
           <p>
             确定要删除提供商 <span className='font-bold'>{deleting?.name}</span>{' '}
             吗？
             <br />
-            该操作不可撤销。
+            已绑定该提供商的订阅将变为「不绑定」，订阅本身不会被删除。
           </p>
         }
         confirmText='删除'

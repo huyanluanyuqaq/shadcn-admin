@@ -138,8 +138,7 @@ shadcn-admin/
 | `categories` | 客户分类 | name |
 | `subscriptions` | 订阅链接 | url, customer_id, pool_id, traffic_total/used, expire_at, **cron_expr, last_run_at, next_run_at, sync_status, last_error, user_agent, headers(json), skip_tls_verify, proxy_url** |
 | `subscription_pool` | 订阅池 | name, url, remark |
-| `email_accounts` | 邮箱账号 | email, password, provider_id, customer_id, status |
-| `email_providers` | 邮箱提供商 | name, domain, remark |
+| `email_bindings` | **邮箱与订阅的绑定关系**（非邮箱账号） | email(唯一), subscription_id(级联), status, remark |
 | `reminders` | 到期提醒（通知源） | customer_id, type, remind_at, is_read |
 | `logs` | 日志（操作 + 定时任务） | level, module, message, created_at |
 | `settings` | 系统配置 | key, value |
@@ -147,6 +146,17 @@ shadcn-admin/
 
 **说明：** 用户已确认「用户管理 = 订阅客户管理」，因此**不引入多用户 RBAC**。
 `admins` 表仅支撑单管理员登录，保留未来扩展为角色的字段空间，但首期不实现角色。
+
+**邮箱模块语义（2026-10-10 用户确认修正）：**
+`email_bindings` 表记录的**不是邮箱账号**，而是「某个邮箱地址绑定到哪条订阅」这一关系。
+因此该表**不存**密码、提供商（邮箱服务商）与客户：
+
+- `email` 建唯一索引 —— 一对一，同一邮箱同一时间只属于一条订阅
+- `subscription_id` 外键 `ON DELETE CASCADE` —— 订阅删除则绑定自动失效
+- 客户归属由 `subscriptions.customer_id` 承载，不在绑定侧冗余存储
+- 原 `email_providers` / `email_accounts` 两张表已由迁移 `0001_email_bindings` 删除；
+  旧表中的邮箱地址会被原样搬入新表，但 `subscription_id` 留空（旧数据只有 `customer_id`，
+  一个客户可有多条订阅，无法可靠推断），需在界面补绑
 
 **订阅表同步字段说明**（参照 sublinkPro 的 `airports` 表设计）：
 每条订阅自持 `cron_expr`，调度器逐条注册 job 并支持热重载；

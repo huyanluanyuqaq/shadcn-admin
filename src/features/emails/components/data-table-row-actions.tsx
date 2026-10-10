@@ -1,6 +1,6 @@
 import { DotsHorizontalIcon } from '@radix-ui/react-icons'
 import { type Row } from '@tanstack/react-table'
-import { type EmailAccount } from '@shared/index'
+import { type EmailBinding } from '@shared/index'
 import { Pencil, Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -14,7 +14,7 @@ import {
 import { useEmails } from './emails-provider'
 
 type DataTableRowActionsProps = {
-  row: Row<EmailAccount>
+  row: Row<EmailBinding>
 }
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {

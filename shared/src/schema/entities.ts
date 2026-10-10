@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { customerStatusSchema, emailAccountStatusSchema, planStatusSchema, syncStatusSchema } from './enums.js'
+import { customerStatusSchema, emailBindingStatusSchema, planStatusSchema, syncStatusSchema } from './enums.js'
 
 /**
  * 领域实体的 zod schema 与类型。
@@ -77,11 +77,18 @@ export const customerSchema = customerInputSchema.extend({
 export type CustomerInput = z.infer<typeof customerInputSchema>
 export type Customer = z.infer<typeof customerSchema>
 
-// ---------- 订阅池 ----------
+// ---------- 订阅池（机场提供商） ----------
 
+/**
+ * 订阅池在本系统中即「机场提供商」：订阅按机场归类，便于批量管理与统计。
+ *
+ * `url` 为可选：新增机场时通常只登记名称，落地地址可后续补充。
+ * 该列在数据库中为 `NOT NULL`，写入时空值统一归一为**空串**而非 null，
+ * 以避免 SQLite 与 zod 两层对 null 的理解分歧。
+ */
 export const poolInputSchema = z.object({
   name: z.string().min(1, '名称不能为空'),
-  url: z.string().min(1, '订阅地址不能为空'),
+  url: z.string().default(''),
   remark: z.string().nullable().optional(),
 })
 export const poolSchema = poolInputSchema.extend({
@@ -151,34 +158,29 @@ export type BatchSyncResult = z.infer<typeof batchSyncResultSchema>
 
 // ---------- 邮箱 ----------
 
-export const emailProviderInputSchema = z.object({
-  name: z.string().min(1, '名称不能为空'),
-  domain: z.string().nullable().optional(),
+/**
+ * 邮箱与订阅的绑定关系。
+ *
+ * 语义（2026-10-10 用户确认）：本模块**不是邮箱账号管理**，
+ * 而是记录「某个邮箱地址绑定到哪条订阅」这一关系。
+ * - 一对一：`email` 建唯一索引，同一邮箱同一时间只属于一条订阅
+ * - 不存密码 / 提供商 / 客户：邮箱仅作为订阅的归属标识；
+ *   客户归属由 `subscriptions.customerId` 承载，不再冗余
+ */
+export const emailBindingInputSchema = z.object({
+  email: z.string().email('邮箱格式不正确'),
+  /** 绑定的订阅；为空表示暂未绑定（允许先建邮箱后补订阅） */
+  subscriptionId: idSchema.nullable().optional(),
+  status: emailBindingStatusSchema.default('active'),
   remark: z.string().nullable().optional(),
 })
-export const emailProviderSchema = emailProviderInputSchema.extend({
+export const emailBindingSchema = emailBindingInputSchema.extend({
   id: idSchema,
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 })
-export type EmailProviderInput = z.infer<typeof emailProviderInputSchema>
-export type EmailProvider = z.infer<typeof emailProviderSchema>
-
-export const emailAccountInputSchema = z.object({
-  email: z.string().min(1, '邮箱不能为空'),
-  password: z.string().nullable().optional(),
-  providerId: idSchema.nullable().optional(),
-  customerId: idSchema.nullable().optional(),
-  status: emailAccountStatusSchema.default('active'),
-  remark: z.string().nullable().optional(),
-})
-export const emailAccountSchema = emailAccountInputSchema.extend({
-  id: idSchema,
-  createdAt: z.number().int(),
-  updatedAt: z.number().int(),
-})
-export type EmailAccountInput = z.infer<typeof emailAccountInputSchema>
-export type EmailAccount = z.infer<typeof emailAccountSchema>
+export type EmailBindingInput = z.infer<typeof emailBindingInputSchema>
+export type EmailBinding = z.infer<typeof emailBindingSchema>
 
 // ---------- 提醒 / 通知 ----------
 

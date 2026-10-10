@@ -1,12 +1,12 @@
-import { EmailsActionDialog } from './emails-action-dialog'
-import { EmailsDeleteDialog } from './emails-delete-dialog'
+import { EmailBindingActionDialog } from './emails-action-dialog'
+import { EmailBindingDeleteDialog } from './emails-delete-dialog'
 import { useEmails } from './emails-provider'
 
 export function EmailsDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useEmails()
   return (
     <>
-      <EmailsActionDialog
+      <EmailBindingActionDialog
         key='email-add'
         open={open === 'add'}
         onOpenChange={() => setOpen('add')}
@@ -14,7 +14,7 @@ export function EmailsDialogs() {
 
       {currentRow && (
         <>
-          <EmailsActionDialog
+          <EmailBindingActionDialog
             key={`email-edit-${currentRow.id}`}
             open={open === 'edit'}
             onOpenChange={() => {
@@ -26,7 +26,7 @@ export function EmailsDialogs() {
             currentRow={currentRow}
           />
 
-          <EmailsDeleteDialog
+          <EmailBindingDeleteDialog
             key={`email-delete-${currentRow.id}`}
             open={open === 'delete'}
             onOpenChange={() => {

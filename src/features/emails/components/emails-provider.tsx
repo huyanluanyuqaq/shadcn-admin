@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { type EmailAccount } from '@shared/index'
+import { type EmailBinding } from '@shared/index'
 import useDialogState from '@/hooks/use-dialog-state'
 
 type EmailsDialogType = 'add' | 'edit' | 'delete'
@@ -7,15 +7,15 @@ type EmailsDialogType = 'add' | 'edit' | 'delete'
 type EmailsContextType = {
   open: EmailsDialogType | null
   setOpen: (str: EmailsDialogType | null) => void
-  currentRow: EmailAccount | null
-  setCurrentRow: React.Dispatch<React.SetStateAction<EmailAccount | null>>
+  currentRow: EmailBinding | null
+  setCurrentRow: React.Dispatch<React.SetStateAction<EmailBinding | null>>
 }
 
 const EmailsContext = React.createContext<EmailsContextType | null>(null)
 
 export function EmailsProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useDialogState<EmailsDialogType>(null)
-  const [currentRow, setCurrentRow] = useState<EmailAccount | null>(null)
+  const [currentRow, setCurrentRow] = useState<EmailBinding | null>(null)
 
   return (
     <EmailsContext value={{ open, setOpen, currentRow, setCurrentRow }}>

@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { index, integer, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 /**
- * 首期数据模型（11 张表），对应架构总览 §5。
+ * 数据模型（10 张表），对应架构总览 §5。
  *
  * 约定：
  * - 时间列统一为 integer + timestamp_ms（毫秒）
@@ -115,28 +115,34 @@ export const subscriptions = sqliteTable(
   ],
 )
 
-/** 邮箱提供商 */
-export const emailProviders = sqliteTable('email_providers', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  name: text('name').notNull(),
-  domain: text('domain'),
-  remark: text('remark'),
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
-  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
-})
-
-/** 邮箱账号 */
-export const emailAccounts = sqliteTable('email_accounts', {
-  id: integer('id').primaryKey({ autoIncrement: true }),
-  email: text('email').notNull(),
-  password: text('password'),
-  providerId: integer('provider_id').references(() => emailProviders.id, { onDelete: 'set null' }),
-  customerId: integer('customer_id').references(() => customers.id, { onDelete: 'set null' }),
-  status: text('status').notNull().default('active'),
-  remark: text('remark'),
-  createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
-  updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
-})
+/**
+ * 邮箱与订阅的绑定关系。
+ *
+ * 语义（2026-10-10 用户确认）：本表**不是邮箱账号表**，只记录
+ * 「邮箱地址 → 绑定哪条订阅」。因此不存密码 / 提供商 / 客户：
+ * 客户归属由 `subscriptions.customer_id` 承载。
+ *
+ * - `email` 唯一：同一邮箱同一时间只属于一条订阅（一对一）
+ * - `subscription_id` 外键级联删除：订阅被删则绑定随之失效
+ */
+export const emailBindings = sqliteTable(
+  'email_bindings',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    email: text('email').notNull().unique(),
+    subscriptionId: integer('subscription_id').references(() => subscriptions.id, {
+      onDelete: 'cascade',
+    }),
+    status: text('status').notNull().default('active'),
+    remark: text('remark'),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+  },
+  (t) => [
+    index('idx_email_bindings_subscription_id').on(t.subscriptionId),
+    index('idx_email_bindings_status').on(t.status),
+  ],
+)
 
 /** 到期提醒（通知源） */
 export const reminders = sqliteTable('reminders', {
