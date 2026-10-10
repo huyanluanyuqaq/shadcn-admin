@@ -67,8 +67,8 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/subscription-admin
           tags: |
-            # 仅默认分支打 latest
-            type=raw,value=latest,enable={{is_default_branch}}
+            # 每次成功构建都打 latest（无条件，稳定可预测，便于 docker pull :latest）
+            type=raw,value=latest
             # 提交短 SHA，便于追溯
             type=sha,format=short
             # 打 Git tag（vX.Y.Z）时发布版本号镜像。
