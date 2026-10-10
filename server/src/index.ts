@@ -44,8 +44,11 @@ app.route('/api/settings', settingRoutes)
 
 app.notFound((c) => {
   if (c.req.path.startsWith('/api')) return c.json({ error: 'Not Found', path: c.req.path }, 404)
-  // 其他路径交给前端 SPA 处理
-  return c.notFound()
+  // 非 API 路径：生产环境由上方的 serveStatic + SPA 回退处理，
+  // 开发环境由 Vite dev server 处理，此处直接返回纯 404。
+  // 注意：不可调用 c.notFound()——会重新进入本处理函数造成无限递归，
+  // 最终以 500「Maximum call stack size exceeded」收场（2026-10-10 修复）。
+  return c.text('Not Found', 404)
 })
 
 // —— 静态托管前端产物（生产环境；开发时该目录可能不存在）——

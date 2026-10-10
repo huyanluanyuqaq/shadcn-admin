@@ -14,6 +14,10 @@ export type EmailBindingRelationMaps = {
   customerIdBySubscription: Map<number, number | null>
   /** customerId → 客户名 */
   customerNames: Map<number, string>
+  /** poolId → 供应商名 */
+  poolNames: Map<number, string>
+  /** subscriptionId → 订阅链接（所绑订阅的 url 派生） */
+  subscriptionUrls: Map<number, string>
 }
 
 /** subscriptionId 以字符串形式暴露给筛选器（值来自下拉选项） */
@@ -65,6 +69,26 @@ export function getEmailBindingColumns(
       enableHiding: false,
     },
     {
+      id: 'poolId',
+      accessorFn: (row) => (row.poolId === null ? '' : String(row.poolId)),
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title='供应商' />
+      ),
+      cell: ({ row }) => {
+        const poolId = row.original.poolId
+        if (poolId == null) {
+          return <span className='text-muted-foreground'>未指定</span>
+        }
+        return (
+          <div className='truncate'>
+            {maps.poolNames.get(poolId) ?? `#${poolId}`}
+          </div>
+        )
+      },
+      meta: { className: 'w-32' },
+      enableSorting: false,
+    },
+    {
       id: 'subscriptionId',
       accessorFn: (row) =>
         row.subscriptionId === null ? '' : String(row.subscriptionId),
@@ -84,6 +108,29 @@ export function getEmailBindingColumns(
         )
       },
       meta: { className: 'w-44' },
+      enableSorting: false,
+    },
+    {
+      id: 'subscriptionUrl',
+      accessorFn: (row) => {
+        const id = row.subscriptionId
+        return id == null ? '' : (maps.subscriptionUrls.get(id) ?? '')
+      },
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title='订阅链接' />
+      ),
+      cell: ({ row }) => {
+        const id = row.original.subscriptionId
+        if (id == null) {
+          return <span className='text-muted-foreground'>-</span>
+        }
+        const url = maps.subscriptionUrls.get(id)
+        return url ? (
+          <LongText className='max-w-56'>{url}</LongText>
+        ) : (
+          <span className='text-muted-foreground'>-</span>
+        )
+      },
       enableSorting: false,
     },
     {

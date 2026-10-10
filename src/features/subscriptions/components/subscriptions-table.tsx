@@ -187,7 +187,7 @@ export function SubscriptionsTable() {
           },
           {
             columnId: 'poolId',
-            title: '订阅池',
+            title: '供应商',
             options: filterOptions.poolId,
           },
         ]}

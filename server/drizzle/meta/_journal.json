@@ -15,6 +15,55 @@
       "when": 1791607242410,
       "tag": "0001_email_bindings",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1791620166001,
+      "tag": "0002_charming_green_goblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1791620211720,
+      "tag": "0003_fat_omega_flight",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1791621489401,
+      "tag": "0004_curly_hellfire_club",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1791622615345,
+      "tag": "0005_early_morgan_stark",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1791631849599,
+      "tag": "0006_glorious_shotgun",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1791638694138,
+      "tag": "0007_panoramic_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1791643098106,
+      "tag": "0008_furry_micromacro",
+      "breakpoints": true
     }
   ]
 }

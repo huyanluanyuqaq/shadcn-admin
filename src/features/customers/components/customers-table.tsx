@@ -28,9 +28,9 @@ import {
 import { DataTablePagination, DataTableToolbar } from '@/components/data-table'
 import {
   type CustomerListParams,
-  useCategoryOptions,
   useCustomersQuery,
   usePlanOptions,
+  useSupplierOptions,
 } from '../api'
 import { customerStatusOptions } from '../data/schema'
 import { useDebouncedValue } from '../hooks'
@@ -64,7 +64,7 @@ export function CustomersTable() {
     pageSize: pagination.pageSize,
     q: keyword,
     status: readArrayFilter(columnFilters, 'status'),
-    categoryId: readArrayFilter(columnFilters, 'categoryId'),
+    poolId: readArrayFilter(columnFilters, 'poolId'),
     planId: readArrayFilter(columnFilters, 'planId'),
     sortBy: sorting[0]?.id,
     sortOrder: sorting[0] ? (sorting[0].desc ? 'desc' : 'asc') : undefined,
@@ -72,26 +72,26 @@ export function CustomersTable() {
 
   const { data, isPending, isError, error, refetch, isFetching } =
     useCustomersQuery(params)
-  const categories = useCategoryOptions()
+  const suppliers = useSupplierOptions()
   const plans = usePlanOptions()
 
   const columns = useMemo(
     () =>
       getCustomersColumns({
-        categoryNameById: new Map(
-          (categories.data?.items ?? []).map((item) => [item.id, item.name])
+        poolNameById: new Map(
+          (suppliers.data?.items ?? []).map((item) => [item.id, item.name])
         ),
         planNameById: new Map(
           (plans.data?.items ?? []).map((item) => [item.id, item.name])
         ),
       }),
-    [categories.data, plans.data]
+    [suppliers.data, plans.data]
   )
 
   const filterOptions = useMemo(
     () => ({
       status: customerStatusOptions.map((item) => ({ ...item })),
-      categoryId: (categories.data?.items ?? []).map((item) => ({
+      poolId: (suppliers.data?.items ?? []).map((item) => ({
         label: item.name,
         value: String(item.id),
       })),
@@ -100,7 +100,7 @@ export function CustomersTable() {
         value: String(item.id),
       })),
     }),
-    [categories.data, plans.data]
+    [suppliers.data, plans.data]
   )
 
   // 变更筛选条件时回到第一页（服务端分页，页码由我们自行维护）
@@ -169,9 +169,9 @@ export function CustomersTable() {
         filters={[
           { columnId: 'status', title: '状态', options: filterOptions.status },
           {
-            columnId: 'categoryId',
-            title: '分类',
-            options: filterOptions.categoryId,
+            columnId: 'poolId',
+            title: '供应商',
+            options: filterOptions.poolId,
           },
           { columnId: 'planId', title: '套餐', options: filterOptions.planId },
         ]}

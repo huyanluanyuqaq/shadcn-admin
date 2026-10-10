@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { format } from 'date-fns'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import type { Customer } from '@shared/index'
+import { type Customer, type Subscription, planTiers } from '@shared/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
@@ -37,17 +37,32 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { useSyncEmailBinding } from '@/features/emails/queries'
 import {
-  useCategoryOptions,
+  useCreateSubscription,
+  useSubscriptionOptions,
+  useUpdateSubscription,
+} from '@/features/subscriptions/api'
+import { CRON_HINT, DEFAULT_CRON } from '@/features/subscriptions/data/schema'
+import {
   useCreateCustomer,
   usePlanOptions,
+  useSubscriptionPreview,
+  useSupplierOptions,
   useUpdateCustomer,
 } from '../api'
 import {
+  buildSubscriptionInput,
+  computeExpireAt,
   customerFormSchema,
   customerStatusOptions,
   emptyCustomerForm,
+  GB,
+  parsePlanValue,
+  resolveProviderName,
+  subscriptionFieldsFrom,
   toCustomerForm,
   toCustomerInput,
   type CustomerForm,
@@ -62,25 +77,39 @@ type Props = {
 
 type Option = { label: string; value: string }
 
+/** 三大部分的分区标题卡片 */
+function FormSection({
+  title,
+  children,
+}: {
+  title: string
+  children: ReactNode
+}) {
+  return (
+    <section className='space-y-3 rounded-lg border p-4'>
+      <h3 className='text-sm font-medium'>{title}</h3>
+      <div className='space-y-3'>{children}</div>
+    </section>
+  )
+}
+
 function SelectField({
   value,
   onChange,
   items,
   placeholder,
   disabled,
-  className,
 }: {
   value: string
   onChange: (value: string) => void
   items: Option[]
   placeholder: string
   disabled?: boolean
-  className?: string
 }) {
   return (
     <Select value={value} onValueChange={onChange} disabled={disabled}>
       <FormControl>
-        <SelectTrigger className={cn(className)}>
+        <SelectTrigger className='w-full'>
           <SelectValue placeholder={placeholder} />
         </SelectTrigger>
       </FormControl>
@@ -101,12 +130,19 @@ export function CustomersActionDialog({
   currentRow,
 }: Props) {
   const isEdit = !!currentRow
+  const [purchaseOpen, setPurchaseOpen] = useState(false)
   const [expireOpen, setExpireOpen] = useState(false)
 
   const createCustomer = useCreateCustomer()
   const updateCustomer = useUpdateCustomer()
-  const categories = useCategoryOptions()
+  const suppliers = useSupplierOptions()
   const plans = usePlanOptions()
+  const fetchPreview = useSubscriptionPreview()
+  // 订阅管理全量列表：① 按 URL 匹配决定保存时创建/更新 ② 编辑模式「从订阅管理获取」
+  const subscriptionOptions = useSubscriptionOptions()
+  const createSubscription = useCreateSubscription()
+  const updateSubscription = useUpdateSubscription()
+  const syncEmailBinding = useSyncEmailBinding()
 
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerFormSchema),
@@ -119,38 +155,276 @@ export function CustomersActionDialog({
     form.reset(currentRow ? toCustomerForm(currentRow) : emptyCustomerForm())
   }, [open, currentRow, form])
 
-  const isPending = createCustomer.isPending || updateCustomer.isPending
+  const isPending =
+    createCustomer.isPending ||
+    updateCustomer.isPending ||
+    createSubscription.isPending ||
+    updateSubscription.isPending ||
+    syncEmailBinding.isPending
 
-  const categoryItems: Option[] = [
+  const supplierItems: Option[] = [
     { label: '不设置', value: '0' },
-    ...(categories.data?.items ?? []).map((item) => ({
+    ...(suppliers.data?.items ?? []).map((item) => ({
       label: item.name,
       value: String(item.id),
     })),
   ]
+  /**
+   * 套餐下拉：与套餐的四档周期定价联动。
+   * 每个套餐按「有价格的档位」展开为多项（普通套餐 · 月付（30 天）…）；
+   * 四档都没有价格的套餐（如 API 直建的老数据）退化为纯名称项。
+   */
   const planItems: Option[] = [
     { label: '不设置', value: '0' },
-    ...(plans.data?.items ?? []).map((item) => ({
-      label: item.name,
-      value: String(item.id),
-    })),
+    ...(plans.data?.items ?? []).flatMap((item) => {
+      const available = planTiers.filter((tier) => item[tier.priceKey] != null)
+      if (available.length === 0) {
+        return [{ label: item.name, value: `${item.id}:` }]
+      }
+      return available.map((tier) => ({
+        label: `${item.name} · ${tier.label}（${tier.days} 天）`,
+        value: `${item.id}:${tier.value}`,
+      }))
+    }),
   ]
+
+  // 编辑兜底：已存值不在可选项时（套餐后来取消了该档位，或老客户未指定档位），
+  // 补一项原值，避免下拉回退到占位符让人误以为未选择（提交时原值仍会保留）
+  if (isEdit && currentRow?.planId) {
+    const saved = `${currentRow.planId}:${currentRow.planTier ?? ''}`
+    if (!planItems.some((item) => item.value === saved)) {
+      const planName =
+        plans.data?.items.find((p) => p.id === currentRow.planId)?.name ??
+        `套餐 #${currentRow.planId}`
+      planItems.push({ label: planName, value: saved })
+    }
+  }
+
+  // —— 订阅信息联动 ——
+  const planValue = useWatch({ control: form.control, name: 'plan' })
+  const purchasedAt = useWatch({ control: form.control, name: 'purchasedAt' })
+  const { planId, planTier } = parsePlanValue(planValue)
+  const selectedPlan =
+    plans.data?.items.find((item) => item.id === planId) ?? null
+  const selectedTier = planTiers.find((t) => t.value === planTier) ?? null
+  /** 购买时间 + 档位周期时长 → 自动到期时间 */
+  const autoExpireAt = computeExpireAt(purchasedAt, selectedTier?.days)
+  const autoExpireMs = autoExpireAt?.getTime() ?? null
+  const planTrafficLimit = selectedPlan?.trafficLimit ?? null
+
+  // 到期时间自动物化到表单（提交值）；手动模式下不干预
+  useEffect(() => {
+    if (autoExpireMs === null) return
+    const current = form.getValues('expireAt')
+    if (current && current.getTime() === autoExpireMs) return
+    form.setValue('expireAt', new Date(autoExpireMs), { shouldDirty: true })
+  }, [autoExpireMs, form])
+
+  // 选了套餐且月流量为空时，用套餐的月流量上限自动填充（不覆盖已填值）
+  useEffect(() => {
+    if (!planTrafficLimit) return
+    if (form.getValues('trafficMonthlyGb') !== '') return
+    form.setValue(
+      'trafficMonthlyGb',
+      String(Number((planTrafficLimit / GB).toFixed(2)))
+    )
+  }, [planTrafficLimit, form])
+
+  // —— 订阅链接：与订阅管理联动 ——
+  const subscriptionItems = subscriptionOptions.data?.items ?? []
+  /** 编辑模式：按客户已存订阅链接匹配订阅管理中的记录 */
+  const matchedSub =
+    isEdit && currentRow?.subscriptionUrl
+      ? subscriptionItems.find((s) => s.url === currentRow.subscriptionUrl)
+      : undefined
+  const matchedSubRef = useRef<Subscription | undefined>(undefined)
+  useEffect(() => {
+    matchedSubRef.current = matchedSub
+  }, [matchedSub])
+  const matchedSubKey = matchedSub
+    ? `${matchedSub.id}:${matchedSub.updatedAt}`
+    : ''
+  const appliedSubKeyRef = useRef('')
+
+  // 订阅列表到位后，把匹配订阅的配置补入第三部分（不清空用户已填的其他字段；
+  // 对话框关闭时重置守卫，保证下次打开同一客户也会重新预填）
+  useEffect(() => {
+    if (!open) {
+      appliedSubKeyRef.current = ''
+      return
+    }
+    if (!isEdit || !currentRow) return
+    if (appliedSubKeyRef.current === matchedSubKey) return
+    const sub = matchedSubRef.current
+    if (!sub) return
+    appliedSubKeyRef.current = matchedSubKey
+    form.reset({
+      ...form.getValues(),
+      ...subscriptionFieldsFrom(sub),
+    })
+  }, [open, isEdit, currentRow, matchedSubKey, form])
+
+  // 订阅名称默认拉取供应商名：取客户供应商（基本信息）对应的供应商名称
+  const customerPoolId = useWatch({ control: form.control, name: 'poolId' })
+  const providerPools = suppliers.data?.items ?? []
+  const providerName = resolveProviderName(customerPoolId, providerPools)
+
+  // 订阅名称留空时自动填充供应商名（不清空用户已填值，与月流量自动填充同思路；
+  // 不依赖名称值本身做依赖，用户主动清空后不会被重新填回）
+  useEffect(() => {
+    if (!providerName) return
+    if (form.getValues('subscriptionName') !== '') return
+    form.setValue('subscriptionName', providerName, { shouldDirty: true })
+  }, [providerName, form])
+
+  const subscriptionUrl = useWatch({
+    control: form.control,
+    name: 'subscriptionUrl',
+  })
+  const subscriptionExpireAt = useWatch({
+    control: form.control,
+    name: 'subscriptionExpireAt',
+  })
+  /** 输入的链接是否已存在于订阅管理（保存时将更新而非新建） */
+  const urlMatch = subscriptionUrl.trim()
+    ? subscriptionItems.find((s) => s.url === subscriptionUrl.trim())
+    : undefined
+
+  const handleFetchPreview = async () => {
+    const url = form.getValues('subscriptionUrl').trim()
+    if (!url) {
+      toast.error('请先输入订阅链接')
+      return
+    }
+    try {
+      const preview = await fetchPreview.mutateAsync(url)
+      form.setValue(
+        'subscriptionExpireAt',
+        preview.expireAt ? new Date(preview.expireAt) : null,
+        { shouldDirty: true }
+      )
+      if (preview.expireAt) {
+        toast.success(
+          `已获取订阅到期时间：${format(new Date(preview.expireAt), 'yyyy-MM-dd')}`
+        )
+      } else {
+        toast.success('拉取成功，但该订阅未提供到期时间')
+      }
+    } catch (error) {
+      toast.error(getErrorMessage(error))
+    }
+  }
+
+  const applySubscription = (sub: Subscription) => {
+    form.setValue('subscriptionUrl', sub.url, { shouldDirty: true })
+    form.setValue(
+      'subscriptionExpireAt',
+      sub.expireAt ? new Date(sub.expireAt) : null,
+      { shouldDirty: true }
+    )
+    form.reset({
+      ...form.getValues(),
+      ...subscriptionFieldsFrom(sub),
+    })
+    toast.success(`已填入订阅：${sub.name || sub.url}`)
+  }
+
+  /**
+   * 保存客户后，把第三部分的订阅信息实时同步到订阅管理：
+   * - 填了链接且订阅管理中已有该 URL → 更新对应订阅（含更换链接、改配置）
+   * - 填了链接但未登记 → 创建订阅并绑定到该客户
+   * - 清空了链接 → 解除原订阅与客户的关联（不删除订阅本身）
+   *
+   * 返回本次落到的那条订阅（id 与供应商快照），供邮箱绑定同步使用；
+   * skipped/unlinked 时 subscriptionId 为 null。
+   */
+  const syncSubscription = async (
+    customer: Customer,
+    values: CustomerForm
+  ): Promise<{
+    action: 'created' | 'updated' | 'unlinked' | 'skipped'
+    subscriptionId: number | null
+    poolId: number | null
+  }> => {
+    const url = values.subscriptionUrl.trim()
+    const target = url
+      ? subscriptionItems.find((s) => s.url === url)
+      : currentRow?.subscriptionUrl
+        ? subscriptionItems.find((s) => s.url === currentRow.subscriptionUrl)
+        : undefined
+    if (url) {
+      const payload = buildSubscriptionInput(
+        values,
+        customer,
+        target,
+        providerName
+      )
+      if (target) {
+        await updateSubscription.mutateAsync({ id: target.id, input: payload })
+        return {
+          action: 'updated',
+          subscriptionId: target.id,
+          poolId: payload.poolId ?? null,
+        }
+      }
+      const created = await createSubscription.mutateAsync(payload)
+      return {
+        action: 'created',
+        subscriptionId: created.id,
+        poolId: payload.poolId ?? null,
+      }
+    }
+    if (target) {
+      await updateSubscription.mutateAsync({
+        id: target.id,
+        input: { customerId: null },
+      })
+      return { action: 'unlinked', subscriptionId: null, poolId: null }
+    }
+    return { action: 'skipped', subscriptionId: null, poolId: null }
+  }
 
   const onSubmit = async (values: CustomerForm) => {
     const input = toCustomerInput(values, currentRow)
     try {
-      if (isEdit && currentRow) {
-        await updateCustomer.mutateAsync({ id: currentRow.id, input })
-        toast.success('客户已更新')
-      } else {
-        await createCustomer.mutateAsync(input)
-        toast.success('客户已创建')
+      const customer =
+        isEdit && currentRow
+          ? await updateCustomer.mutateAsync({ id: currentRow.id, input })
+          : await createCustomer.mutateAsync(input)
+      const syncResult = await syncSubscription(customer, values)
+      // 保存即同步：客户填了邮箱且本次落到具体订阅时，按「邮箱 + 供应商」
+      // 把绑定关系写到邮箱管理（与订阅表单的同步同一套端点）
+      if (customer.email && syncResult.subscriptionId !== null) {
+        try {
+          await syncEmailBinding.mutateAsync({
+            email: customer.email,
+            poolId: syncResult.poolId,
+            subscriptionId: syncResult.subscriptionId,
+          })
+        } catch (syncError) {
+          // 客户与订阅本身已保存成功，邮箱同步失败不阻断流程，仅提示
+          toast.error(
+            `客户已保存，但邮箱同步失败：${getErrorMessage(syncError)}`
+          )
+        }
       }
+      const base = isEdit ? '客户已更新' : '客户已创建'
+      toast.success(
+        syncResult.action === 'unlinked'
+          ? `${base}，订阅关联已解除`
+          : syncResult.action === 'skipped'
+            ? base
+            : `${base}，订阅已同步到订阅管理`
+      )
       onOpenChange(false)
     } catch (error) {
       toast.error(getErrorMessage(error))
     }
   }
+
+  const customerSubscriptionItems = isEdit
+    ? subscriptionItems.filter((s) => s.customerId === currentRow?.id)
+    : []
 
   return (
     <Dialog
@@ -160,206 +434,521 @@ export function CustomersActionDialog({
         onOpenChange(state)
       }}
     >
-      <DialogContent className='sm:max-w-lg'>
+      <DialogContent className='sm:max-w-xl'>
         <DialogHeader className='text-start'>
           <DialogTitle>{isEdit ? '编辑客户' : '新增客户'}</DialogTitle>
           <DialogDescription>
-            {isEdit ? '修改客户信息后点击保存。' : '填写客户信息后点击保存。'}
+            {isEdit
+              ? '修改客户信息后点击保存，第三部分的订阅配置将实时同步到订阅管理，填写的邮箱将同步到邮箱管理。'
+              : '填写客户信息后点击保存，第三部分的订阅配置将实时同步到订阅管理，填写的邮箱将同步到邮箱管理。'}
           </DialogDescription>
         </DialogHeader>
-        <div className='h-105 w-[calc(100%+0.75rem)] overflow-y-auto py-1 pe-3'>
+        <div className='h-150 w-[calc(100%+0.75rem)] overflow-y-auto py-1 pe-3'>
           <Form {...form}>
             <form
               id='customer-form'
               onSubmit={form.handleSubmit(onSubmit)}
               className='space-y-4 px-0.5'
             >
-              <FormField
-                control={form.control}
-                name='name'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>名称</FormLabel>
-                    <FormControl>
+              {/* —— 第一部分：基本信息 —— */}
+              <FormSection title='基本信息'>
+                <FormField
+                  control={form.control}
+                  name='name'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>名称</FormLabel>
                       <Input
                         placeholder='请输入客户名称'
-                        className='col-span-4'
                         autoComplete='off'
                         {...field}
                       />
-                    </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='email'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>邮箱</FormLabel>
-                    <FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='email'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>邮箱</FormLabel>
                       <Input
                         placeholder='可留空'
-                        className='col-span-4'
                         autoComplete='off'
                         {...field}
                       />
-                    </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='categoryId'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>分类</FormLabel>
-                    <SelectField
-                      className='col-span-4'
-                      value={field.value}
-                      onChange={field.onChange}
-                      items={categoryItems}
-                      placeholder='请选择分类'
-                      disabled={categories.isPending}
-                    />
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='planId'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>套餐</FormLabel>
-                    <SelectField
-                      className='col-span-4'
-                      value={field.value}
-                      onChange={field.onChange}
-                      items={planItems}
-                      placeholder='请选择套餐'
-                      disabled={plans.isPending}
-                    />
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='status'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>状态</FormLabel>
-                    <SelectField
-                      className='col-span-4'
-                      value={field.value}
-                      onChange={field.onChange}
-                      items={customerStatusOptions.map((item) => ({
-                        ...item,
-                      }))}
-                      placeholder='请选择状态'
-                    />
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='expireAt'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
-                      到期时间
-                    </FormLabel>
-                    <Popover open={expireOpen} onOpenChange={setExpireOpen}>
-                      <PopoverTrigger asChild>
-                        <FormControl>
-                          <Button
-                            variant='outline'
-                            className='col-span-4 justify-start text-start font-normal'
-                          >
-                            {field.value ? (
-                              format(field.value, 'yyyy-MM-dd')
-                            ) : (
-                              <span className='text-muted-foreground'>
-                                长期有效（留空）
-                              </span>
-                            )}
-                            <CalendarIcon className='ms-auto h-4 w-4 opacity-50' />
-                          </Button>
-                        </FormControl>
-                      </PopoverTrigger>
-                      <PopoverContent className='w-auto p-0'>
-                        <Calendar
-                          mode='single'
-                          captionLayout='dropdown'
-                          selected={field.value ?? undefined}
-                          onSelect={(date) => {
-                            field.onChange(date ?? null)
-                            setExpireOpen(false)
-                          }}
-                        />
-                      </PopoverContent>
-                    </Popover>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='trafficTotalGb'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
-                      总流量(GB)
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder='留空表示不限'
-                        className='col-span-4'
-                        inputMode='decimal'
-                        {...field}
+                      <p className='text-xs text-muted-foreground'>
+                        保存后按「邮箱 + 供应商」同步到邮箱管理
+                      </p>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='poolId'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>供应商</FormLabel>
+                      <SelectField
+                        value={field.value}
+                        onChange={field.onChange}
+                        items={supplierItems}
+                        placeholder='请选择供应商'
+                        disabled={suppliers.isPending}
                       />
-                    </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='remark'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-start space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 mt-2 text-end'>
-                      备注
-                    </FormLabel>
-                    <FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='plan'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>套餐</FormLabel>
+                      <SelectField
+                        value={field.value}
+                        onChange={field.onChange}
+                        items={planItems}
+                        placeholder='请选择套餐'
+                        disabled={plans.isPending}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='status'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>状态</FormLabel>
+                      <SelectField
+                        value={field.value}
+                        onChange={field.onChange}
+                        items={customerStatusOptions.map((item) => ({
+                          ...item,
+                        }))}
+                        placeholder='请选择状态'
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='remark'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>备注</FormLabel>
                       <Textarea
                         placeholder='可选'
-                        className='col-span-4'
                         value={field.value ?? ''}
                         onChange={field.onChange}
                         onBlur={field.onBlur}
                         name={field.name}
                         ref={field.ref}
                       />
-                    </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </FormSection>
+
+              {/* —— 第二部分：订阅信息 —— */}
+              <FormSection title='订阅信息'>
+                <FormField
+                  control={form.control}
+                  name='purchasedAt'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>购买时间</FormLabel>
+                      <Popover
+                        open={purchaseOpen}
+                        onOpenChange={setPurchaseOpen}
+                      >
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant='outline'
+                              className='w-full justify-start text-start font-normal'
+                            >
+                              {field.value ? (
+                                format(field.value, 'yyyy-MM-dd')
+                              ) : (
+                                <span className='text-muted-foreground'>
+                                  请选择购买时间
+                                </span>
+                              )}
+                              <CalendarIcon className='ms-auto h-4 w-4 opacity-50' />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className='w-auto p-0'>
+                          <Calendar
+                            mode='single'
+                            captionLayout='dropdown'
+                            selected={field.value ?? undefined}
+                            onSelect={(date) => {
+                              field.onChange(date ?? null)
+                              setPurchaseOpen(false)
+                            }}
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='expireAt'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>到期时间</FormLabel>
+                      {autoExpireAt ? (
+                        <>
+                          <Input
+                            readOnly
+                            value={format(autoExpireAt, 'yyyy-MM-dd')}
+                            className='bg-muted'
+                          />
+                          <p className='text-xs text-muted-foreground'>
+                            购买时间 + {selectedTier?.label}（
+                            {selectedTier?.days} 天）自动计算
+                          </p>
+                        </>
+                      ) : (
+                        <Popover open={expireOpen} onOpenChange={setExpireOpen}>
+                          <PopoverTrigger asChild>
+                            <FormControl>
+                              <Button
+                                variant='outline'
+                                className='w-full justify-start text-start font-normal'
+                              >
+                                {field.value ? (
+                                  format(field.value, 'yyyy-MM-dd')
+                                ) : (
+                                  <span className='text-muted-foreground'>
+                                    长期有效（留空）
+                                  </span>
+                                )}
+                                <CalendarIcon className='ms-auto h-4 w-4 opacity-50' />
+                              </Button>
+                            </FormControl>
+                          </PopoverTrigger>
+                          <PopoverContent className='w-auto p-0'>
+                            <Calendar
+                              mode='single'
+                              captionLayout='dropdown'
+                              selected={field.value ?? undefined}
+                              onSelect={(date) => {
+                                field.onChange(date ?? null)
+                                setExpireOpen(false)
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='trafficMonthlyGb'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>月流量（GB）</FormLabel>
+                      <Input
+                        placeholder='留空表示不限'
+                        inputMode='decimal'
+                        {...field}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name='trafficManualCapGb'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>手动流量上限（GB）</FormLabel>
+                      <Input
+                        placeholder='留空表示不设置；设置后优先级最高'
+                        inputMode='decimal'
+                        {...field}
+                      />
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </FormSection>
+
+              {/* —— 第三部分：订阅链接 —— */}
+              <FormSection title='订阅链接'>
+                <FormField
+                  control={form.control}
+                  name='subscriptionUrl'
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>订阅链接</FormLabel>
+                      <div className='flex gap-2'>
+                        <FormControl>
+                          <Input
+                            placeholder='https://...'
+                            autoComplete='off'
+                            {...field}
+                          />
+                        </FormControl>
+                        <Button
+                          type='button'
+                          variant='outline'
+                          className='shrink-0'
+                          onClick={handleFetchPreview}
+                          disabled={fetchPreview.isPending}
+                        >
+                          {fetchPreview.isPending && (
+                            <Loader2 className='animate-spin' />
+                          )}
+                          拉取订阅更新
+                        </Button>
+                      </div>
+                      {urlMatch && (
+                        <p className='text-xs text-muted-foreground'>
+                          该链接已在订阅管理中（
+                          {urlMatch.name || `#${urlMatch.id}`}
+                          ），保存后将同步更新对应订阅
+                        </p>
+                      )}
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <div className='flex items-center justify-between rounded-md bg-muted px-3 py-2 text-sm'>
+                  <span className='text-muted-foreground'>订阅到期时间</span>
+                  <span
+                    className={cn(
+                      !subscriptionExpireAt && 'text-muted-foreground'
+                    )}
+                  >
+                    {subscriptionExpireAt
+                      ? format(subscriptionExpireAt, 'yyyy-MM-dd')
+                      : '未获取'}
+                  </span>
+                </div>
+
+                <div className='space-y-3'>
+                  <div className='text-sm text-muted-foreground'>
+                    订阅配置（保存客户时实时同步到订阅管理，邮箱同步到邮箱管理）
+                  </div>
+                  <p className='text-xs text-muted-foreground'>
+                    供应商自动跟随基本信息中的选择；如需不同，请到订阅管理页修改该订阅。
+                  </p>
+                  <FormField
+                    control={form.control}
+                    name='subscriptionName'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>订阅名称</FormLabel>
+                        <Input
+                          placeholder={
+                            providerName
+                              ? `可留空，默认取「${providerName}」`
+                              : '可留空，默认取客户名称'
+                          }
+                          autoComplete='off'
+                          {...field}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionCronExpr'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>同步周期</FormLabel>
+                        <Input
+                          placeholder={DEFAULT_CRON}
+                          className='font-mono'
+                          autoComplete='off'
+                          {...field}
+                        />
+                        <p className='text-xs text-muted-foreground'>
+                          {CRON_HINT}
+                        </p>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionTrafficTotalGb'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>订阅流量上限（GB）</FormLabel>
+                        <Input
+                          placeholder='留空表示不限'
+                          inputMode='decimal'
+                          {...field}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionUserAgent'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>User-Agent</FormLabel>
+                        <Input
+                          placeholder='可留空'
+                          className='font-mono'
+                          autoComplete='off'
+                          {...field}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionProxyUrl'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>代理地址</FormLabel>
+                        <Input
+                          placeholder='例如 http://127.0.0.1:7890，可留空'
+                          autoComplete='off'
+                          {...field}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionHeaders'
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>自定义请求头</FormLabel>
+                        <Textarea
+                          placeholder='JSON 字符串，例如 {"Authorization":"Bearer xxx"}'
+                          className='font-mono text-xs'
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionSkipTlsVerify'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center gap-2 space-y-0'>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel className='text-sm font-normal'>
+                          跳过证书校验
+                        </FormLabel>
+                        <span className='text-xs text-muted-foreground'>
+                          仅用于自签名/内网订阅地址
+                        </span>
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name='subscriptionEnabled'
+                    render={({ field }) => (
+                      <FormItem className='flex items-center gap-2 space-y-0'>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                        <FormLabel className='text-sm font-normal'>
+                          启用同步
+                        </FormLabel>
+                        <span className='text-xs text-muted-foreground'>
+                          {field.value ? '已启用（参与定时同步）' : '已停用'}
+                        </span>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+
+                {isEdit && currentRow && (
+                  <div className='space-y-2'>
+                    <div className='text-sm text-muted-foreground'>
+                      从订阅管理获取
+                    </div>
+                    {subscriptionOptions.isPending && (
+                      <div className='text-sm text-muted-foreground'>
+                        加载中…
+                      </div>
+                    )}
+                    {!subscriptionOptions.isPending &&
+                      customerSubscriptionItems.length === 0 && (
+                        <div className='text-sm text-muted-foreground'>
+                          该客户名下暂无订阅
+                        </div>
+                      )}
+                    {customerSubscriptionItems.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className='flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm'
+                      >
+                        <div className='min-w-0'>
+                          <div className='truncate'>{sub.name || sub.url}</div>
+                          <div className='text-xs text-muted-foreground'>
+                            到期：
+                            {sub.expireAt
+                              ? format(new Date(sub.expireAt), 'yyyy-MM-dd')
+                              : '未知'}
+                          </div>
+                        </div>
+                        <Button
+                          type='button'
+                          variant='ghost'
+                          size='sm'
+                          className='shrink-0'
+                          onClick={() => applySubscription(sub)}
+                        >
+                          使用
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
                 )}
-              />
+              </FormSection>
             </form>
           </Form>
         </div>
         <DialogFooter>
-          <Button
-            variant='ghost'
-            onClick={() => form.setValue('expireAt', null)}
-          >
-            清除到期时间
-          </Button>
+          {!autoExpireAt && (
+            <Button
+              variant='ghost'
+              onClick={() => form.setValue('expireAt', null)}
+            >
+              清除到期时间
+            </Button>
+          )}
           <Button type='submit' form='customer-form' disabled={isPending}>
             {isPending && <Loader2 className='animate-spin' />}
             保存

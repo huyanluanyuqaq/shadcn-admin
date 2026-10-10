@@ -55,7 +55,7 @@ export function CustomersDeleteDialog({
           <Alert variant='destructive'>
             <AlertTitle>警告</AlertTitle>
             <AlertDescription>
-              删除后该客户下的关联数据可能一并失效，请谨慎操作。
+              删除后该客户下的订阅将一并删除（级联）。如需保留订阅，请使用「归档」。
             </AlertDescription>
           </Alert>
         </>

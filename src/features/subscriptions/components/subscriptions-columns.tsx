@@ -100,7 +100,7 @@ export function getSubscriptionsColumns({
       id: 'poolId',
       accessorFn: (row) => (row.poolId ? String(row.poolId) : ''),
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title='订阅池' />
+        <DataTableColumnHeader column={column} title='供应商' />
       ),
       cell: ({ row }) => {
         const id = row.original.poolId

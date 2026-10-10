@@ -43,3 +43,14 @@ export function trafficUsagePercent(
   if (!total || total <= 0) return null
   return Math.min(100, Math.round((used / total) * 100))
 }
+
+/**
+ * 生效流量上限：手动流量上限（trafficManualCap）优先级最高，
+ * 未设置时回落到月流量（trafficTotal）；两者都为空表示不限。
+ */
+export function effectiveTrafficTotal(
+  trafficTotal: number | null | undefined,
+  trafficManualCap: number | null | undefined
+): number | null {
+  return trafficManualCap ?? trafficTotal ?? null
+}

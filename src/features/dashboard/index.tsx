@@ -15,10 +15,10 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
-import { CategoryPieChart } from './components/category-pie-chart'
 import { CustomerTrendChart } from './components/customer-trend-chart'
 import { DashboardSkeleton } from './components/dashboard-skeleton'
 import { ExpiringSoonList } from './components/expiring-soon-list'
+import { ProviderPieChart } from './components/provider-pie-chart'
 import { StatCards } from './components/stat-cards'
 import { useDashboardStatsQuery } from './queries'
 
@@ -105,11 +105,11 @@ export function Dashboard() {
               </Card>
               <Card className='lg:col-span-3'>
                 <CardHeader>
-                  <CardTitle>客户分类分布</CardTitle>
-                  <CardDescription>按分类统计的客户数量</CardDescription>
+                  <CardTitle>客户供应商分布</CardTitle>
+                  <CardDescription>按供应商统计的客户数量</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <CategoryPieChart data={data.customersByCategory} />
+                  <ProviderPieChart data={data.customersByPool} />
                 </CardContent>
               </Card>
             </div>

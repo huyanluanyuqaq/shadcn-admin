@@ -1,0 +1,1 @@
+ALTER TABLE `customers` ADD `plan_tier` text;

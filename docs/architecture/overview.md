@@ -136,11 +136,11 @@ shadcn-admin/
 
 | 表 | 用途 | 关键字段 |
 |----|------|---------|
-| `customers` | 客户（业务对象，非系统账号） | name, email, category_id, plan_id, status, expire_at, traffic_used, traffic_total |
-| `plans` | 套餐 | name, price, duration_days, traffic_limit, description |
-| `categories` | 客户分类 | name |
+| `customers` | 客户（业务对象，非系统账号） | name, email, pool_id, plan_id, plan_tier, status, expire_at, purchased_at, traffic_used, traffic_total(月流量), traffic_manual_cap(手动上限，优先级最高), subscription_url, subscription_expire_at |
+| `plans` | 套餐（一个套餐 + 四档周期定价） | name, price_monthly, price_quarterly, price_semiannual, price_yearly, traffic_limit(月流量), description, status；遗留列 price/duration_days 不再写入（迁移 0004 回填） |
+| `categories` | 客户分类（表保留但不再被 customers 引用，仅 CRUD 路由可用） | name |
 | `subscriptions` | 订阅链接 | url, customer_id, pool_id, traffic_total/used, expire_at, **cron_expr, last_run_at, next_run_at, sync_status, last_error, user_agent, headers(json), skip_tls_verify, proxy_url** |
-| `subscription_pool` | 订阅池 | name, url, remark |
+| `subscription_pool` | 供应商（订阅池） | name, url, remark |
 | `email_bindings` | **邮箱与订阅的绑定关系**（非邮箱账号） | email(唯一), subscription_id(级联), status, remark |
 | `reminders` | 到期提醒（通知源） | customer_id, type, remind_at, is_read |
 | `logs` | 日志（操作 + 定时任务） | level, module, message, created_at |

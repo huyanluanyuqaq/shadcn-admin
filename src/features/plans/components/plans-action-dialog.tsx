@@ -7,6 +7,7 @@ import {
   type PlanStatus,
   planInputSchema,
   planStatusSchema,
+  planTiers,
 } from '@shared/index'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -38,22 +39,35 @@ const planStatusOptions = [
 ]
 
 /**
- * 表单 schema 复用共享的 `planInputSchema`：
- * 流量在表单中以 GB 为单位（trafficLimitGb），提交时转换为字节。
+ * 四档周期定价：时长固定，价格在表单中以「元」为单位直接录入，
+ * 留空（null）表示不提供该周期。档位元数据（标签/时长/字段名）以
+ * shared 的 planTiers 为单一数据源，客户表单的套餐下拉复用同一份。
  */
-const formSchema = planInputSchema.omit({ trafficLimit: true }).extend({
-  price: z.number({ error: '请输入有效价格' }).nonnegative('价格不能为负数'),
-  durationDays: z
-    .number({ error: '请输入有效天数' })
-    .int('有效天数必须为整数')
-    .positive('有效天数必须大于 0'),
-  description: z.string().nullable(),
-  status: planStatusSchema,
-  trafficLimitGb: z
-    .number({ error: '请输入有效流量' })
-    .nonnegative('流量不能为负数')
-    .nullable(),
-})
+
+/**
+ * 表单 schema 复用共享的 `planInputSchema`：
+ * 四档价格原样保留（数字或 null），流量在表单中以 GB 为单位
+ * （trafficLimitGb），提交时转换为字节。
+ */
+const formSchema = planInputSchema
+  .omit({ trafficLimit: true, status: true })
+  .extend({
+    status: planStatusSchema,
+    trafficLimitGb: z
+      .number({ error: '请输入有效流量' })
+      .nonnegative('流量不能为负数')
+      .nullable(),
+  })
+  .refine(
+    (values) =>
+      [
+        values.priceMonthly,
+        values.priceQuarterly,
+        values.priceSemiannual,
+        values.priceYearly,
+      ].some((price) => typeof price === 'number' && !Number.isNaN(price)),
+    { message: '请至少填写一个周期价格', path: ['priceMonthly'] }
+  )
 type PlanForm = z.infer<typeof formSchema>
 
 type PlanActionDialogProps = {
@@ -76,16 +90,20 @@ export function PlansActionDialog({
     defaultValues: isEdit
       ? {
           name: currentRow.name,
-          price: currentRow.price,
-          durationDays: currentRow.durationDays,
+          priceMonthly: currentRow.priceMonthly,
+          priceQuarterly: currentRow.priceQuarterly,
+          priceSemiannual: currentRow.priceSemiannual,
+          priceYearly: currentRow.priceYearly,
           description: currentRow.description ?? '',
           status: currentRow.status,
           trafficLimitGb: bytesToGb(currentRow.trafficLimit),
         }
       : {
           name: '',
-          price: 0,
-          durationDays: 30,
+          priceMonthly: null,
+          priceQuarterly: null,
+          priceSemiannual: null,
+          priceYearly: null,
           description: '',
           status: 'active' as PlanStatus,
           trafficLimitGb: null,
@@ -94,9 +112,11 @@ export function PlansActionDialog({
 
   const onSubmit = (values: PlanForm) => {
     const payload: PlanInput = {
-      name: values.name,
-      price: values.price,
-      durationDays: values.durationDays,
+      name: values.name.trim(),
+      priceMonthly: values.priceMonthly,
+      priceQuarterly: values.priceQuarterly,
+      priceSemiannual: values.priceSemiannual,
+      priceYearly: values.priceYearly,
       trafficLimit: gbToBytes(values.trafficLimitGb),
       description: values.description?.trim() ? values.description : null,
       status: values.status,
@@ -136,7 +156,7 @@ export function PlansActionDialog({
           <DialogTitle>{isEdit ? '编辑套餐' : '新增套餐'}</DialogTitle>
           <DialogDescription>
             {isEdit ? '在这里修改套餐信息。' : '在这里创建新的套餐。'}
-            完成后点击保存。
+            支持月付 / 季付 / 半年 / 年付四档定价，完成后点击保存。
           </DialogDescription>
         </DialogHeader>
         <div className='h-105 w-[calc(100%+0.75rem)] overflow-y-auto py-1 pe-3'>
@@ -154,7 +174,7 @@ export function PlansActionDialog({
                     <FormLabel className='col-span-2 text-end'>名称</FormLabel>
                     <FormControl>
                       <Input
-                        placeholder='例如：月度基础套餐'
+                        placeholder='例如：普通套餐'
                         className='col-span-4'
                         autoComplete='off'
                         {...field}
@@ -164,57 +184,66 @@ export function PlansActionDialog({
                   </FormItem>
                 )}
               />
-              <FormField
-                control={form.control}
-                name='price'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>价格</FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        step='0.01'
-                        min={0}
-                        placeholder='0.00'
-                        className='col-span-4'
-                        value={Number.isNaN(field.value) ? '' : field.value}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                      />
-                    </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name='durationDays'
-                render={({ field }) => (
-                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>
-                      有效天数
-                    </FormLabel>
-                    <FormControl>
-                      <Input
-                        type='number'
-                        min={1}
-                        step={1}
-                        placeholder='30'
-                        className='col-span-4'
-                        value={Number.isNaN(field.value) ? '' : field.value}
-                        onChange={(e) => field.onChange(e.target.valueAsNumber)}
-                      />
-                    </FormControl>
-                    <FormMessage className='col-span-4 col-start-3' />
-                  </FormItem>
-                )}
-              />
+
+              {/* 四档周期价格：2x2 价格框 */}
+              <div className='rounded-md border p-4'>
+                <div className='mb-3 text-sm font-medium'>周期价格</div>
+                <div className='grid grid-cols-2 gap-3'>
+                  {planTiers.map((tier) => (
+                    <FormField
+                      key={tier.value}
+                      control={form.control}
+                      name={tier.priceKey}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>
+                            {tier.label}
+                            <span className='ms-1 text-xs font-normal text-muted-foreground'>
+                              （{tier.days} 天）
+                            </span>
+                          </FormLabel>
+                          <FormControl>
+                            <div className='relative'>
+                              <span className='pointer-events-none absolute start-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground'>
+                                ¥
+                              </span>
+                              <Input
+                                type='number'
+                                min={0}
+                                step='0.01'
+                                placeholder='不提供'
+                                className='ps-7'
+                                value={
+                                  field.value === null ||
+                                  Number.isNaN(field.value)
+                                    ? ''
+                                    : field.value
+                                }
+                                onChange={(e) =>
+                                  field.onChange(
+                                    e.target.value === ''
+                                      ? null
+                                      : e.target.valueAsNumber
+                                  )
+                                }
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+
               <FormField
                 control={form.control}
                 name='trafficLimitGb'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
                     <FormLabel className='col-span-2 text-end'>
-                      流量上限（GB）
+                      月流量（GB）
                     </FormLabel>
                     <FormControl>
                       <Input
@@ -223,7 +252,11 @@ export function PlansActionDialog({
                         step='0.01'
                         placeholder='留空表示不限'
                         className='col-span-4'
-                        value={field.value === null ? '' : field.value}
+                        value={
+                          field.value === null || Number.isNaN(field.value)
+                            ? ''
+                            : field.value
+                        }
                         onChange={(e) =>
                           field.onChange(
                             e.target.value === ''

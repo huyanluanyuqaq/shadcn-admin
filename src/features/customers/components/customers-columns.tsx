@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import type { Customer } from '@shared/index'
+import { type Customer, planTiers } from '@shared/index'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -8,6 +8,7 @@ import { LongText } from '@/components/long-text'
 import { customerStatusLabels, customerStatusStyles } from '../data/schema'
 import {
   daysLeft,
+  effectiveTrafficTotal,
   formatBytes,
   formatDateTime,
   trafficUsagePercent,
@@ -15,12 +16,12 @@ import {
 import { DataTableRowActions } from './data-table-row-actions'
 
 export type CustomerColumnMaps = {
-  categoryNameById: Map<number, string>
+  poolNameById: Map<number, string>
   planNameById: Map<number, string>
 }
 
 export function getCustomersColumns({
-  categoryNameById,
+  poolNameById,
   planNameById,
 }: CustomerColumnMaps): ColumnDef<Customer>[] {
   return [
@@ -81,14 +82,14 @@ export function getCustomersColumns({
       ),
     },
     {
-      id: 'categoryId',
-      accessorFn: (row) => (row.categoryId ? String(row.categoryId) : ''),
+      id: 'poolId',
+      accessorFn: (row) => (row.poolId ? String(row.poolId) : ''),
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title='分类' />
+        <DataTableColumnHeader column={column} title='供应商' />
       ),
       cell: ({ row }) => {
-        const id = row.original.categoryId
-        const name = id ? categoryNameById.get(id) : undefined
+        const id = row.original.poolId
+        const name = id ? poolNameById.get(id) : undefined
         return <div className='text-nowrap'>{name ?? '-'}</div>
       },
       enableSorting: false,
@@ -102,7 +103,13 @@ export function getCustomersColumns({
       cell: ({ row }) => {
         const id = row.original.planId
         const name = id ? planNameById.get(id) : undefined
-        return <div className='text-nowrap'>{name ?? '-'}</div>
+        if (!name) return <div className='text-nowrap'>-</div>
+        const tier = planTiers.find((t) => t.value === row.original.planTier)
+        return (
+          <div className='text-nowrap'>
+            {tier ? `${name} · ${tier.label}` : name}
+          </div>
+        )
       },
       enableSorting: false,
     },
@@ -156,14 +163,19 @@ export function getCustomersColumns({
         <DataTableColumnHeader column={column} title='流量使用' />
       ),
       cell: ({ row }) => {
-        const { trafficUsed, trafficTotal } = row.original
-        const percent = trafficUsagePercent(trafficUsed, trafficTotal)
+        const { trafficUsed, trafficTotal, trafficManualCap } = row.original
+        // 生效上限：手动流量上限优先，其次月流量
+        const effectiveTotal = effectiveTrafficTotal(
+          trafficTotal,
+          trafficManualCap
+        )
+        const percent = trafficUsagePercent(trafficUsed, effectiveTotal)
         return (
           <div className='flex w-40 flex-col gap-1'>
             <div className='flex justify-between text-xs text-muted-foreground'>
               <span>{formatBytes(trafficUsed)}</span>
-              <span>
-                {trafficTotal ? `/ ${formatBytes(trafficTotal)}` : '/ 不限'}
+              <span title={trafficManualCap ? '手动流量上限优先' : undefined}>
+                {effectiveTotal ? `/ ${formatBytes(effectiveTotal)}` : '/ 不限'}
               </span>
             </div>
             {percent === null ? (

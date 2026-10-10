@@ -8,7 +8,7 @@ import { writeLog } from '../services/logger.js'
 /**
  * 通用 CRUD 路由工厂。
  *
- * 6 个资源（分类/套餐/客户/订阅/订阅池/邮箱绑定）共用同一套语义，
+ * 6 个资源（分类/套餐/客户/订阅/供应商/邮箱绑定）共用同一套语义，
  * 避免复制 6 份几乎相同的代码。
  *
  * 约定：
@@ -34,8 +34,15 @@ export interface CrudOptions {
   /** 需要 number ↔ Date 转换的时间戳字段（camelCase） */
   dateKeys?: string[]
   defaultSort?: string
+  /** defaultSort 列的默认方向，缺省 'desc'（与其他资源「最新在前」一致） */
+  defaultSortOrder?: 'asc' | 'desc'
   /** 唯一约束冲突时返回给用户的中文提示 */
   uniqueHint?: string
+  /**
+   * 创建时由服务端补齐的字段（优先级高于入参）。
+   * 典型用途：排序序号取「当前最大值 + 1」，避免客户端计算竞争。
+   */
+  createDefaults?: () => Record<string, unknown>
 }
 
 function serialize<T>(row: Record<string, unknown>): T {
@@ -105,7 +112,9 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     sortCols = { createdAt: table.createdAt, id: table.id },
     dateKeys = [],
     defaultSort = 'createdAt',
+    defaultSortOrder = 'desc',
     uniqueHint,
+    createDefaults,
   } = opts
 
   const app = new Hono()
@@ -132,7 +141,10 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     const total = db.select({ value: count() }).from(table).where(where).get()?.value ?? 0
 
     const sortCol = (sortBy && sortCols[sortBy]) || sortCols[defaultSort] || table.createdAt
-    const order = sortOrder === 'asc' ? asc(sortCol) : desc(sortCol)
+    // 显式传 sortOrder 时以入参为准；缺省时用 defaultSortOrder
+    //（大多数资源为 desc「最新在前」，供应商为 asc「自定义顺序在前」）
+    const ascending = sortOrder === undefined ? defaultSortOrder === 'asc' : sortOrder === 'asc'
+    const order = ascending ? asc(sortCol) : desc(sortCol)
 
     const rows = db
       .select()
@@ -168,7 +180,11 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     const values = toDb(parsed.data as Record<string, unknown>, dateKeys)
     let row: Record<string, unknown>
     try {
-      row = db.insert(table).values(values).returning().get() as Record<string, unknown>
+      row = db
+        .insert(table)
+        .values({ ...values, ...createDefaults?.() })
+        .returning()
+        .get() as Record<string, unknown>
     } catch (err) {
       const handled = handleConstraintError(c, err, { uniqueHint })
       if (handled) return handled

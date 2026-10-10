@@ -1,3 +1,4 @@
+import { useRef } from 'react'
 import { z } from 'zod'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -29,6 +30,7 @@ import {
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { SelectDropdown } from '@/components/select-dropdown'
+import { usePoolOptions } from '@/features/subscriptions/api'
 import {
   useCreateEmailBinding,
   useSubscriptionOptionsQuery,
@@ -45,6 +47,7 @@ const NONE = '__none__'
 
 const formSchema = emailBindingInputSchema.extend({
   subscriptionId: z.number().nullable(),
+  poolId: z.number().nullable(),
   status: emailBindingStatusSchema,
   remark: z.string().nullable(),
 })
@@ -65,6 +68,10 @@ export function EmailBindingActionDialog({
   const createBinding = useCreateEmailBinding()
   const updateBinding = useUpdateEmailBinding()
   const subscriptionsQuery = useSubscriptionOptionsQuery()
+  const poolsQuery = usePoolOptions()
+
+  // 供应商下拉是否被用户手动改过：改过则选订阅时不再自动跟随
+  const poolTouchedRef = useRef(false)
 
   const subscriptionOptions = [
     { label: '未绑定', value: NONE },
@@ -76,18 +83,28 @@ export function EmailBindingActionDialog({
     })),
   ]
 
+  const poolOptions = [
+    { label: '未指定', value: NONE },
+    ...(poolsQuery.data?.items ?? []).map((pool) => ({
+      label: pool.name,
+      value: String(pool.id),
+    })),
+  ]
+
   const form = useForm<EmailForm>({
     resolver: zodResolver(formSchema),
     defaultValues: isEdit
       ? {
           email: currentRow.email,
           subscriptionId: currentRow.subscriptionId ?? null,
+          poolId: currentRow.poolId ?? null,
           status: currentRow.status,
           remark: currentRow.remark ?? '',
         }
       : {
           email: '',
           subscriptionId: null,
+          poolId: null,
           status: 'active' as EmailBindingStatus,
           remark: '',
         },
@@ -100,6 +117,7 @@ export function EmailBindingActionDialog({
     const payload: EmailBindingInput = {
       email: values.email.trim(),
       subscriptionId: values.subscriptionId,
+      poolId: values.poolId,
       status: values.status,
       remark: values.remark?.trim() ? values.remark : null,
     }
@@ -130,6 +148,7 @@ export function EmailBindingActionDialog({
       open={open}
       onOpenChange={(state) => {
         form.reset()
+        poolTouchedRef.current = false
         onOpenChange(state)
       }}
     >
@@ -180,15 +199,52 @@ export function EmailBindingActionDialog({
                       defaultValue={
                         field.value === null ? NONE : String(field.value)
                       }
-                      onValueChange={(value) =>
+                      onValueChange={(value) => {
                         field.onChange(toIdOrNull(value))
-                      }
+                        // 选订阅时自动跟随该订阅的供应商（手动改过供应商则不覆盖）
+                        if (poolTouchedRef.current) return
+                        const sub = (subscriptionsQuery.data?.items ?? []).find(
+                          (item) => String(item.id) === value
+                        )
+                        form.setValue('poolId', sub?.poolId ?? null, {
+                          shouldDirty: true,
+                        })
+                      }}
                       placeholder='请选择订阅'
                       className='col-span-4'
                       isPending={subscriptionsQuery.isPending}
                       items={subscriptionOptions}
                     />
                     <FormMessage className='col-span-4 col-start-3' />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name='poolId'
+                render={({ field }) => (
+                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
+                    <FormLabel className='col-span-2 text-end'>
+                      供应商
+                    </FormLabel>
+                    <SelectDropdown
+                      isControlled
+                      defaultValue={
+                        field.value === null ? NONE : String(field.value)
+                      }
+                      onValueChange={(value) => {
+                        poolTouchedRef.current = true
+                        field.onChange(toIdOrNull(value))
+                      }}
+                      placeholder='请选择供应商'
+                      className='col-span-4'
+                      isPending={poolsQuery.isPending}
+                      items={poolOptions}
+                    />
+                    <FormMessage className='col-span-4 col-start-3' />
+                    <p className='col-span-4 col-start-3 text-xs text-muted-foreground'>
+                      邮箱与供应商一一对应；选择订阅时自动跟随该订阅的供应商
+                    </p>
                   </FormItem>
                 )}
               />

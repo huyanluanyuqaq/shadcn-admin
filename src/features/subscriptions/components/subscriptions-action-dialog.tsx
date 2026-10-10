@@ -32,6 +32,7 @@ import {
 } from '@/components/ui/popover'
 import { Switch } from '@/components/ui/switch'
 import { Textarea } from '@/components/ui/textarea'
+import { useSyncEmailBinding } from '@/features/emails/queries'
 import {
   useCreateSubscription,
   useCustomerOptions,
@@ -105,6 +106,7 @@ export function SubscriptionsActionDialog({
 
   const createSubscription = useCreateSubscription()
   const updateSubscription = useUpdateSubscription()
+  const syncEmailBinding = useSyncEmailBinding()
   const customers = useCustomerOptions()
   const pools = usePoolOptions()
 
@@ -120,7 +122,10 @@ export function SubscriptionsActionDialog({
     )
   }, [open, currentRow, form])
 
-  const isPending = createSubscription.isPending || updateSubscription.isPending
+  const isPending =
+    createSubscription.isPending ||
+    updateSubscription.isPending ||
+    syncEmailBinding.isPending
 
   const customerItems: Option[] = (customers.data?.items ?? []).map((item) => ({
     label: item.name,
@@ -134,13 +139,27 @@ export function SubscriptionsActionDialog({
   const onSubmit = async (values: SubscriptionForm) => {
     const input = toSubscriptionInput(values, currentRow)
     try {
-      if (isEdit && currentRow) {
-        await updateSubscription.mutateAsync({ id: currentRow.id, input })
-        toast.success('订阅已更新')
-      } else {
-        await createSubscription.mutateAsync(input)
-        toast.success('订阅已创建')
+      const saved =
+        isEdit && currentRow
+          ? await updateSubscription.mutateAsync({ id: currentRow.id, input })
+          : await createSubscription.mutateAsync(input)
+      // 保存即同步：邮箱非空时按「邮箱 + 供应商」落到邮箱管理
+      const email = values.email.trim()
+      if (email) {
+        try {
+          await syncEmailBinding.mutateAsync({
+            email,
+            poolId: values.poolId ? Number(values.poolId) : null,
+            subscriptionId: saved.id,
+          })
+        } catch (syncError) {
+          // 订阅本身已保存成功，同步失败不阻断流程，仅提示
+          toast.error(
+            `订阅已保存，但邮箱同步失败：${getErrorMessage(syncError)}`
+          )
+        }
       }
+      toast.success(isEdit ? '订阅已更新' : '订阅已创建')
       onOpenChange(false)
     } catch (error) {
       toast.error(getErrorMessage(error))
@@ -160,8 +179,8 @@ export function SubscriptionsActionDialog({
           <DialogTitle>{isEdit ? '编辑订阅' : '新增订阅'}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? '修改订阅信息后点击保存。同步状态由调度引擎自动维护。'
-              : '填写订阅地址与同步策略后点击保存。'}
+              ? '修改订阅信息后点击保存。填写的邮箱将同步到邮箱管理；同步状态由调度引擎自动维护。'
+              : '填写订阅地址与同步策略后点击保存。填写的邮箱将同步到邮箱管理。'}
           </DialogDescription>
         </DialogHeader>
         <div className='h-105 w-[calc(100%+0.75rem)] overflow-y-auto py-1 pe-3'>
@@ -220,7 +239,18 @@ export function SubscriptionsActionDialog({
                     <SelectField
                       className='col-span-4'
                       value={field.value}
-                      onChange={field.onChange}
+                      onChange={(value) => {
+                        field.onChange(value)
+                        // 选中客户时自动带出该客户邮箱（邮箱为空才填；
+                        // 用户手填过则不覆盖，与月流量自动填充同思路）
+                        if (form.getValues('email') !== '') return
+                        const customer = (customers.data?.items ?? []).find(
+                          (item) => String(item.id) === value
+                        )
+                        form.setValue('email', customer?.email ?? '', {
+                          shouldDirty: true,
+                        })
+                      }}
                       items={customerItems}
                       placeholder='不绑定'
                       disabled={customers.isPending}
@@ -231,11 +261,32 @@ export function SubscriptionsActionDialog({
               />
               <FormField
                 control={form.control}
+                name='email'
+                render={({ field }) => (
+                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
+                    <FormLabel className='col-span-2 text-end'>邮箱</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder='可留空；选择客户后自动带出'
+                        className='col-span-4'
+                        autoComplete='off'
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage className='col-span-4 col-start-3' />
+                    <p className='col-span-4 col-start-3 text-xs text-muted-foreground'>
+                      保存后按「邮箱 + 供应商」同步到邮箱管理
+                    </p>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
                 name='poolId'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
                     <FormLabel className='col-span-2 text-end'>
-                      订阅池
+                      供应商
                     </FormLabel>
                     <SelectField
                       className='col-span-4'

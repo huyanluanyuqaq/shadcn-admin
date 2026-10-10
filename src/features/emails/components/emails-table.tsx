@@ -26,6 +26,7 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { DataTablePagination, DataTableToolbar } from '@/components/data-table'
+import { usePoolOptions } from '@/features/subscriptions/api'
 import {
   useCustomerOptionsQuery,
   useEmailBindingsQuery,
@@ -103,6 +104,8 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
         searchKey: 'subscriptionId',
         type: 'array',
       },
+      // 供应商筛选：列 id 为 poolId，URL 键沿用路由声明的 providerId
+      { columnId: 'poolId', searchKey: 'providerId', type: 'array' },
     ],
   })
 
@@ -132,6 +135,8 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
       q: (search.q as string)?.trim() || undefined,
       status: firstString(search.status),
       subscriptionId: firstNumber(search.subscriptionId),
+      // 路由 URL 键为 providerId，API 筛选参数名为 filterCols 的键 poolId
+      poolId: firstNumber(search.providerId),
       sortBy: search.sortBy as string | undefined,
       sortOrder: search.sortOrder as 'asc' | 'desc' | undefined,
     }),
@@ -141,6 +146,7 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
       search.q,
       search.status,
       search.subscriptionId,
+      search.providerId,
       search.sortBy,
       search.sortOrder,
     ]
@@ -150,6 +156,7 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
     useEmailBindingsQuery(params)
   const subscriptionsQuery = useSubscriptionOptionsQuery()
   const customersQuery = useCustomerOptionsQuery()
+  const poolsQuery = usePoolOptions()
 
   const maps = useMemo(() => {
     const subscriptions = subscriptionsQuery.data?.items ?? []
@@ -161,6 +168,12 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
               subscription.id,
               subscription.name?.trim() || subscription.url,
             ] as [number, string]
+        )
+      ),
+      subscriptionUrls: new Map<number, string>(
+        subscriptions.map(
+          (subscription) =>
+            [subscription.id, subscription.url] as [number, string]
         )
       ),
       customerIdBySubscription: new Map<number, number | null>(
@@ -177,8 +190,13 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
           (customer) => [customer.id, customer.name] as [number, string]
         )
       ),
+      poolNames: new Map<number, string>(
+        (poolsQuery.data?.items ?? []).map(
+          (pool) => [pool.id, pool.name] as [number, string]
+        )
+      ),
     }
-  }, [subscriptionsQuery.data, customersQuery.data])
+  }, [subscriptionsQuery.data, customersQuery.data, poolsQuery.data])
 
   const columns = useMemo(() => getEmailBindingColumns(maps), [maps])
 
@@ -262,6 +280,14 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
                   value: String(subscription.id),
                 })
               ),
+            },
+            {
+              columnId: 'poolId',
+              title: '供应商',
+              options: (poolsQuery.data?.items ?? []).map((pool) => ({
+                label: pool.name,
+                value: String(pool.id),
+              })),
             },
           ]}
         />

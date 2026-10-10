@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { LongText } from '@/components/long-text'
-import { formatTraffic } from '../utils'
+import { formatPrice, formatTraffic } from '../utils'
 import { DataTableRowActions } from './data-table-row-actions'
 
 export const plansColumns: ColumnDef<Plan>[] = [
@@ -53,32 +53,52 @@ export const plansColumns: ColumnDef<Plan>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: 'price',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='价格' />
-    ),
+    accessorKey: 'priceMonthly',
+    header: () => <div className='text-end'>月付</div>,
     cell: ({ row }) => (
       <div className='w-fit text-nowrap tabular-nums'>
-        ¥{Number(row.getValue('price')).toFixed(2)}
+        {formatPrice(row.original.priceMonthly)}
       </div>
     ),
-    meta: { className: 'w-24' },
+    meta: { className: 'w-20' },
+    enableSorting: false,
   },
   {
-    accessorKey: 'durationDays',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='有效天数' />
-    ),
+    accessorKey: 'priceQuarterly',
+    header: () => <div className='text-end'>季付</div>,
     cell: ({ row }) => (
-      <div className='tabular-nums'>{row.getValue('durationDays')} 天</div>
+      <div className='w-fit text-nowrap tabular-nums'>
+        {formatPrice(row.original.priceQuarterly)}
+      </div>
     ),
-    meta: { className: 'w-28' },
+    meta: { className: 'w-20' },
+    enableSorting: false,
+  },
+  {
+    accessorKey: 'priceSemiannual',
+    header: () => <div className='text-end'>半年</div>,
+    cell: ({ row }) => (
+      <div className='w-fit text-nowrap tabular-nums'>
+        {formatPrice(row.original.priceSemiannual)}
+      </div>
+    ),
+    meta: { className: 'w-20' },
+    enableSorting: false,
+  },
+  {
+    accessorKey: 'priceYearly',
+    header: () => <div className='text-end'>年付</div>,
+    cell: ({ row }) => (
+      <div className='w-fit text-nowrap tabular-nums'>
+        {formatPrice(row.original.priceYearly)}
+      </div>
+    ),
+    meta: { className: 'w-20' },
+    enableSorting: false,
   },
   {
     accessorKey: 'trafficLimit',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='流量上限' />
-    ),
+    header: () => <div className='text-end'>月流量</div>,
     cell: ({ row }) => (
       <div className='text-nowrap'>
         {formatTraffic(row.original.trafficLimit)}

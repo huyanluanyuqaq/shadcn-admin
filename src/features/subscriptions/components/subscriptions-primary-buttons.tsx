@@ -54,7 +54,7 @@ export function SubscriptionsPrimaryButtons() {
         onClick={() => setProvidersOpen(true)}
       >
         <Plane size={18} />
-        <span>订阅提供商</span>
+        <span>供应商</span>
       </Button>
       <Button
         variant='outline'

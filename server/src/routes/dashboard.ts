@@ -61,12 +61,12 @@ dashboardRoutes.get('/stats', (c) => {
     })
   }
 
-  // 分类分布
-  const customersByCategory = one<{ name: string; count: number }>(
-    sql`select coalesce(c.name, '未分类') as name, count(cu.id) as count
+  // 供应商分布
+  const customersByPool = one<{ name: string; count: number }>(
+    sql`select coalesce(p.name, '未设置') as name, count(cu.id) as count
         from customers cu
-        left join categories c on c.id = cu.category_id
-        group by c.id
+        left join subscription_pool p on p.id = cu.pool_id
+        group by p.id
         order by count desc`,
   )
 
@@ -97,7 +97,7 @@ dashboardRoutes.get('/stats', (c) => {
     remindersUnread,
     customersNewThisMonth,
     customerTrend,
-    customersByCategory,
+    customersByPool,
     expiringSoon,
   }
 

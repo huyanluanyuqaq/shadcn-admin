@@ -51,9 +51,15 @@ const trafficGb = z
     error: '请输入非负数字',
   })
 
+/** 留空或合法邮箱 */
+const emptyOrEmail = z.union([
+  z.literal(''),
+  z.string().email('邮箱格式不正确'),
+])
+
 /**
  * 订阅表单 schema：以共享的 `subscriptionInputSchema` 为基础，
- * 仅把下拉/日期/流量/布尔这几项换成表单友好的类型（字符串、Date）。
+ * 仅把下拉/日期/流量/布尔/邮箱这几项换成表单友好的类型（字符串、Date）。
  * 同步引擎维护的字段（trafficUsed / lastRunAt / nextRunAt / lastError / syncStatus）不在此表单中。
  */
 export const subscriptionFormSchema = subscriptionInputSchema
@@ -62,6 +68,7 @@ export const subscriptionFormSchema = subscriptionInputSchema
     url: true,
     customerId: true,
     poolId: true,
+    email: true,
     trafficUsed: true,
     trafficTotal: true,
     expireAt: true,
@@ -78,6 +85,8 @@ export const subscriptionFormSchema = subscriptionInputSchema
     /** 下拉值，空字符串表示不绑定 */
     customerId: z.string(),
     poolId: z.string(),
+    /** 该订阅的邮箱标识，留空表示不同步；保存时按「邮箱 + 供应商」同步到邮箱管理 */
+    email: emptyOrEmail,
     cronExpr: z.string().min(1, '请输入 cron 表达式'),
     userAgent: z.string(),
     /** 自定义请求头，JSON 字符串，留空表示无 */
@@ -98,6 +107,7 @@ export function emptySubscriptionForm(): SubscriptionForm {
     url: '',
     customerId: '',
     poolId: '',
+    email: '',
     cronExpr: DEFAULT_CRON,
     userAgent: '',
     headers: '',
@@ -117,6 +127,7 @@ export function toSubscriptionForm(
     url: subscription.url,
     customerId: subscription.customerId ? String(subscription.customerId) : '',
     poolId: subscription.poolId ? String(subscription.poolId) : '',
+    email: subscription.email ?? '',
     cronExpr: subscription.cronExpr,
     userAgent: subscription.userAgent ?? '',
     headers: subscription.headers ?? '',
@@ -142,6 +153,7 @@ export function toSubscriptionInput(
     url: values.url.trim(),
     customerId: values.customerId ? Number(values.customerId) : null,
     poolId: values.poolId ? Number(values.poolId) : null,
+    email: values.email.trim() === '' ? null : values.email.trim(),
     cronExpr: values.cronExpr.trim(),
     userAgent: values.userAgent.trim() ? values.userAgent.trim() : null,
     headers: values.headers.trim() ? values.headers.trim() : null,

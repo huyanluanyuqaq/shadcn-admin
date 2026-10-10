@@ -38,11 +38,35 @@ export type Category = z.infer<typeof categorySchema>
 
 // ---------- 套餐 ----------
 
+/**
+ * 套餐的四档周期价格（元）。
+ *
+ * 2026-10-10 起套餐计价方式改为「一个套餐 + 四档周期」：
+ * 月付 / 季付 / 半年 / 年付，时长固定为 30 / 90 / 180 / 360 天。
+ * 各档为 null 表示不提供该周期（表单留空）。
+ */
+export const planTiers = [
+  { value: 'monthly', label: '月付', days: 30, priceKey: 'priceMonthly' },
+  { value: 'quarterly', label: '季付', days: 90, priceKey: 'priceQuarterly' },
+  { value: 'semiannual', label: '半年', days: 180, priceKey: 'priceSemiannual' },
+  { value: 'yearly', label: '年付', days: 360, priceKey: 'priceYearly' },
+] as const
+
+/** 客户选定的套餐档位（对应 plans 的四档价格列） */
+export const planTierSchema = z.enum(['monthly', 'quarterly', 'semiannual', 'yearly'])
+export type PlanTier = z.infer<typeof planTierSchema>
+
 export const planInputSchema = z.object({
   name: z.string().min(1, '名称不能为空'),
-  price: z.number().nonnegative().default(0),
-  durationDays: z.number().int().positive().default(30),
-  /** 流量上限（字节），null 表示不限 */
+  /** 月付价格（元），null 表示不提供该周期 */
+  priceMonthly: z.number().nonnegative().nullable(),
+  /** 季付价格（元），null 表示不提供该周期 */
+  priceQuarterly: z.number().nonnegative().nullable(),
+  /** 半年价格（元），null 表示不提供该周期 */
+  priceSemiannual: z.number().nonnegative().nullable(),
+  /** 年付价格（元），null 表示不提供该周期 */
+  priceYearly: z.number().nonnegative().nullable(),
+  /** 月流量上限（字节），null 表示不限 */
   trafficLimit: z.number().int().nonnegative().nullable().optional(),
   description: z.string().nullable().optional(),
   status: planStatusSchema.default('active'),
@@ -60,13 +84,24 @@ export type Plan = z.infer<typeof planSchema>
 export const customerInputSchema = z.object({
   name: z.string().min(1, '名称不能为空'),
   email: z.string().email('邮箱格式不正确').nullable().optional(),
-  categoryId: idSchema.nullable().optional(),
+  /** 所属供应商（机场提供商），null 表示未设置 */
+  poolId: idSchema.nullable().optional(),
   planId: idSchema.nullable().optional(),
+  /** 选定的套餐档位（月付/季付/半年/年付），null 表示未指定 */
+  planTier: planTierSchema.nullable().optional(),
   status: customerStatusSchema.default('active'),
   expireAt: z.number().int().nullable().optional(),
+  /** 购买时间（epoch ms）；到期时间 = 购买时间 + 套餐档位周期时长 */
+  purchasedAt: z.number().int().nullable().optional(),
   trafficUsed: z.number().int().nonnegative().default(0),
-  /** 总流量（字节），null 表示不限 */
+  /** 月流量（字节），null 表示不限 */
   trafficTotal: z.number().int().nonnegative().nullable().optional(),
+  /** 手动流量上限（字节），优先级高于月流量；null 表示未设置 */
+  trafficManualCap: z.number().int().nonnegative().nullable().optional(),
+  /** 订阅链接（从该链接拉取到期时间等订阅信息） */
+  subscriptionUrl: z.string().nullable().optional(),
+  /** 订阅链接到期时间（epoch ms），从订阅链接获取 */
+  subscriptionExpireAt: z.number().int().nullable().optional(),
   remark: z.string().nullable().optional(),
 })
 export const customerSchema = customerInputSchema.extend({
@@ -77,14 +112,17 @@ export const customerSchema = customerInputSchema.extend({
 export type CustomerInput = z.infer<typeof customerInputSchema>
 export type Customer = z.infer<typeof customerSchema>
 
-// ---------- 订阅池（机场提供商） ----------
+// ---------- 供应商（机场提供商） ----------
 
 /**
- * 订阅池在本系统中即「机场提供商」：订阅按机场归类，便于批量管理与统计。
+ * 供应商在本系统中即「机场提供商」：订阅按机场归类，便于批量管理与统计。
  *
  * `url` 为可选：新增机场时通常只登记名称，落地地址可后续补充。
  * 该列在数据库中为 `NOT NULL`，写入时空值统一归一为**空串**而非 null，
  * 以避免 SQLite 与 zod 两层对 null 的理解分歧。
+ *
+ * `sortOrder`（自定义排序序号，升序越靠前）只读：创建时由服务端分配
+ * （当前最大值 + 1），调整顺序统一走重排接口，不经创建/更新入参写入。
  */
 export const poolInputSchema = z.object({
   name: z.string().min(1, '名称不能为空'),
@@ -93,6 +131,7 @@ export const poolInputSchema = z.object({
 })
 export const poolSchema = poolInputSchema.extend({
   id: idSchema,
+  sortOrder: z.number().int(),
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
 })
@@ -110,6 +149,8 @@ export const subscriptionInputSchema = z.object({
   url: z.string().min(1, '订阅地址不能为空'),
   customerId: idSchema.nullable().optional(),
   poolId: idSchema.nullable().optional(),
+  /** 该订阅的邮箱标识；保存订阅时按「邮箱 + 供应商」同步到邮箱管理 */
+  email: z.string().email('邮箱格式不正确').nullable().optional(),
   trafficUsed: z.number().int().nonnegative().default(0),
   trafficTotal: z.number().int().nonnegative().nullable().optional(),
   expireAt: z.number().int().nullable().optional(),
@@ -156,6 +197,22 @@ export const batchSyncResultSchema = z.object({
 })
 export type BatchSyncResult = z.infer<typeof batchSyncResultSchema>
 
+/**
+ * 订阅链接预览结果（客户表单「拉取订阅更新」按钮）。
+ * source=db 表示链接已在订阅管理中登记（返回前已触发一次同步刷新）；
+ * source=live 表示未登记、由服务端实时拉取。
+ */
+export const subscriptionPreviewSchema = z.object({
+  url: z.string(),
+  source: z.enum(['db', 'live']),
+  subscriptionId: idSchema.nullable(),
+  trafficUsed: z.number().int().nonnegative(),
+  trafficTotal: z.number().int().nullable(),
+  /** 到期时间（epoch ms），上游未提供为 null */
+  expireAt: z.number().int().nullable(),
+})
+export type SubscriptionPreview = z.infer<typeof subscriptionPreviewSchema>
+
 // ---------- 邮箱 ----------
 
 /**
@@ -163,14 +220,19 @@ export type BatchSyncResult = z.infer<typeof batchSyncResultSchema>
  *
  * 语义（2026-10-10 用户确认）：本模块**不是邮箱账号管理**，
  * 而是记录「某个邮箱地址绑定到哪条订阅」这一关系。
- * - 一对一：`email` 建唯一索引，同一邮箱同一时间只属于一条订阅
- * - 不存密码 / 提供商 / 客户：邮箱仅作为订阅的归属标识；
- *   客户归属由 `subscriptions.customerId` 承载，不再冗余
+ * - **邮箱 ↔ 供应商一一对应**：唯一索引建在 `(email, pool_id)` 上——
+ *   同一邮箱在同一供应商下只有一条绑定；同一邮箱可以绑定不同供应商的多条订阅
+ * - 不存密码：邮箱仅作为订阅的归属标识；客户归属由 `subscriptions.customerId`
+ *   承载，不再冗余
+ * - `pool_id` 为快照：同步时取自来源（订阅的所属供应商 / 客户的供应商），
+ *   是绑定关系的身份字段，不随后续订阅改供应商而漂移
  */
 export const emailBindingInputSchema = z.object({
   email: z.string().email('邮箱格式不正确'),
   /** 绑定的订阅；为空表示暂未绑定（允许先建邮箱后补订阅） */
   subscriptionId: idSchema.nullable().optional(),
+  /** 供应商；与 email 共同构成唯一身份，可空表示未指定供应商 */
+  poolId: idSchema.nullable().optional(),
   status: emailBindingStatusSchema.default('active'),
   remark: z.string().nullable().optional(),
 })
@@ -248,8 +310,8 @@ export const dashboardStatsSchema = z.object({
   customersNewThisMonth: z.number().int(),
   /** 近 6 个月客户增长，用于折线图 */
   customerTrend: z.array(z.object({ month: z.string(), count: z.number().int() })),
-  /** 按分类统计，用于饼图 */
-  customersByCategory: z.array(z.object({ name: z.string(), count: z.number().int() })),
+  /** 按供应商统计，用于饼图 */
+  customersByPool: z.array(z.object({ name: z.string(), count: z.number().int() })),
   /** 即将到期的客户（前 5 条） */
   expiringSoon: z.array(
     z.object({
