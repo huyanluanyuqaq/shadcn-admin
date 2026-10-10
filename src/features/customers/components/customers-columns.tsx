@@ -5,10 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { LongText } from '@/components/long-text'
-import {
-  customerStatusLabels,
-  customerStatusStyles,
-} from '../data/schema'
+import { customerStatusLabels, customerStatusStyles } from '../data/schema'
 import {
   daysLeft,
   formatBytes,
@@ -77,7 +74,9 @@ export function getCustomersColumns({
       ),
       cell: ({ row }) => (
         <div className='w-fit ps-2 text-nowrap'>
-          {row.original.email || <span className='text-muted-foreground'>-</span>}
+          {row.original.email || (
+            <span className='text-muted-foreground'>-</span>
+          )}
         </div>
       ),
     },
@@ -190,9 +189,7 @@ export function getCustomersColumns({
         <DataTableColumnHeader column={column} title='备注' />
       ),
       cell: ({ row }) => (
-        <LongText className='max-w-48'>
-          {row.original.remark ?? '-'}
-        </LongText>
+        <LongText className='max-w-48'>{row.original.remark ?? '-'}</LongText>
       ),
       enableSorting: false,
     },

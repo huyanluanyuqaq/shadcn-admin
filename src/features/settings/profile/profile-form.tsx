@@ -31,9 +31,7 @@ const profileFormSchema = z.object({
     .max(30, '用户名不能超过 30 个字符。'),
   email: z.email({
     error: (iss) =>
-      iss.input === undefined
-        ? '请选择要显示的邮箱。'
-        : undefined,
+      iss.input === undefined ? '请选择要显示的邮箱。' : undefined,
   }),
   bio: z.string().max(160).min(4),
   urls: z
@@ -84,8 +82,8 @@ export function ProfileForm() {
                 <Input placeholder='shadcn' {...field} />
               </FormControl>
               <FormDescription>
-                这是你的公开显示名称，可以是真实姓名，也可以是别名。
-                每 30 天才能修改一次。
+                这是你的公开显示名称，可以是真实姓名，也可以是别名。 每 30
+                天才能修改一次。
               </FormDescription>
               <FormMessage />
             </FormItem>

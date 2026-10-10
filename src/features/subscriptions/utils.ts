@@ -39,7 +39,7 @@ export function daysLeft(expireAt: number | null | undefined): number | null {
 /** 流量使用率（0–100），不限流量或无上限时返回 null */
 export function trafficUsagePercent(
   used: number,
-  total: number | null | undefined,
+  total: number | null | undefined
 ): number | null {
   if (!total || total <= 0) return null
   return Math.min(100, Math.round((used / total) * 100))

@@ -1,11 +1,11 @@
-import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { useNavigate } from '@tanstack/react-router'
+import { loginInputSchema, type LoginInput } from '@shared/index'
 import { Loader2, LogIn } from 'lucide-react'
 import { toast } from 'sonner'
-import { loginInputSchema, type LoginInput } from '@shared/index'
-import { useAuth } from '@/context/auth-context'
 import { cn } from '@/lib/utils'
+import { useAuth } from '@/context/auth-context'
 import { Button } from '@/components/ui/button'
 import {
   Form,

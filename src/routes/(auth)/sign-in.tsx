@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { SignIn } from '@/features/auth/sign-in'
 import { tokenStore } from '@/lib/api'
+import { SignIn } from '@/features/auth/sign-in'
 
 const searchSchema = z.object({
   redirect: z.string().optional(),

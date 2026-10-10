@@ -73,9 +73,7 @@ export function DisplayForm() {
             <FormItem>
               <div className='mb-4'>
                 <FormLabel className='text-base'>侧边栏</FormLabel>
-                <FormDescription>
-                  选择要在侧边栏中显示的项目。
-                </FormDescription>
+                <FormDescription>选择要在侧边栏中显示的项目。</FormDescription>
               </div>
               {items.map((item) => (
                 <FormField

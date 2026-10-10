@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
-import { AuthenticatedLayout } from '@/components/layout/authenticated-layout'
 import { tokenStore } from '@/lib/api'
+import { AuthenticatedLayout } from '@/components/layout/authenticated-layout'
 
 export const Route = createFileRoute('/_authenticated')({
   // 守卫：无本地 token 直接回登录页，token 有效性由 AuthProvider 的 /auth/me 校验

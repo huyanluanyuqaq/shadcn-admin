@@ -1,6 +1,6 @@
+import type { Customer } from '@shared/index'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Customer } from '@shared/index'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useDeleteCustomer } from '../api'
@@ -12,7 +12,11 @@ type Props = {
   currentRow: Customer
 }
 
-export function CustomersDeleteDialog({ open, onOpenChange, currentRow }: Props) {
+export function CustomersDeleteDialog({
+  open,
+  onOpenChange,
+  currentRow,
+}: Props) {
   const deleteCustomer = useDeleteCustomer()
 
   const handleDelete = async () => {
@@ -43,8 +47,8 @@ export function CustomersDeleteDialog({ open, onOpenChange, currentRow }: Props)
       desc={
         <>
           <p className='mb-2'>
-            确定要删除客户{' '}
-            <span className='font-bold'>{currentRow.name}</span> 吗？
+            确定要删除客户 <span className='font-bold'>{currentRow.name}</span>{' '}
+            吗？
             <br />
             该操作不可撤销。
           </p>

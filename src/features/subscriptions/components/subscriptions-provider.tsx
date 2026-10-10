@@ -11,9 +11,8 @@ type SubscriptionsContextType = {
   setCurrentRow: React.Dispatch<React.SetStateAction<Subscription | null>>
 }
 
-const SubscriptionsContext = React.createContext<SubscriptionsContextType | null>(
-  null,
-)
+const SubscriptionsContext =
+  React.createContext<SubscriptionsContextType | null>(null)
 
 export function SubscriptionsProvider({
   children,
@@ -24,9 +23,7 @@ export function SubscriptionsProvider({
   const [currentRow, setCurrentRow] = useState<Subscription | null>(null)
 
   return (
-    <SubscriptionsContext
-      value={{ open, setOpen, currentRow, setCurrentRow }}
-    >
+    <SubscriptionsContext value={{ open, setOpen, currentRow, setCurrentRow }}>
       {children}
     </SubscriptionsContext>
   )
@@ -37,7 +34,9 @@ export const useSubscriptions = () => {
   const context = React.useContext(SubscriptionsContext)
 
   if (!context) {
-    throw new Error('useSubscriptions has to be used within <SubscriptionsContext>')
+    throw new Error(
+      'useSubscriptions has to be used within <SubscriptionsContext>'
+    )
   }
 
   return context

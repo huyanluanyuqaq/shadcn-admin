@@ -13,8 +13,8 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { useSyncSubscription } from '../api'
-import { useSubscriptions } from './subscriptions-provider'
 import { getErrorMessage } from '../utils'
+import { useSubscriptions } from './subscriptions-provider'
 
 export function DataTableRowActions({ row }: { row: Row<Subscription> }) {
   const { setOpen, setCurrentRow } = useSubscriptions()
@@ -26,11 +26,11 @@ export function DataTableRowActions({ row }: { row: Row<Subscription> }) {
       if (result.ok) {
         toast.success(
           `「${row.original.name ?? row.original.url}」同步成功` +
-            (result.changed ? '（数据已更新）' : '（无变化）'),
+            (result.changed ? '（数据已更新）' : '（无变化）')
         )
       } else {
         toast.error(
-          `「${row.original.name ?? row.original.url}」同步失败：${result.error ?? '未知错误'}`,
+          `「${row.original.name ?? row.original.url}」同步失败：${result.error ?? '未知错误'}`
         )
       }
     } catch (error) {
@@ -61,7 +61,10 @@ export function DataTableRowActions({ row }: { row: Row<Subscription> }) {
             <Pencil size={16} />
           </DropdownMenuShortcut>
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => void handleSync()} disabled={syncOne.isPending}>
+        <DropdownMenuItem
+          onClick={() => void handleSync()}
+          disabled={syncOne.isPending}
+        >
           {syncOne.isPending ? (
             <Loader2 className='animate-spin' />
           ) : (

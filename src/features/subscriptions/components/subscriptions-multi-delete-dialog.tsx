@@ -1,7 +1,7 @@
 import type { Table } from '@tanstack/react-table'
+import type { Subscription } from '@shared/index'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Subscription } from '@shared/index'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useBulkDeleteSubscriptions } from '../api'
@@ -57,9 +57,7 @@ export function SubscriptionsMultiDeleteDialog({
           </p>
           <Alert variant='destructive'>
             <AlertTitle>警告</AlertTitle>
-            <AlertDescription>
-              请谨慎操作，删除后无法恢复。
-            </AlertDescription>
+            <AlertDescription>请谨慎操作，删除后无法恢复。</AlertDescription>
           </Alert>
         </>
       }

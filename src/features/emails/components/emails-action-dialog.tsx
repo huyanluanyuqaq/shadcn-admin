@@ -135,9 +135,7 @@ export function EmailBindingActionDialog({
     >
       <DialogContent className='sm:max-w-lg'>
         <DialogHeader className='text-start'>
-          <DialogTitle>
-            {isEdit ? '编辑邮箱绑定' : '新增邮箱绑定'}
-          </DialogTitle>
+          <DialogTitle>{isEdit ? '编辑邮箱绑定' : '新增邮箱绑定'}</DialogTitle>
           <DialogDescription>
             {isEdit
               ? '在这里修改邮箱与订阅的绑定关系。'

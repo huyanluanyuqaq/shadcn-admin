@@ -124,8 +124,16 @@ export const sidebarData: SidebarData = {
             { title: '401 未授权', url: '/errors/unauthorized', icon: Lock },
             { title: '403 禁止访问', url: '/errors/forbidden', icon: UserX },
             { title: '404 未找到', url: '/errors/not-found', icon: FileX },
-            { title: '500 服务错误', url: '/errors/internal-server-error', icon: ServerOff },
-            { title: '维护中', url: '/errors/maintenance-error', icon: Construction },
+            {
+              title: '500 服务错误',
+              url: '/errors/internal-server-error',
+              icon: ServerOff,
+            },
+            {
+              title: '维护中',
+              url: '/errors/maintenance-error',
+              icon: Construction,
+            },
           ],
         },
         {

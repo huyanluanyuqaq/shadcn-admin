@@ -154,8 +154,6 @@ describe('SearchProvider and CommandMenu', () => {
       'zzzz-no-match-xxxx'
     )
 
-    await expect
-      .element(screen.getByText('未找到结果。'))
-      .toBeInTheDocument()
+    await expect.element(screen.getByText('未找到结果。')).toBeInTheDocument()
   })
 })

@@ -40,7 +40,7 @@ import { getSubscriptionsColumns } from './subscriptions-columns'
 
 function readArrayFilter(
   filters: ColumnFiltersState,
-  columnId: string,
+  columnId: string
 ): string[] {
   const found = filters.find((filter) => filter.id === columnId)
   return Array.isArray(found?.value) ? (found.value as string[]) : []
@@ -80,13 +80,13 @@ export function SubscriptionsTable() {
     () =>
       getSubscriptionsColumns({
         customerNameById: new Map(
-          (customers.data?.items ?? []).map((item) => [item.id, item.name]),
+          (customers.data?.items ?? []).map((item) => [item.id, item.name])
         ),
         poolNameById: new Map(
-          (pools.data?.items ?? []).map((item) => [item.id, item.name]),
+          (pools.data?.items ?? []).map((item) => [item.id, item.name])
         ),
       }),
-    [customers.data, pools.data],
+    [customers.data, pools.data]
   )
 
   const filterOptions = useMemo(
@@ -105,7 +105,7 @@ export function SubscriptionsTable() {
       })),
       enabled: enabledOptions.map((item) => ({ ...item })),
     }),
-    [customers.data, pools.data],
+    [customers.data, pools.data]
   )
 
   const onColumnFiltersChange: OnChangeFn<ColumnFiltersState> = (updater) => {
@@ -163,7 +163,7 @@ export function SubscriptionsTable() {
     <div
       className={cn(
         'max-sm:has-[div[role="toolbar"]]:mb-16',
-        'flex flex-1 flex-col gap-4',
+        'flex flex-1 flex-col gap-4'
       )}
     >
       <DataTableToolbar
@@ -185,7 +185,11 @@ export function SubscriptionsTable() {
             title: '绑定客户',
             options: filterOptions.customerId,
           },
-          { columnId: 'poolId', title: '订阅池', options: filterOptions.poolId },
+          {
+            columnId: 'poolId',
+            title: '订阅池',
+            options: filterOptions.poolId,
+          },
         ]}
       />
       <div className='overflow-hidden rounded-md border'>
@@ -200,14 +204,14 @@ export function SubscriptionsTable() {
                     className={cn(
                       'bg-background group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted',
                       header.column.columnDef.meta?.className,
-                      header.column.columnDef.meta?.thClassName,
+                      header.column.columnDef.meta?.thClassName
                     )}
                   >
                     {header.isPlaceholder
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext(),
+                          header.getContext()
                         )}
                   </TableHead>
                 ))}
@@ -239,13 +243,15 @@ export function SubscriptionsTable() {
               Array.from({ length: Math.min(pagination.pageSize, 5) }).map(
                 (_, index) => (
                   <TableRow key={`skeleton-${index}`}>
-                    {Array.from({ length: columnCount }).map((__, cellIndex) => (
-                      <TableCell key={cellIndex}>
-                        <Skeleton className='h-5 w-full' />
-                      </TableCell>
-                    ))}
+                    {Array.from({ length: columnCount }).map(
+                      (__, cellIndex) => (
+                        <TableCell key={cellIndex}>
+                          <Skeleton className='h-5 w-full' />
+                        </TableCell>
+                      )
+                    )}
                   </TableRow>
-                ),
+                )
               )
             ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
@@ -260,10 +266,13 @@ export function SubscriptionsTable() {
                       className={cn(
                         'bg-background group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted',
                         cell.column.columnDef.meta?.className,
-                        cell.column.columnDef.meta?.tdClassName,
+                        cell.column.columnDef.meta?.tdClassName
                       )}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

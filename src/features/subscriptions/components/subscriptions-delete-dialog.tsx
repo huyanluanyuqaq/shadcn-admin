@@ -1,6 +1,6 @@
+import type { Subscription } from '@shared/index'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Subscription } from '@shared/index'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useDeleteSubscription } from '../api'
@@ -48,7 +48,9 @@ export function SubscriptionsDeleteDialog({
         <>
           <p className='mb-2'>
             确定要删除订阅{' '}
-            <span className='font-bold'>{currentRow.name ?? currentRow.url}</span>{' '}
+            <span className='font-bold'>
+              {currentRow.name ?? currentRow.url}
+            </span>{' '}
             吗？
             <br />
             该操作不可撤销。

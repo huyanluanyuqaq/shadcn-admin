@@ -1,7 +1,7 @@
 import type { Table } from '@tanstack/react-table'
+import type { Customer } from '@shared/index'
 import { AlertTriangle, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Customer } from '@shared/index'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { ConfirmDialog } from '@/components/confirm-dialog'
 import { useBulkDeleteCustomers } from '../api'
@@ -13,7 +13,11 @@ type Props = {
   table: Table<Customer>
 }
 
-export function CustomersMultiDeleteDialog({ open, onOpenChange, table }: Props) {
+export function CustomersMultiDeleteDialog({
+  open,
+  onOpenChange,
+  table,
+}: Props) {
   const bulkDelete = useBulkDeleteCustomers()
   const selectedRows = table.getFilteredSelectedRowModel().rows
   const ids = selectedRows.map((row) => row.original.id)
@@ -47,14 +51,13 @@ export function CustomersMultiDeleteDialog({ open, onOpenChange, table }: Props)
       desc={
         <>
           <p className='mb-2'>
-            确定要删除已选中的 {ids.length} 个客户吗？<br />
+            确定要删除已选中的 {ids.length} 个客户吗？
+            <br />
             该操作不可撤销。
           </p>
           <Alert variant='destructive'>
             <AlertTitle>警告</AlertTitle>
-            <AlertDescription>
-              请谨慎操作，删除后无法恢复。
-            </AlertDescription>
+            <AlertDescription>请谨慎操作，删除后无法恢复。</AlertDescription>
           </Alert>
         </>
       }

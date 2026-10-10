@@ -1,6 +1,6 @@
-import { useSubscriptions } from './subscriptions-provider'
 import { SubscriptionsActionDialog } from './subscriptions-action-dialog'
 import { SubscriptionsDeleteDialog } from './subscriptions-delete-dialog'
+import { useSubscriptions } from './subscriptions-provider'
 
 export function SubscriptionsDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useSubscriptions()

@@ -55,9 +55,7 @@ export function ConfigDrawer() {
       <SheetContent className='flex flex-col'>
         <SheetHeader className='pb-0 text-start'>
           <SheetTitle>主题设置</SheetTitle>
-          <SheetDescription>
-            调整外观与布局，以符合你的偏好。
-          </SheetDescription>
+          <SheetDescription>调整外观与布局，以符合你的偏好。</SheetDescription>
         </SheetHeader>
         <div className='space-y-6 overflow-y-auto px-4'>
           <ThemeConfig />

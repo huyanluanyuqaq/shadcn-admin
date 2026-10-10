@@ -109,7 +109,9 @@ export function emptySubscriptionForm(): SubscriptionForm {
   }
 }
 
-export function toSubscriptionForm(subscription: Subscription): SubscriptionForm {
+export function toSubscriptionForm(
+  subscription: Subscription
+): SubscriptionForm {
   return {
     name: subscription.name ?? '',
     url: subscription.url,
@@ -133,7 +135,7 @@ export function toSubscriptionForm(subscription: Subscription): SubscriptionForm
 /** 表单值 → 写入 API 的入参（不触碰由同步引擎维护的字段） */
 export function toSubscriptionInput(
   values: SubscriptionForm,
-  current?: Subscription | null,
+  current?: Subscription | null
 ): SubscriptionInput {
   return {
     name: values.name.trim() ? values.name.trim() : null,

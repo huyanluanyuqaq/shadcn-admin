@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Table } from '@tanstack/react-table'
-import { Trash2 } from 'lucide-react'
 import type { Customer } from '@shared/index'
+import { Trash2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
   Tooltip,

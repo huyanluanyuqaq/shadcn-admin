@@ -96,9 +96,7 @@ export function AccountForm() {
             <FormItem className='flex flex-col'>
               <FormLabel>出生日期</FormLabel>
               <DatePicker selected={field.value} onSelect={field.onChange} />
-              <FormDescription>
-                你的出生日期用于计算年龄。
-              </FormDescription>
+              <FormDescription>你的出生日期用于计算年龄。</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -159,9 +157,7 @@ export function AccountForm() {
                   </Command>
                 </PopoverContent>
               </Popover>
-              <FormDescription>
-                这是后台界面使用的语言。
-              </FormDescription>
+              <FormDescription>这是后台界面使用的语言。</FormDescription>
               <FormMessage />
             </FormItem>
           )}

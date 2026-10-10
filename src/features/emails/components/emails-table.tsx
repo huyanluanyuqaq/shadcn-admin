@@ -98,7 +98,11 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
     globalFilter: { enabled: false },
     columnFilters: [
       { columnId: 'status', searchKey: 'status', type: 'array' },
-      { columnId: 'subscriptionId', searchKey: 'subscriptionId', type: 'array' },
+      {
+        columnId: 'subscriptionId',
+        searchKey: 'subscriptionId',
+        type: 'array',
+      },
     ],
   })
 
@@ -162,7 +166,10 @@ export function EmailsTable({ search, navigate }: DataTableProps) {
       customerIdBySubscription: new Map<number, number | null>(
         subscriptions.map(
           (subscription) =>
-            [subscription.id, subscription.customerId] as [number, number | null]
+            [subscription.id, subscription.customerId] as [
+              number,
+              number | null,
+            ]
         )
       ),
       customerNames: new Map<number, string>(

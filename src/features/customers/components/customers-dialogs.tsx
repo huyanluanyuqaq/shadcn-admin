@@ -1,6 +1,6 @@
-import { useCustomers } from './customers-provider'
 import { CustomersActionDialog } from './customers-action-dialog'
 import { CustomersDeleteDialog } from './customers-delete-dialog'
+import { useCustomers } from './customers-provider'
 
 export function CustomersDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useCustomers()

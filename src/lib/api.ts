@@ -1,4 +1,9 @@
-import type { ListResult, LoginInput, LoginResult, Pagination } from '@shared/index'
+import type {
+  ListResult,
+  LoginInput,
+  LoginResult,
+  Pagination,
+} from '@shared/index'
 
 /**
  * 前端 API 客户端。
@@ -35,7 +40,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     readonly status: number,
-    readonly payload?: unknown,
+    readonly payload?: unknown
   ) {
     super(message)
     this.name = 'ApiError'
@@ -66,7 +71,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
       payload = undefined
     }
     const message =
-      (payload as { message?: string } | undefined)?.message ?? `请求失败（HTTP ${res.status}）`
+      (payload as { message?: string } | undefined)?.message ??
+      `请求失败（HTTP ${res.status}）`
     throw new ApiError(message, res.status, payload)
   }
 
@@ -96,14 +102,17 @@ export const api = {
     request<T>(path, { method: 'PUT', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
   /** 列表查询，返回统一分页结构 */
-  list: <T>(path: string, params: Partial<Pagination> & Record<string, unknown> = {}) =>
-    request<ListResult<T>>(`${path}${toQuery(params)}`),
+  list: <T>(
+    path: string,
+    params: Partial<Pagination> & Record<string, unknown> = {}
+  ) => request<ListResult<T>>(`${path}${toQuery(params)}`),
 
   // —— 认证 ——
-  login: (input: LoginInput) => request<LoginResult>('/auth/login', {
-    method: 'POST',
-    body: JSON.stringify(input),
-  }),
+  login: (input: LoginInput) =>
+    request<LoginResult>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify(input),
+    }),
   logout: () => request<void>('/auth/logout', { method: 'POST' }),
   me: () => request<{ username: string }>('/auth/me'),
 }

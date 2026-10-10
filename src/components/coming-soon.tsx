@@ -7,7 +7,8 @@ export function ComingSoon() {
         <Telescope size={72} />
         <h1 className='text-4xl leading-tight font-bold'>即将上线！</h1>
         <p className='text-center text-muted-foreground'>
-          该页面尚未创建。<br />
+          该页面尚未创建。
+          <br />
           敬请期待！
         </p>
       </div>

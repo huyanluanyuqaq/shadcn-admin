@@ -5,11 +5,13 @@ import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { LongText } from '@/components/long-text'
+import { syncStatusLabels, syncStatusStyles } from '../data/schema'
 import {
-  syncStatusLabels,
-  syncStatusStyles,
-} from '../data/schema'
-import { daysLeft, formatBytes, formatDateTime, trafficUsagePercent } from '../utils'
+  daysLeft,
+  formatBytes,
+  formatDateTime,
+  trafficUsagePercent,
+} from '../utils'
 import { DataTableRowActions } from './data-table-row-actions'
 
 export type SubscriptionColumnMaps = {
@@ -56,13 +58,15 @@ export function getSubscriptionsColumns({
       ),
       cell: ({ row }) => (
         <LongText className='max-w-32 ps-3'>
-          {row.original.name ?? <span className='text-muted-foreground'>-</span>}
+          {row.original.name ?? (
+            <span className='text-muted-foreground'>-</span>
+          )}
         </LongText>
       ),
       meta: {
         className: cn(
           'drop-shadow-[0_1px_2px_rgb(0_0_0_/_0.1)] dark:drop-shadow-[0_1px_2px_rgb(255_255_255_/_0.1)]',
-          'inset-s-6 ps-0.5 max-md:sticky @4xl/content:table-cell @4xl/content:drop-shadow-none',
+          'inset-s-6 ps-0.5 max-md:sticky @4xl/content:table-cell @4xl/content:drop-shadow-none'
         ),
       },
       enableHiding: false,
@@ -146,7 +150,7 @@ export function getSubscriptionsColumns({
                 <div
                   className={cn(
                     'h-full rounded-full',
-                    percent >= 90 ? 'bg-destructive' : 'bg-primary',
+                    percent >= 90 ? 'bg-destructive' : 'bg-primary'
                   )}
                   style={{ width: `${percent}%` }}
                 />

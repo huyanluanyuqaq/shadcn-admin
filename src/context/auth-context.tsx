@@ -69,7 +69,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useCallback(
     (input: LoginInput) => loginAsync(input),
-    [loginAsync],
+    [loginAsync]
   )
 
   const logout = useCallback(async () => {
@@ -92,7 +92,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       login,
       logout,
     }),
-    [meQuery.data, meQuery.isLoading, token, isLoginPending, login, logout],
+    [meQuery.data, meQuery.isLoading, token, isLoginPending, login, logout]
   )
 
   return <AuthContext value={value}>{children}</AuthContext>

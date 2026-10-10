@@ -102,7 +102,9 @@ export function getEmailBindingColumns(
           return <span className='text-muted-foreground'>未分配</span>
         }
         return (
-          <div className='truncate'>{maps.customerNames.get(customerId) ?? '-'}</div>
+          <div className='truncate'>
+            {maps.customerNames.get(customerId) ?? '-'}
+          </div>
         )
       },
       meta: { className: 'w-32' },

@@ -4,12 +4,7 @@ import {
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
-import type {
-  Category,
-  Customer,
-  CustomerInput,
-  Plan,
-} from '@shared/index'
+import type { Category, Customer, CustomerInput, Plan } from '@shared/index'
 import { api } from '@/lib/api'
 
 /** 列表查询参数（全部由服务端执行筛选/排序/分页） */
@@ -54,7 +49,8 @@ export function useCustomersQuery(params: CustomerListParams) {
 export function useCategoryOptions() {
   return useQuery({
     queryKey: ['categories', 'options'],
-    queryFn: () => api.list<Category>('/categories', { page: 1, pageSize: 200 }),
+    queryFn: () =>
+      api.list<Category>('/categories', { page: 1, pageSize: 200 }),
     staleTime: 5 * 60 * 1000,
   })
 }
@@ -71,7 +67,8 @@ export function usePlanOptions() {
 export function useCreateCustomer() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (input: CustomerInput) => api.post<Customer>('/customers', input),
+    mutationFn: (input: CustomerInput) =>
+      api.post<Customer>('/customers', input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: customerKeys.root })
     },
@@ -81,8 +78,13 @@ export function useCreateCustomer() {
 export function useUpdateCustomer() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: ({ id, input }: { id: number; input: Partial<CustomerInput> }) =>
-      api.patch<Customer>(`/customers/${id}`, input),
+    mutationFn: ({
+      id,
+      input,
+    }: {
+      id: number
+      input: Partial<CustomerInput>
+    }) => api.patch<Customer>(`/customers/${id}`, input),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: customerKeys.root })
     },

@@ -26,12 +26,17 @@ import {
   TableRow,
 } from '@/components/ui/table'
 import { DataTablePagination, DataTableToolbar } from '@/components/data-table'
-import { type CustomerListParams, useCategoryOptions, useCustomersQuery, usePlanOptions } from '../api'
+import {
+  type CustomerListParams,
+  useCategoryOptions,
+  useCustomersQuery,
+  usePlanOptions,
+} from '../api'
 import { customerStatusOptions } from '../data/schema'
 import { useDebouncedValue } from '../hooks'
 import { getErrorMessage } from '../utils'
-import { DataTableBulkActions } from './data-table-bulk-actions'
 import { getCustomersColumns } from './customers-columns'
+import { DataTableBulkActions } from './data-table-bulk-actions'
 
 function readArrayFilter(
   filters: ColumnFiltersState,
@@ -222,11 +227,13 @@ export function CustomersTable() {
               Array.from({ length: Math.min(pagination.pageSize, 5) }).map(
                 (_, index) => (
                   <TableRow key={`skeleton-${index}`}>
-                    {Array.from({ length: columnCount }).map((__, cellIndex) => (
-                      <TableCell key={cellIndex}>
-                        <Skeleton className='h-5 w-full' />
-                      </TableCell>
-                    ))}
+                    {Array.from({ length: columnCount }).map(
+                      (__, cellIndex) => (
+                        <TableCell key={cellIndex}>
+                          <Skeleton className='h-5 w-full' />
+                        </TableCell>
+                      )
+                    )}
                   </TableRow>
                 )
               )
@@ -246,7 +253,10 @@ export function CustomersTable() {
                         cell.column.columnDef.meta?.tdClassName
                       )}
                     >
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>

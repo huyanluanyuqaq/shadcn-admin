@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { Customer } from '@shared/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Customer } from '@shared/index'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -95,7 +95,11 @@ function SelectField({
   )
 }
 
-export function CustomersActionDialog({ open, onOpenChange, currentRow }: Props) {
+export function CustomersActionDialog({
+  open,
+  onOpenChange,
+  currentRow,
+}: Props) {
   const isEdit = !!currentRow
   const [expireOpen, setExpireOpen] = useState(false)
 
@@ -266,7 +270,9 @@ export function CustomersActionDialog({ open, onOpenChange, currentRow }: Props)
                 name='expireAt'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>到期时间</FormLabel>
+                    <FormLabel className='col-span-2 text-end'>
+                      到期时间
+                    </FormLabel>
                     <Popover open={expireOpen} onOpenChange={setExpireOpen}>
                       <PopoverTrigger asChild>
                         <FormControl>
