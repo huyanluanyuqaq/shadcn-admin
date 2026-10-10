@@ -13,7 +13,7 @@
 Project: shadcn-admin
 Slug: shadcn-admin
 Version: 2.2.1
-Status: planning
+Status: active
 Owner: huyanluanyuqaq
 Repository: https://github.com/huyanluanyuqaq/shadcn-admin.git
 Created: 2026-10-09
@@ -50,12 +50,12 @@ Upstream: satnaing/shadcn-admin（本仓库为其 fork，接入时尚无自定�
 | 图表 | Recharts 3.8 |
 | 表单 | react-hook-form 7 + zod 4 |
 | 状态 | zustand 5 |
-| **后端** | **无（纯前端 SPA）—— 待建设，方案见 `docs/architecture/overview.md`** |
-| **数据库** | **无 —— 待建设** |
-| **认证** | Clerk（`@clerk/react` 6.4.3，SaaS 托管）—— **待替换为自建 JWT** |
+| **后端** | **Hono 4（Node，自建 REST API + SPA 静态托管，:3000）—— 已建设（TASK-001）** |
+| **数据库** | **SQLite（better-sqlite3 ^12.4.1，WAL）+ Drizzle ORM —— 已建设（TASK-001），迁移见 `server/drizzle/`** |
+| **认证** | **自建 JWT（jose + bcryptjs）—— 已移除 Clerk（TASK-002，ADR-002）** |
 | 测试 | Vitest 4 + `@vitest/browser-playwright`（浏览器模式）+ Testing Library |
 | 包管理 | **pnpm**（`pnpm-lock.yaml`，**不要用 npm/yarn**） |
-| 容器化 | **无（仅 `netlify.toml` 静态部署）—— 待建设 Dockerfile + docker-compose.yml** |
+| 容器化 | **Dockerfile + docker-compose.yml（单容器 + SQLite 数据卷，:3000）—— 已建设（TASK-005）** |
 | CI/CD | GitHub Actions（`.github/`） |
 
 **核心依赖：** 见 `package.json`。
@@ -74,25 +74,38 @@ shadcn-admin/
 │   ├── requirements/  architecture/  technical/  decisions/  operations/
 ├── tasks/                 ← 协调层（新增）：backlog/ active/ review/ done/
 ├── src/
-│   ├── assets/  components/  config/  context/  hooks/  lib/  stores/  styles/
+│   ├── assets/  config/  context/  hooks/  lib/  stores/  styles/
 │   ├── components/
-│   │   ├── ui/             ← 30 个 shadcn 原语组件（勿手改，用 shadcn CLI 增删）
+│   │   ├── ui/             ← shadcn 原语组件（勿手改，用 shadcn CLI 增删）
 │   │   ├── data-table/     ← TanStack Table 封装：分页/列显隐/排序/faceted 筛选/批量操作
 │   │   └── layout/ command-menu.tsx theme-switch.tsx ...
 │   ├── features/           ← 按领域分包（二次开发的主要战场）
-│   │   ├── apps/  chats/   ← 与订阅业务无关，可删除
-│   │   ├── auth/           ← 登录/注册/OTP/忘记密码 UI
+│   │   ├── auth/           ← 登录 UI
+│   │   ├── customers/  plans/  subscriptions/  emails/   ← 业务模块（CRUD 完整范式）
 │   │   ├── dashboard/      ← 图表（Recharts）
-│   │   ├── errors/  settings/（含 notifications 子页）
-│   │   ├── tasks/          ← CRUD 完整范式（含 import-dialog）
-│   │   └── users/          ← CRUD 完整范式（dialogs/columns/provider/table/bulk-actions）
+│   │   └── errors/  logs/  settings/
 │   ├── routes/             ← 文件路由
-│   │   ├── (auth)/         ← sign-in / sign-up / otp / forgot-password
-│   │   ├── clerk/          ← Clerk 专用路由（待移除）
-│   │   └── _authenticated/ ← 需登录访问：users/ tasks/ apps/ chats/ settings/ help-center/
+│   │   ├── (auth)/         ← sign-in
+│   │   ├── (errors)/       ← 401 / 403 / 404 / 500 / 503
+│   │   └── _authenticated/ ← 需登录访问：customers/ plans/ subscriptions/ emails/ settings/ help-center/
 │   ├── routeTree.gen.ts    ← **自动生成，禁止手改**
 │   └── test-utils/
-├── netlify.toml           ← 静态部署配置（容器化后将被取代）
+├── server/                 ← 【新增】Hono 后端（TASK-001）
+│   ├── src/
+│   │   ├── index.ts        # 入口：API 路由 + SPA 静态托管（:3000）
+│   │   ├── routes/         # 按领域：auth / customers / subscriptions / plans / email-bindings / dashboard ...
+│   │   ├── db/             # schema.ts, migrate.ts, seed.ts
+│   │   ├── middleware/     # auth (JWT), error handler
+│   │   ├── lib/            # CRUD 工厂等通用能力
+│   │   └── services/       # 业务逻辑（订阅解析、到期计算、通知）
+│   ├── drizzle/            # 迁移 SQL + meta 快照
+│   ├── scripts/            # smoke.ts 端到端冒烟（31 项）
+│   └── package.json
+├── shared/                 ← 【新增】前后端共享类型与 zod schema
+│   └── src/
+├── Dockerfile              ← 【新增】单容器构建（TASK-005）
+├── docker-compose.yml      ← 【新增】单容器 + SQLite 数据卷（TASK-005）
+├── netlify.toml            ← 上游遗留静态部署配置（已被 docker compose 取代，保留未删）
 └── vite.config.ts
 ```
 
@@ -203,8 +216,8 @@ pnpm test:coverage
 # 构建前端产物（输出 dist/）
 pnpm build
 
-# 构建容器镜像（待 Dockerfile 落地后启用）
-# docker build -t subscription-admin:latest .
+# 构建容器镜像（Dockerfile 已落地，TASK-005）
+docker build -t subscription-admin:latest .
 ```
 
 ---
@@ -212,9 +225,8 @@ pnpm build
 ## 8. Deployment Commands
 
 ```bash
-# 当前：Netlify 静态部署（netlify.toml）
-# 目标：Docker Compose 自托管（待建设）
-# docker compose up -d --build
+# 当前：Docker Compose 自托管（TASK-005 已落地；netlify.toml 为上游遗留，不再使用）
+docker compose up -d --build
 ```
 
 **部署约束：** 目标形态为**单容器 + SQLite 数据卷**的 `docker compose` 部署；

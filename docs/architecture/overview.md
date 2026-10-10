@@ -1,8 +1,11 @@
 # 架构总览 — 用户订阅管理系统（基于 shadcn-admin 二次开发）
 
-> 状态：**草案，待人类确认**
+> 状态：**已实施**（TASK-001 ~ TASK-009 全部完成；§1「现状与差距」为接入时
+> 的基线快照，保留作历史记录，不代表当前状态）
 > 创建：2026-10-09 · 作者：Architect
-> 关联：[ADR-001 后端技术栈选型](../decisions/ADR-001-backend-stack.md)
+> 关联：[ADR-001 后端技术栈选型](../decisions/ADR-001-backend-stack.md)、
+> [ADR-002 移除 Clerk 改用 JWT](../decisions/ADR-002-remove-clerk-use-jwt.md)、
+> [ADR-003 订阅同步引擎设计](../decisions/ADR-003-subscription-sync-design.md)
 
 ---
 
