@@ -1,12 +1,24 @@
+# 部署用 docker-compose：直接拉取 DockerHub 上已发布的镜像（多架构 amd64/arm64）。
+# 用法：
+#   1) 在同目录放 .env（见 .env.example），至少填 JWT_SECRET 与 ADMIN_PASSWORD
+#   2) docker compose pull && docker compose up -d
+#   3) 访问 http://<服务器IP>:3000，用 .env 里的账号登录
+#
+# 如需本地从源码构建（不走 DockerHub），把下面两行：
+#     image: nomorelatenights/subscription-admin:latest
+# 换成：
+#     build: .
+#     image: subscription-admin:latest
+# 即可。
+
 services:
   app:
-    build: .
-    image: subscription-admin:latest
+    image: nomorelatenights/subscription-admin:latest
     container_name: subscription-admin
     ports:
       - '${PORT:-3000}:3000'
     volumes:
-      # SQLite 数据文件持久化到宿主机
+      # SQLite 数据文件持久化到宿主机（删容器不丢数据）
       - ./data:/app/data
     environment:
       NODE_ENV: production
