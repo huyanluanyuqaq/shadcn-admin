@@ -1,0 +1,23 @@
+services:
+  app:
+    build: .
+    image: subscription-admin:latest
+    container_name: subscription-admin
+    ports:
+      - '${PORT:-3000}:3000'
+    volumes:
+      # SQLite 数据文件持久化到宿主机
+      - ./data:/app/data
+    environment:
+      NODE_ENV: production
+      # 必填：缺失时 compose 会直接报错，避免带着默认口令上线
+      JWT_SECRET: ${JWT_SECRET:?请在 .env 中设置 JWT_SECRET（至少 16 位随机字符串）}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?请在 .env 中设置 ADMIN_PASSWORD}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      DATABASE_URL: /app/data/app.db
+      # 订阅同步并发数（1-20，默认 5）
+      SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-5}
+      # 设为 false 可关闭内置定时调度（例如改由外部触发）
+      ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
+      TZ: ${TZ:-Asia/Shanghai}
+    restart: unless-stopped

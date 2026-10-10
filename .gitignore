@@ -32,3 +32,9 @@ dist-ssr
 # Vitest artifacts (browser screenshots/attachments)
 **/__screenshots__/
 .vitest-attachments/
+
+# SQLite 数据文件（运行时产物，挂载卷持久化）
+/data
+*.db
+*.db-shm
+*.db-wal

@@ -1,0 +1,353 @@
+# 架构总览 — 用户订阅管理系统（基于 shadcn-admin 二次开发）
+
+> 状态：**草案，待人类确认**
+> 创建：2026-10-09 · 作者：Architect
+> 关联：[ADR-001 后端技术栈选型](../decisions/ADR-001-backend-stack.md)
+
+---
+
+## 1. 现状与差距
+
+### 1.1 基座现状
+
+| 维度 | 现状 |
+|------|------|
+| 形态 | 纯前端 SPA（Vite 8 + React 19 + TanStack Router） |
+| 数据 | `@faker-js/faker` mock，刷新即变，**无持久层** |
+| 后端 | 无 |
+| 认证 | Clerk（SaaS，需外网 + Publishable Key） |
+| 部署 | `netlify.toml` 静态部署，**无 Dockerfile / docker-compose.yml** |
+
+### 1.2 目标
+
+一套 `docker compose up -d` 即可自托管运行的订阅管理系统，功能覆盖：
+**订阅管理、客户管理、邮箱管理、仪表盘、通知、日志、套餐**。
+
+### 1.3 差距清单
+
+| 缺口 | 性质 | 工作量 |
+|------|------|--------|
+| 后端服务与 REST API | 从零建设 | 大 |
+| 数据库与迁移体系 | 从零建设 | 中 |
+| 认证由 Clerk 改为自托管 JWT | 替换 | 中 |
+| 7 个业务模块的领域模型与页面 | 复用 UI 范式 + 重写数据层 | 大 |
+| Dockerfile + docker-compose.yml | 从零建设 | 小 |
+| 后端自动化测试 | 从零建设 | 中 |
+
+---
+
+## 2. 目标架构
+
+```
+                         ┌─────────────────────────────────────┐
+   Browser ── HTTPS ──▶  │  单容器：node:22-alpine             │
+                         │  Hono (Node)                        │
+                         │   ├── /api/*   → REST API           │
+                         │   └── /*       → 静态 dist (SPA)     │
+                         │         │                           │
+                         │         ▼ Drizzle ORM               │
+                         │  SQLite  /app/data/app.db           │
+                         └──────────────┬──────────────────────┘
+                                        │ bind mount
+                                   ./data/  （宿主机持久化）
+```
+
+**拓扑要点：**
+
+- **单进程单容器**。Hono 同时承担 API 与前端静态托管（含 SPA fallback），不引入 Nginx 反向代理。
+  理由：目标场景为单机自托管，多一层反向代理只增加运维负担，不带来收益。
+- **无独立数据库容器**。SQLite 以文件形式落在挂载卷中。若未来需要 Postgres，
+  演进路径见 §3.3。
+- **前端构建在镜像内完成**，`docker compose up --build` 一条命令产出可运行实例。
+
+---
+
+## 3. 后端选型
+
+### 3.1 决定
+
+| 层 | 选型 | 版本 |
+|----|------|------|
+| HTTP 框架 | **Hono**（Node runtime） | ^4 |
+| ORM | **Drizzle ORM** | ^0.36+ |
+| 数据库 | **SQLite**（`better-sqlite3`） | 3.x |
+| 认证 | **JWT（`jose`）+ `bcryptjs`** | — |
+| 校验 | **zod**（与前端共享 schema） | ^4（沿用前端既有版本） |
+| 定时任务 | `node-cron` 或 Hono + 内置调度 | — |
+
+### 3.2 理由与被否决方案
+
+| 决策点 | 采用 | 否决项 | 否决理由 |
+|--------|------|--------|---------|
+| HTTP 框架 | Hono | Express | JS 优先，类型体验弱，需额外 `@types` 与大量断言 |
+| | | Fastify | 能力相当，但插件模型更重；Hono 在 Node/Workers 间可移植，退出成本低 |
+| ORM | Drizzle | Prisma | 需代码生成步骤与独立引擎二进制，Docker 镜像体积与构建时间显著增加 |
+| | | TypeORM | 装饰器语法与前端 zod 体系割裂，类型推导弱 |
+| 数据库 | SQLite | PostgreSQL | 需额外容器 + 运维；本场景写入量低（人工 CRUD + 定时同步），SQLite WAL 足以支撑 |
+| 认证 | 自建 JWT | 保留 Clerk | SaaS 依赖与「自托管离线运行」目标直接冲突 |
+| | | Lucia/Auth.js | 面向多租户会话场景，本系统为单管理员，引入即过度设计 |
+
+### 3.3 演进预留
+
+SQLite 并非永久绑定。Drizzle 支持多 dialect，未来切 Postgres 需：
+1. 替换 `better-sqlite3` 为 `pg` 驱动；
+2. 调整 schema 中的列类型（SQLite 的 `integer` 时间戳 → `timestamp`）；
+3. 追加 `docker-compose.yml` 的 `db` service。
+
+**代价可控但非零**，因此不在首期引入（避免过度设计）。
+
+---
+
+## 4. 目录布局
+
+采用**单仓库并列目录**（而非 pnpm workspace）：
+
+```
+shadcn-admin/
+├── src/           ← 前端（保持原状，仅改造 features/）
+├── server/        ← 【新增】Hono 后端
+│   ├── src/
+│   │   ├── index.ts        # 入口：API 路由 + 静态托管
+│   │   ├── routes/         # 按领域：customers / subscriptions / plans / emails / ...
+│   │   ├── db/             # schema.ts, migrate.ts, seed.ts
+│   │   ├── middleware/     # auth (JWT), error handler
+│   │   └── services/       # 业务逻辑（订阅解析、到期计算、通知）
+│   ├── drizzle/            # 迁移 SQL
+│   └── package.json
+├── shared/        ← 【新增】前后端共享类型与 zod schema
+│   └── src/
+├── Dockerfile     ← 【新增】
+└── docker-compose.yml  ← 【新增】
+```
+
+**为何不用 pnpm workspace：** 那需要把 `src/` 移动为 `packages/client/src/`，
+违反 Adoption 的「只加不改」原则，且会破坏上游 fork 的合并能力。
+并列目录改动最小，后续可平滑演进。
+
+**共享方式：** `shared/` 通过 tsconfig path alias + Vite alias 引入前端；
+后端以相对路径引入后由 `tsc` 编译进产物。
+
+---
+
+## 5. 数据模型（首期）
+
+| 表 | 用途 | 关键字段 |
+|----|------|---------|
+| `customers` | 客户（业务对象，非系统账号） | name, email, category_id, plan_id, status, expire_at, traffic_used, traffic_total |
+| `plans` | 套餐 | name, price, duration_days, traffic_limit, description |
+| `categories` | 客户分类 | name |
+| `subscriptions` | 订阅链接 | url, customer_id, pool_id, traffic_total/used, expire_at, **cron_expr, last_run_at, next_run_at, sync_status, last_error, user_agent, headers(json), skip_tls_verify, proxy_url** |
+| `subscription_pool` | 订阅池 | name, url, remark |
+| `email_accounts` | 邮箱账号 | email, password, provider_id, customer_id, status |
+| `email_providers` | 邮箱提供商 | name, domain, remark |
+| `reminders` | 到期提醒（通知源） | customer_id, type, remind_at, is_read |
+| `logs` | 日志（操作 + 定时任务） | level, module, message, created_at |
+| `settings` | 系统配置 | key, value |
+| `admins` | 管理员账号（单管理员起步） | username, password_hash |
+
+**说明：** 用户已确认「用户管理 = 订阅客户管理」，因此**不引入多用户 RBAC**。
+`admins` 表仅支撑单管理员登录，保留未来扩展为角色的字段空间，但首期不实现角色。
+
+**订阅表同步字段说明**（参照 sublinkPro 的 `airports` 表设计）：
+每条订阅自持 `cron_expr`，调度器逐条注册 job 并支持热重载；
+`last_run_at` / `next_run_at` 在每次执行后回写，供前端展示下次同步时间；
+`headers` 以 JSON 存储自定义请求头，`skip_tls_verify` / `proxy_url` 为单条链接的可选项
+（对应 sublinkPro 的 `RequestHeaders` / `InsecureSkipVerify` / `ProxyLink`）。
+
+---
+
+## 6. 前端改造映射
+
+| 现有资产 | 处置 | 目标模块 |
+|----------|------|---------|
+| `src/components/data-table/` | **保留复用** | 全部列表页（分页/列显隐/排序/faceted 筛选/批量操作） |
+| `src/components/ui/`（30 个） | **保留复用** | 全局 |
+| `features/users/` | **改造** | → `features/customers/`（CRUD 范式直接迁移） |
+| `features/tasks/` | **改造** | → `features/subscriptions/`（含 `import-dialog` → Excel 导入） |
+| `features/dashboard/` | **改造** | 仪表盘（Recharts，接真实统计 API） |
+| `features/settings/notifications.tsx` | **改造** | 通知设置 |
+| `features/auth/` | **改造** | 对接自建 JWT（替换 Clerk） |
+| `features/apps/`、`features/chats/` | **删除** | 与业务无关 |
+| `routes/clerk/` | **删除** | Clerk 专用路由 |
+| — | **新建** | `features/emails/`、`features/plans/`、`features/logs/`、`features/reminders/` |
+
+**复用范式说明：** `features/users/` 与 `features/tasks/` 提供了完整的
+「Provider + Columns + Table + Dialogs + BulkActions + DeleteDialog」结构，
+新增模块只需复制该骨架并替换 `data/schema.ts`（zod）与列定义。
+
+---
+
+## 7. 认证改造路径（Clerk → JWT）
+
+1. 移除依赖 `@clerk/react` 及 `VITE_CLERK_PUBLISHABLE_KEY`。
+2. 删除 `src/routes/clerk/` 整个目录。
+3. `routes/_authenticated/route.tsx` 的守卫逻辑：由 Clerk 的 `<SignedIn>` 改为
+   读取本地 token（内存 + `sessionStorage`）并校验 `/api/auth/me`。
+4. 后端新增 `POST /api/auth/login`（bcrypt 校验 → 签发 JWT）、
+   `POST /api/auth/logout`、`GET /api/auth/me`。
+5. `features/auth/` 的 sign-in 页面表单保持，**仅替换提交逻辑**为调用 `/api/auth/login`。
+6. `sign-up`、`otp`、`forgot-password` 页面：单管理员模式下**无自助注册**，直接移除入口。
+
+---
+
+## 8. 容器化方案
+
+**Dockerfile（三阶段）：**
+
+| 阶段 | 内容 |
+|------|------|
+| `client-builder` | `pnpm install --frozen-lockfile` → `pnpm build` → 产出 `dist/` |
+| `server-builder` | 编译 `server/` 与 `shared/` → 产出 `server/dist/` |
+| `runner` | `node:22-alpine`，仅安装生产依赖，拷贝两侧产物，`CMD ["node","server/dist/index.js"]` |
+
+**docker-compose.yml：**
+
+```yaml
+services:
+  app:
+    build: .
+    ports: ["3000:3000"]
+    volumes: ["./data:/app/data"]
+    environment:
+      NODE_ENV: production
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    restart: unless-stopped
+```
+
+**注意：** `JWT_SECRET` 与 `ADMIN_PASSWORD` 必须提供默认值以外的真实值；
+首期应在使用说明中强提示修改，后续任务应改为「缺失即拒绝启动」。
+
+---
+
+## 9. 实施阶段
+
+| 阶段 | 内容 | 依赖 |
+|------|------|------|
+| P0 | 后端骨架（Hono + Drizzle + SQLite + 迁移脚本） | — |
+| P1 | 认证改造（JWT 替换 Clerk） | P0 |
+| P2 | 领域模块：套餐 → 客户 → 订阅 → 邮箱 | P0, P1 |
+| P2.5 | **订阅同步引擎**（调度 + 拉取 + 批量写入，参照 sublinkPro） | P2 |
+| P3 | 仪表盘 + 通知（到期提醒）+ 日志 | P2, P2.5 |
+| P4 | Dockerfile + docker-compose.yml + 部署验证 | P0–P3 |
+| P5 | 后端测试补齐 | P0–P3 |
+
+---
+
+## 10. 订阅同步设计（参照 sublinkPro）
+
+> 定时批量拉取订阅是本项目**唯一的集中写入场景**，必须先明确约束，否则会在数据量上来后出现
+> 「事务持锁数秒」或「事件循环阻塞」两类难以定位的故障。
+>
+> 本章设计以 [sublinkPro](https://github.com/ZeroDeng01/sublinkPro)（Go + React，1.6k stars，MIT）
+> 的生产实现为主要参照（2026-10-09 调研），并在其缺口处按 Node/SQLite 特性加严。
+
+### 10.1 参照实现：sublinkPro 的链路
+
+| 层 | sublinkPro 实现 | 本项目对应 |
+|----|----------------|-----------|
+| 调度 | `robfig/cron/v3`，**每个机场一条独立 job**，`CronExpr` 存于 `airports` 表，改库热重载（`ReloadFromDatabase()`） | 采纳：cron 表达式存 `subscriptions` 表，提供 reload 接口 |
+| 拉取 | `http.Client{Timeout: 10s}`，**HEAD 优先**，失败/非 2xx 回退 GET；UA 默认 `clash.meta` 可覆盖 | 采纳：HEAD 优先回退 GET |
+| 解析 | 读响应头 `subscription-userinfo` | 采纳（同 `business-manager`） |
+| 入库 | `UpdateUsageInfo` 单条更新；返回 `changedNodeIDs` **增量对比**，仅处理变化项 | 采纳增量对比，但写入合并为单事务（见 C2） |
+| 后处理 | `applyAutoTagRules` 异步；可选「更新后测速」且 `ChangedOnly` 只测变化节点 | 首期不做测速，保留扩展位 |
+| 通知 | 失败时 `notifications.Publish("subscription.sync_failed")` | 采纳：失败写 `logs` + 触发通知 |
+| 代理出口 | 将 mihomo 作为 **Go 库** 嵌入，取 adapter 注入 `http.Transport.DialContext` | 改为 undici `ProxyAgent`（见 §10.5） |
+
+**三个值得抄的细节：**
+
+1. **HEAD 优先回退 GET** —— 只取响应头、不下载订阅正文，单次流量从数十 KB 降到数百字节。
+   在数百订阅的定时拉取下，这是最直接的带宽优化。
+2. **`changedNodeIDs` 增量对比** —— 只有用量/到期真正变化时才触发后续动作（打标签、通知、测速），
+   避免每轮全量空转。
+3. **Cron 表达式入库 + 热重载** —— 比写死在配置文件灵活，且每机场独立表达式天然错峰。
+
+### 10.2 sublinkPro 的缺口（本项目不沿用）
+
+| 缺口 | sublinkPro 现状 | 本项目处置 |
+|------|----------------|-----------|
+| 批量更新**无并发上限** | `BatchUpdateAirportUsage` 每个机场一个 goroutine，`wg.Wait()`，N 机场 = N 并发 | **加 C3 并发上限** |
+| **无 `SkipIfStillRunning`** | 单任务可能重叠执行 | **加 C6 单飞锁** |
+| **无 jitter** | 表达式相同时惊群 | **加 C4 jitter** |
+
+> 它靠「用户自行配置不同的 cron 表达式」侥幸规避并发问题，而非系统层限流。
+> 本项目不依赖使用者的自觉，改由系统约束保证。
+
+### 10.3 SQLite 必配参数（已被 sublinkPro 生产验证）
+
+```sql
+PRAGMA journal_mode = WAL;      -- 读写并发
+PRAGMA synchronous = NORMAL;    -- WAL 下安全，避免每次提交 fsync
+PRAGMA busy_timeout = 5000;     -- 锁竞争时等待 5s 而非抛 SQLITE_BUSY（必选）
+PRAGMA foreign_keys = ON;
+PRAGMA cache_size = -64000;     -- 64MB 页缓存（sublinkPro 用 _cache_size=-64000）
+```
+
+sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WAL` /
+`_synchronous=NORMAL` / `_cache_size=-64000` / `_foreign_keys=ON`，
+驱动为纯 Go 的 `glebarez/sqlite`，连接池 `MaxIdle=10 / MaxOpen=100 / MaxLifetime=1h`。
+
+**关键事实：** WAL 模式下「1 写者 + N 读者」并发，但**写与写互斥，锁粒度为整个数据库文件**。
+不设 `busy_timeout` 时并发写直接抛错。
+
+> 注意：sublinkPro 用连接池是因为 Go 的多 goroutine 模型；本项目为 Node 单线程 +
+> `better-sqlite3` 同步 API，**不需要连接池**，单连接即可。
+
+### 10.4 强制约束
+
+| # | 约束 | 原因 |
+|---|------|------|
+| C1 | **禁止在事务内执行网络 IO**（`db.transaction` 回调内不得 `await fetch`） | 写锁将被持有数秒，导致全系统写入排队 |
+| C2 | 批量结果必须合并为**单个事务**写入 | `better-sqlite3` 为同步 API，N 次独立写 = N 次 fsync + N 倍事件循环阻塞 |
+| C3 | 拉取并发上限 `CONCURRENCY`（建议 5–10，可配） | 防止打满上游触发限流/封 IP（sublinkPro 缺口①） |
+| C4 | 定时触发需加 **jitter**（随机延迟 0–10 分钟） | 避免惊群；上游限流早于数据库成为瓶颈（缺口③） |
+| C5 | 单条拉取需超时（10s）与失败隔离（`Promise.allSettled`） | 单个链接超时不得阻塞整批 |
+| C6 | **单飞锁**：同一订阅（或同一批任务）未跑完不得重入 | 防止任务重叠（sublinkPro 缺口②） |
+| C7 | **HEAD 优先**，非 2xx 或头部缺失时回退 GET | 省带宽；sublinkPro 实证有效 |
+| C8 | **增量对比**：仅当 `upload/download/total/expire` 变化时才写库并触发通知 | 避免每轮全量空转；sublinkPro `changedNodeIDs` 思路 |
+| C9 | Cron 表达式入库 + 提供热重载接口，执行后回写 `last_run` / `next_run` | 便于运维与错峰；sublinkPro `ReloadFromDatabase()` 思路 |
+
+> 注：`better-sqlite3` 的 `db.transaction()` 回调**必须是同步函数**，
+> 该 API 约束天然保证了 C1，实现时应依赖它而非绕过它。
+
+### 10.5 mihomo 的定位（重要）
+
+订阅信息解析**不需要 mihomo**。Clash/Mihomo 订阅的用量与到期信息通过 HTTP 响应头
+`Subscription-UserInfo`（`upload=X; download=Y; total=Z; expire=T`）获取，
+由 Node 原生 `fetch` + UA 轮换（`clash.meta` / `v2ray` / `ClashforWindows`）即可完成。
+
+三个项目对 mihomo 的用法各不相同，**但都不是「订阅拉取工具」**：
+
+| 项目 | mihomo 形态 | Node 能否复用 |
+|------|------------|--------------|
+| sublinkPro | Go 库嵌入，取 adapter 注入 `http.Transport.DialContext` 作代理拨号器 | ❌ Go 专有 |
+| `business-manager` | 下载二进制跑独立进程 | ❌ 重，且非必需 |
+| **本项目** | **不需要** | ✅ 代理出口用 undici `ProxyAgent` 即可 |
+
+| 场景 | 是否需要在镜像内安装 mihomo |
+|------|--------------------------|
+| 仅解析订阅用量与到期 | **不需要** —— 省去 Docker 构建期的二进制下载，镜像更小、构建更快 |
+| 需固定出口 IP 拉取 | 不需要二进制，配置 `PROXY_URL` + undici `ProxyAgent` |
+| 需实际运行代理流量 | 需要（额外引入进程管理） |
+
+> 首期按「仅解析」实现。若后续确认需要第三种场景，应新增独立 ADR 并调整 Dockerfile。
+
+### 10.6 何时改用 PostgreSQL
+
+判据是**部署形态**而非数据量：
+
+- 需多容器 / 多实例水平扩展 → SQLite 不适用（多进程共享数据库文件需网络文件系统，风险高）
+- 持续写 QPS 达数千量级，或长事务与高频写长期共存 → 考虑迁移
+- 单容器 + 批量事务 → SQLite 余量充足（500 订阅 / 6 小时同步 ≈ 0.02 写 QPS，余量三个数量级）
+
+---
+
+## 11. 风险
+
+| 风险 | 影响 | 缓解 |
+|------|------|------|
+| Tailwind 4 与 shadcn 组件版本演进 | 组件升级需同步改样式 | 组件通过 shadcn CLI 管理，不手改 |
+| Clerk 移除涉及路由与守卫重构 | 中等返工 | 集中在 P1 一次性完成，不做渐进 |
+| SQLite 并发写锁 | 高并发写失败 | 启用 WAL 模式；写入集中在人工操作场景 |
+| 后端无测试 | 回归风险 | P5 补齐；P0 起即设计可测的 Service 层 |
+| 与 `business-manager` 混淆 | 组件误复制导致样式崩溃 | 见 `AGENTS.md` §13.1：Tailwind 3.4 与 4 不兼容，禁止跨项目复制 |

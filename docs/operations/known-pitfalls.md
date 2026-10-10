@@ -1,0 +1,167 @@
+# 已知坑点与规避方式
+
+> 维护者：Architect · 更新：2026-10-09
+> 本文记录本项目**实际踩过**的坑，以及已经落到代码/配置里的规避方式。
+> 新增坑点请追加条目，不要删除历史条目（删除会让后来者重复踩坑）。
+
+---
+
+## 1. better-sqlite3 是原生模块，版本与构建脚本是硬约束
+
+**现象：** `pnpm install` 在 `node-gyp` / `VisualStudioFinder` 处失败，
+报 `gyp ERR! not ok`；或运行时报 `Could not locate the bindings file`。
+
+**根因（三个，曾同时存在）：**
+
+1. **v13 起官方不再发布预编译二进制**（GitHub Releases 无 assets），
+   取不到预编译包时会回退源码编译，需要 MSVC 工具链；Windows 开发机通常没有，必然失败。
+2. **pnpm 10 默认阻止依赖的 build scripts**（`onlyBuiltDependencies` 白名单为空），
+   导致 `prebuild-install` 根本没机会运行。
+3. 使用 `pnpm install --ignore-scripts` 会跳过预编译下载。
+
+**已落地的规避：**
+
+- `server/package.json` 锁定 `better-sqlite3: ^12.4.1`（解析到 12.11.1）
+- 根 `package.json` 声明
+  `"pnpm": { "onlyBuiltDependencies": ["better-sqlite3", "esbuild"] }`
+- **禁止**使用 `pnpm install --ignore-scripts`；误用后执行 `pnpm rebuild better-sqlite3`
+- 详见 `AGENTS.md` §13.6
+
+**验证方式：** 删除 `node_modules/.pnpm/better-sqlite3@*` 后重跑 `pnpm install`，
+应看到 `better-sqlite3 install$ prebuild-install ... Done` 并生成 `build/Release/better_sqlite3.node`。
+
+---
+
+## 2. Docker 基础镜像不能用 Alpine
+
+**现象：** 容器构建在 better-sqlite3 处卡住或失败。
+
+**根因：** better-sqlite3 的预编译二进制基于 **glibc**，Alpine 是 **musl**，
+无法命中预编译包 → 源码编译 → 需要 python3/make/g++，构建极慢且镜像更大。
+
+**规避：** `Dockerfile` 使用 `node:22-bookworm-slim`（Debian，glibc）。
+已在 Dockerfile 顶部注释说明，不要"顺手改成 alpine"。
+
+---
+
+## 3. 环境变量默认值必须回写 process.env
+
+**现象：** 明明在 `env.ts` 里给了 `JWT_SECRET` 的默认值，
+登录时却报 `JWT_SECRET 缺失或过短`。
+
+**根因：** `config` 对象持有默认值，但 `middleware/auth.ts` 直接读
+`process.env.JWT_SECRET`，读到的是 `undefined`。
+
+**规避：** `server/src/env.ts` 末尾显式回写：
+
+```ts
+process.env.JWT_SECRET = config.jwtSecret
+process.env.DATABASE_URL = config.databaseUrl
+process.env.PORT = String(config.port)
+```
+
+**注意：** `env.ts` 必须在任何读取 `process.env` 的模块（尤其 `db/index.ts`）**之前**导入，
+否则默认值来不及生效。
+
+---
+
+## 4. shared 包改动后必须重新构建
+
+**现象：** 改了 `shared/src/schema/*.ts`，后端 typecheck 仍然报"属性不存在"。
+
+**根因：** 后端以 `@repo/shared` 包形式消费其 **`dist/` 编译产物**；
+前端则通过 Vite alias `@shared` 直接引**源码**。两侧机制不同。
+
+**规避：** 改动 shared 后先执行 `pnpm build:shared`；
+`pnpm build:server` 与 `pnpm typecheck:server` 已内置该前置步骤。
+
+---
+
+## 5. 事务内不得 await 网络 IO（SQLite 写锁）
+
+**现象：** 订阅同步期间整个系统写入卡住数秒。
+
+**根因：** 若在 `db.transaction()` 内 `await fetch`，**数据库级写锁**会被持有整个网络往返时间，
+WAL 模式下写写互斥，所有其他写入排队。
+
+**规避：**
+
+- `better-sqlite3` 的 `db.transaction()` 回调**必须是同步函数**，该 API 约束天然杜绝此问题
+- 同步服务拆成两阶段：并发拉取（不持锁）→ 单事务批量写入（1 次 fsync）
+- 详见架构 §10 约束 C1/C2 与 `server/src/services/subscription-sync.ts`
+
+---
+
+## 6. 删除客户会级联删除其订阅
+
+**现象：** 冒烟测试中先删客户再删订阅，订阅报 404。
+
+**根因：** `subscriptions.customerId` 外键声明为 `onDelete: 'cascade'`，这是**有意设计**
+（客户不存在时其订阅无意义）。
+
+**规避：** 测试与业务代码需按「先订阅、后客户」的顺序删除。
+冒烟测试已包含该级联验证用例。
+
+---
+
+## 7. 前端构建会重写 routeTree.gen.ts
+
+**现象：** 改动路由后 typecheck 报"路由不存在"，或 `routeTree.gen.ts` 出现 diff。
+
+**根因：** `@tanstack/router-plugin` 在 vite build/dev 时自动生成该文件。
+
+**规避：**
+
+- **不要手工编辑** `src/routeTree.gen.ts`
+- 增删路由文件后先跑一次 `npx vite build`（或 `pnpm dev`）让其重新生成，再跑 `pnpm build`
+- 该文件行尾为 LF，仓库默认 CRLF，git 可能提示换行符变化，属正常
+
+---
+
+## 8. 沙箱 / CI 环境的限制（非代码缺陷）
+
+| 现象 | 原因 | 处置 |
+|------|------|------|
+| `wmic.exe` 被安全策略拦截，pnpm 偶发失败 | pnpm Windows 端会调用 wmic 解析存储路径 | 重试即可；非代码问题 |
+| `pnpm test` 全部失败 | Vitest 为**浏览器模式**，需先 `pnpm test:browser:install` 装 Chromium | 环境准备问题，非代码缺陷 |
+| 本机无法 `docker build` | 该环境未安装 Docker | **已解决**：在既有 WSL2 Ubuntu 内安装 Docker Engine（非 Docker Desktop），`docker compose build` 可正常构建；详见 §9 / §10 的两个构建坑 |
+| Prettier 报 CRLF/LF 差异 | 仓库文件为 CRLF，Prettier 期望 LF | 提交前跑 `pnpm format`，或配置 core.autocrlf |
+
+---
+
+## 9. Dockerfile 不要带 `# syntax=dockerfile:1` 前端指令
+
+**现象：** 构建在第一步即失败：
+
+```
+#3 resolve image config for docker-image://docker.io/library/dockerfile:1
+#3 ERROR: pull access denied, repository does not exist or may require authorization:
+          server message: insufficient_scope: authorization failed
+```
+
+**根因：** `# syntax=dockerfile:1` 要求 Docker 先拉取 BuildKit 前端镜像
+`docker.io/library/dockerfile:1`；在**匿名拉取受限 / 限流**的 registry 环境
+（如本沙箱）会失败。
+
+**规避：** 删掉该首行。Docker 会改用**守护进程内置的前端解析器**，本项目
+Dockerfile 不依赖任何高级前端特性（`COPY`/`RUN`/`ENV` 等通用指令即可）。
+2026-10-10 已在 `Dockerfile` 中移除该指令并重新构建通过。
+
+---
+
+## 10. .dockerignore 不能过度排除 `data`
+
+**现象：** 容器内 `tsc` 报 `Cannot find module '../data/schema'`、
+`'./data/sidebar-data'`，前端 `pnpm build` 失败；而宿主机 `tsc -b` 却通过。
+
+**根因：** `.dockerignore` 里的 `data` 与 `**/data` 会匹配**任意层级**名为 `data`
+的目录，把 `src/features/customers/data/`、`src/features/subscriptions/data/`、
+`src/components/layout/data/` 这些**业务源码目录**也一并排除，导致 `COPY . .`
+根本不会把它们拷入镜像（宿主机有、镜像里没有 → 模块找不到）。
+
+**规避：** 只排除 SQLite 数据目录（项目根级），用**锚定根级**的写法 `/data`；
+保留所有源码 `data` 目录。2026-10-10 已将 `.dockerignore` 的 `data` / `**/data`
+改为 `/data` 并重新构建通过。
+
+**教训：** 把源码拷贝进构建上下文时（如 `tar` 排除、`dockerignore`），
+也要避免同名目录的过度匹配——两者会叠加导致"宿主机有、镜像无"的诡异差异。

@@ -1,9 +1,6 @@
 import {
-  Construction,
   LayoutDashboard,
-  Monitor,
   Bug,
-  ListTodo,
   FileX,
   HelpCircle,
   Lock,
@@ -16,186 +13,123 @@ import {
   UserCog,
   UserX,
   Users,
-  MessagesSquare,
-  ShieldCheck,
-  AudioWaveform,
-  Command,
-  GalleryVerticalEnd,
+  Mail,
+  ScrollText,
+  Radio,
+  Construction,
 } from 'lucide-react'
-import { ClerkLogo } from '@/assets/clerk-logo'
 import { type SidebarData } from '../types'
 
+/**
+ * 侧边栏导航（业务化改造后）。
+ * 已移除：Tasks / Apps / Chats / Users（原演示模块）与 Clerk 相关入口。
+ */
 export const sidebarData: SidebarData = {
   user: {
-    name: 'satnaing',
-    email: 'satnaingdev@gmail.com',
+    name: '管理员',
+    email: 'admin@example.com',
     avatar: '/avatars/shadcn.jpg',
   },
   teams: [
     {
-      name: 'Shadcn Admin',
-      logo: Command,
-      plan: 'Vite + ShadcnUI',
-    },
-    {
-      name: 'Acme Inc',
-      logo: GalleryVerticalEnd,
-      plan: 'Enterprise',
-    },
-    {
-      name: 'Acme Corp.',
-      logo: AudioWaveform,
-      plan: 'Startup',
+      name: '订阅管理系统',
+      logo: Radio,
+      plan: '自托管版',
     },
   ],
   navGroups: [
     {
-      title: 'General',
+      title: '概览',
       items: [
         {
-          title: 'Dashboard',
+          title: '仪表盘',
           url: '/',
           icon: LayoutDashboard,
         },
+      ],
+    },
+    {
+      title: '业务管理',
+      items: [
         {
-          title: 'Tasks',
-          url: '/tasks',
-          icon: ListTodo,
-        },
-        {
-          title: 'Apps',
-          url: '/apps',
-          icon: Package,
-        },
-        {
-          title: 'Chats',
-          url: '/chats',
-          badge: '3',
-          icon: MessagesSquare,
-        },
-        {
-          title: 'Users',
-          url: '/users',
+          title: '客户管理',
+          url: '/customers',
           icon: Users,
         },
         {
-          title: 'Secured by Clerk',
-          icon: ClerkLogo,
-          items: [
-            {
-              title: 'Sign In',
-              url: '/clerk/sign-in',
-            },
-            {
-              title: 'Sign Up',
-              url: '/clerk/sign-up',
-            },
-            {
-              title: 'User Management',
-              url: '/clerk/user-management',
-            },
-          ],
+          title: '订阅管理',
+          url: '/subscriptions',
+          icon: Radio,
+        },
+        {
+          title: '套餐管理',
+          url: '/plans',
+          icon: Package,
+        },
+        {
+          title: '邮箱管理',
+          url: '/emails',
+          icon: Mail,
         },
       ],
     },
     {
-      title: 'Pages',
+      title: '系统',
       items: [
         {
-          title: 'Auth',
-          icon: ShieldCheck,
-          items: [
-            {
-              title: 'Sign In',
-              url: '/sign-in',
-            },
-            {
-              title: 'Sign In (2 Col)',
-              url: '/sign-in-2',
-            },
-            {
-              title: 'Sign Up',
-              url: '/sign-up',
-            },
-            {
-              title: 'Forgot Password',
-              url: '/forgot-password',
-            },
-            {
-              title: 'OTP',
-              url: '/otp',
-            },
-          ],
+          title: '日志',
+          url: '/logs',
+          icon: ScrollText,
         },
         {
-          title: 'Errors',
-          icon: Bug,
-          items: [
-            {
-              title: 'Unauthorized',
-              url: '/errors/unauthorized',
-              icon: Lock,
-            },
-            {
-              title: 'Forbidden',
-              url: '/errors/forbidden',
-              icon: UserX,
-            },
-            {
-              title: 'Not Found',
-              url: '/errors/not-found',
-              icon: FileX,
-            },
-            {
-              title: 'Internal Server Error',
-              url: '/errors/internal-server-error',
-              icon: ServerOff,
-            },
-            {
-              title: 'Maintenance Error',
-              url: '/errors/maintenance-error',
-              icon: Construction,
-            },
-          ],
+          title: '通知设置',
+          url: '/settings/notifications',
+          icon: Bell,
         },
-      ],
-    },
-    {
-      title: 'Other',
-      items: [
         {
-          title: 'Settings',
+          title: '设置',
           icon: Settings,
           items: [
             {
-              title: 'Profile',
+              title: '资料',
               url: '/settings',
               icon: UserCog,
             },
             {
-              title: 'Account',
+              title: '账户',
               url: '/settings/account',
               icon: Wrench,
             },
             {
-              title: 'Appearance',
+              title: '外观',
               url: '/settings/appearance',
               icon: Palette,
             },
             {
-              title: 'Notifications',
-              url: '/settings/notifications',
-              icon: Bell,
-            },
-            {
-              title: 'Display',
+              title: '显示',
               url: '/settings/display',
-              icon: Monitor,
+              icon: LayoutDashboard,
             },
           ],
         },
+      ],
+    },
+    {
+      title: '其他',
+      items: [
         {
-          title: 'Help Center',
+          title: '错误示例',
+          icon: Bug,
+          items: [
+            { title: '401 未授权', url: '/errors/unauthorized', icon: Lock },
+            { title: '403 禁止访问', url: '/errors/forbidden', icon: UserX },
+            { title: '404 未找到', url: '/errors/not-found', icon: FileX },
+            { title: '500 服务错误', url: '/errors/internal-server-error', icon: ServerOff },
+            { title: '维护中', url: '/errors/maintenance-error', icon: Construction },
+          ],
+        },
+        {
+          title: '帮助中心',
           url: '/help-center',
           icon: HelpCircle,
         },

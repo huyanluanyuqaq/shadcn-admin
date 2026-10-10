@@ -1,0 +1,8 @@
+packages:
+  - server
+  - shared
+
+# 说明：
+# 仅将新增的 server/ 与 shared/ 纳入 workspace，前端保持在仓库根（src/ 不移动）。
+# pnpm 始终把根目录作为 workspace 的一个 project，因此根 package.json（前端）的依赖照常安装。
+# 这样既可用 `pnpm --filter server dev`，又不违反架构总览 §4「不移动 src/」的决定。

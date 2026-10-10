@@ -19,6 +19,16 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      '@shared': path.resolve(__dirname, './shared/src'),
+    },
+  },
+  server: {
+    // 开发态：Vite(:5173) 将 /api 转发到后端(:3000)，避免跨域与端口拼接
+    proxy: {
+      '/api': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+      },
     },
   },
   test: {
