@@ -23,7 +23,12 @@ jobs:
           node-version: 20
 
       - name: Install pnpm
-        run: npm install -g pnpm
+        # 必须锁定版本：pnpm 12 起不再读取 package.json 的 `pnpm` 字段，
+        # 且原 onlyBuiltDependencies 列表语法改为 pnpm-workspace.yaml 的
+        # allowBuilds 映射语法。不锁版本会让 CI 随 pnpm 发布而突然失败
+        # （曾因此报 ERR_PNPM_IGNORED_BUILDS）。
+        # 版本与 pnpm-workspace.yaml 的 allowBuilds 写法需配套一致。
+        run: npm install -g pnpm@12.10.1
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile

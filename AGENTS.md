@@ -310,9 +310,18 @@ Task 规则（TASK.md 的 Task Rules 节）
    取不到时才回退 `node-gyp` 源码编译（需 MSVC 工具链，本机没有，必然失败）。
    因此必须同时满足：
    1. **版本限定在 `^12.4.1`** —— **v13 起官方不再发布预编译资源**，装 v13 必然走到源码编译并失败；
-   2. **允许 pnpm 执行构建脚本** —— pnpm 10 默认阻止依赖的 build scripts。
-      本项目已在根 `package.json` 声明 `"pnpm": { "onlyBuiltDependencies": ["better-sqlite3", "esbuild"] }`，
+   2. **允许 pnpm 执行构建脚本** —— pnpm 默认阻止依赖的 build scripts。
+      本项目在根 `pnpm-workspace.yaml` 声明 `allowBuilds: { better-sqlite3: true, esbuild: true }`，
       直接 `pnpm install` 即可；若改用其他包管理器，需自行放行这两个包的 install 脚本。
+
+   > ⚠️ **配置位置已变更（2026-10-10 修正）**：原写法是在根 `package.json` 里放
+   > `"pnpm": { "onlyBuiltDependencies": [...] }`，**较新版本 pnpm 不再读取该字段**
+   > （CI 原文：`The "pnpm" field in package.json is no longer read by pnpm`；
+   > 实测本地 pnpm 10.29.3 仍读取，故本地不复现、只在 CI 暴露），
+   > 且 `onlyBuiltDependencies` 列表语法**自 pnpm 11 起被移除**，由 `allowBuilds`
+   > 映射（v10.26.0 引入，10.29.3 与 12 均支持）取代。
+   > 配置放错位置会让 `pnpm install` 直接以 `ERR_PNPM_IGNORED_BUILDS` 中断，
+   > 且 better-sqlite3 / esbuild 的构建脚本不执行。**新配置必须写在 `pnpm-workspace.yaml`。**
 
    **不要使用 `pnpm install --ignore-scripts`**（会跳过预编译下载，导致运行时报
    `Could not locate the bindings file`）。若已误装，执行 `pnpm rebuild better-sqlite3` 或

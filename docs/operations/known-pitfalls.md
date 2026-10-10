@@ -15,17 +15,27 @@
 
 1. **v13 起官方不再发布预编译二进制**（GitHub Releases 无 assets），
    取不到预编译包时会回退源码编译，需要 MSVC 工具链；Windows 开发机通常没有，必然失败。
-2. **pnpm 10 默认阻止依赖的 build scripts**（`onlyBuiltDependencies` 白名单为空），
+2. **pnpm 默认阻止依赖的 build scripts**（白名单为空），
    导致 `prebuild-install` 根本没机会运行。
 3. 使用 `pnpm install --ignore-scripts` 会跳过预编译下载。
 
 **已落地的规避：**
 
 - `server/package.json` 锁定 `better-sqlite3: ^12.4.1`（解析到 12.11.1）
-- 根 `package.json` 声明
-  `"pnpm": { "onlyBuiltDependencies": ["better-sqlite3", "esbuild"] }`
+- 根 `pnpm-workspace.yaml` 声明（**注意不是 package.json**）
+  `allowBuilds: { better-sqlite3: true, esbuild: true }`
 - **禁止**使用 `pnpm install --ignore-scripts`；误用后执行 `pnpm rebuild better-sqlite3`
 - 详见 `AGENTS.md` §13.6
+
+> ⚠️ **2026-10-10 修正（曾导致 CI 长期红灯）：**
+> 上述白名单原先写在根 `package.json` 的 `"pnpm": { "onlyBuiltDependencies": [...] }`。
+> **较新版本 pnpm 不再读取该字段**（本地 pnpm 10.29.3 仍读取，故本地不复现），
+> 且 `onlyBuiltDependencies` 列表语法自 pnpm 11 起被移除、由 `allowBuilds` 映射取代，
+> 于是 `pnpm install`（及 CI 的 `pnpm install --frozen-lockfile`）直接以
+> **`ERR_PNPM_IGNORED_BUILDS`** 失败，CI 停在装依赖阶段，
+> `lint` / `format:check` / `test` / `build` 全部未执行。
+> 排查时注意：**本地 pnpm 版本较旧时可能不复现**（旧版仍读 package.json），
+> 需用 CI 实际版本验证：`npx pnpm@<CI版本> install`。
 
 **验证方式：** 删除 `node_modules/.pnpm/better-sqlite3@*` 后重跑 `pnpm install`，
 应看到 `better-sqlite3 install$ prebuild-install ... Done` 并生成 `build/Release/better_sqlite3.node`。
@@ -123,6 +133,7 @@ WAL 模式下写写互斥，所有其他写入排队。
 | 现象 | 原因 | 处置 |
 |------|------|------|
 | `wmic.exe` 被安全策略拦截，pnpm 偶发失败 | pnpm Windows 端会调用 wmic 解析存储路径 | 重试即可；非代码问题 |
+| **本机 `pnpm install` 通过，CI 却报 `ERR_PNPM_IGNORED_BUILDS`** | **pnpm 版本漂移**：本地 pnpm 10.29.3 仍读 `package.json` 的 `pnpm` 字段，CI 装的是最新版（实测 12.10.1，`store/v11`）不再读 | **锁版本**：CI 用 `npm install -g pnpm@<版本>`；排查时用 `npx pnpm@<CI版本> install` 复现。详见 §11 |
 | `pnpm test` 全部失败 | Vitest 为**浏览器模式**，需先 `pnpm test:browser:install` 装 Chromium | 环境准备问题，非代码缺陷 |
 | 本机无法 `docker build` | 该环境未安装 Docker | **已解决**：在既有 WSL2 Ubuntu 内安装 Docker Engine（非 Docker Desktop），`docker compose build` 可正常构建；详见 §9 / §10 的两个构建坑 |
 | Prettier 报 CRLF/LF 差异 | 仓库文件为 CRLF，Prettier 期望 LF | 提交前跑 `pnpm format`，或配置 core.autocrlf |
@@ -165,3 +176,39 @@ Dockerfile 不依赖任何高级前端特性（`COPY`/`RUN`/`ENV` 等通用指�
 
 **教训：** 把源码拷贝进构建上下文时（如 `tar` 排除、`dockerignore`），
 也要避免同名目录的过度匹配——两者会叠加导致"宿主机有、镜像无"的诡异差异。
+
+---
+
+## 11. pnpm 版本漂移会让 CI 突然变红
+
+**现象：** 本地 `pnpm install` 一切正常，CI 却在 `Install dependencies` 步骤
+即失败：
+
+```
+[WARN] The "pnpm" field in package.json is no longer read by pnpm.
+       The following keys were ignored: "pnpm.onlyBuiltDependencies".
+Error: ERR_PNPM_IGNORED_BUILDS
+```
+
+**根因：** CI 用 `npm install -g pnpm`（**不带版本号**）装 pnpm，
+拿到的是**当时最新版**，随 pnpm 发版而漂移：
+
+| | pnpm 版本 | store | 是否读 `package.json` 的 `pnpm` 字段 |
+|---|---|---|---|
+| 本地开发机 | 10.29.3 | `store/v10` | **读**（故本地不复现） |
+| CI（2026-10-10 实测） | 12.10.1 | `store/v11` | **不读**（直接失败） |
+
+**快速判别：** 看 CI 日志里的 store 路径。`store/v10` ≈ pnpm 10，
+`store/v11` ≈ pnpm 12+。**只要 store 版本比本地新，就说明存在漂移。**
+
+**规避（已于 2026-10-10 落地）：**
+
+1. `ci.yml` 改为 `npm install -g pnpm@12.10.1`，**锁死版本**。
+2. 构建脚本白名单从 `package.json` 的 `pnpm.onlyBuiltDependencies`
+   迁到 `pnpm-workspace.yaml` 的 `allowBuilds` 映射语法
+   （pnpm 10 与 12 均接受该写法，已实测）。
+3. `Dockerfile` 本就用 corepack 锁 `pnpm@10.29.3`，且已 `COPY pnpm-workspace.yaml`，
+   无需改动。
+
+**排查提示：** 本地复现不了时，用 `npx pnpm@<CI版本> install` 在临时目录复现，
+比在真实项目里改配置安全（不会破坏既有 `node_modules`）。

@@ -2,6 +2,22 @@ packages:
   - server
   - shared
 
+# 放行这两个依赖的构建脚本（better-sqlite3、esbuild）。
+#
+# 为什么必须放在这里：较新版本 pnpm 不再读取 package.json 的 `pnpm` 字段
+# （CI 日志原文：The "pnpm" field in package.json is no longer read by pnpm；
+# 实测本地 pnpm 10.29.3 仍读取，故该问题只在 CI 暴露），
+# 且 `onlyBuiltDependencies` 列表语法自 pnpm 11 起被移除，
+# 由 `allowBuilds` 映射（v10.26.0 引入，10.29.3 与 12 均支持）取代。
+# 配置放错位置会让 pnpm 直接以 ERR_PNPM_IGNORED_BUILDS 中断 install，
+# 且 better-sqlite3 / esbuild 的构建脚本不执行。
+#
+# 详见 AGENTS.md §13.6：better-sqlite3 依赖预编译二进制，取不到才回退
+# node-gyp 源码编译（本机无 MSVC 工具链，必然失败）。不放行即装不上。
+allowBuilds:
+  better-sqlite3: true
+  esbuild: true
+
 # 说明：
 # 仅将新增的 server/ 与 shared/ 纳入 workspace，前端保持在仓库根（src/ 不移动）。
 # pnpm 始终把根目录作为 workspace 的一个 project，因此根 package.json（前端）的依赖照常安装。
