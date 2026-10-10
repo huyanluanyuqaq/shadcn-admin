@@ -25,7 +25,7 @@ export function AppTitle() {
               onClick={() => setOpenMobile(false)}
               className='grid flex-1 text-start text-sm leading-tight'
             >
-              <span className='truncate font-bold'>Shadcn-Admin</span>
+              <span className='truncate font-bold'>订阅管理系统</span>
               <span className='truncate text-xs'>Vite + ShadcnUI</span>
             </Link>
             <ToggleSidebar />
@@ -58,7 +58,7 @@ function ToggleSidebar({
     >
       <X className='md:hidden' />
       <Menu className='max-md:hidden' />
-      <span className='sr-only'>Toggle Sidebar</span>
+      <span className='sr-only'>切换侧边栏</span>
     </Button>
   )
 }

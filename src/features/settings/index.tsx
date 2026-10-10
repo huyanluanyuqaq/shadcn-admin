@@ -11,27 +11,27 @@ import { SidebarNav } from './components/sidebar-nav'
 
 const sidebarNavItems = [
   {
-    title: 'Profile',
+    title: '个人资料',
     href: '/settings',
     icon: <UserCog size={18} />,
   },
   {
-    title: 'Account',
+    title: '账户',
     href: '/settings/account',
     icon: <Wrench size={18} />,
   },
   {
-    title: 'Appearance',
+    title: '外观',
     href: '/settings/appearance',
     icon: <Palette size={18} />,
   },
   {
-    title: 'Notifications',
+    title: '通知',
     href: '/settings/notifications',
     icon: <Bell size={18} />,
   },
   {
-    title: 'Display',
+    title: '显示',
     href: '/settings/display',
     icon: <Monitor size={18} />,
   },
