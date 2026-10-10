@@ -1,0 +1,17 @@
+# 统一行尾为 LF。
+#
+# 背景：本仓库内容全部为 LF，但 Windows 开发机 core.autocrlf=true 会把工作区
+# 检出为 CRLF，导致 prettier（endOfLine: lf）在本机报大量格式告警、而 CI
+# （Linux）完全正常——即"本机 format:check 红、CI 绿"的幽灵差异。
+# 在 .gitattributes 声明 eol=lf 可让所有平台（含 Windows 检出）保持一致，
+# 优先于 core.autocrlf。
+* text=auto eol=lf
+
+# 二进制资源不参与行尾归一化
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary

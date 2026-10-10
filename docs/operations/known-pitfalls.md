@@ -124,7 +124,7 @@ WAL 模式下写写互斥，所有其他写入排队。
 
 - **不要手工编辑** `src/routeTree.gen.ts`
 - 增删路由文件后先跑一次 `npx vite build`（或 `pnpm dev`）让其重新生成，再跑 `pnpm build`
-- 该文件行尾为 LF，仓库默认 CRLF，git 可能提示换行符变化，属正常
+- 该文件行尾为 LF（仓库经 `.gitattributes` 统一为 LF），git 一般不会提示换行符变化
 
 ---
 
@@ -136,7 +136,7 @@ WAL 模式下写写互斥，所有其他写入排队。
 | **本机 `pnpm install` 通过，CI 却报 `ERR_PNPM_IGNORED_BUILDS`** | **pnpm 版本漂移**：本地 pnpm 10.29.3 仍读 `package.json` 的 `pnpm` 字段，CI 装的是最新版（实测 12.10.1，`store/v11`）不再读 | **锁版本**：CI 用 `npm install -g pnpm@<版本>`；排查时用 `npx pnpm@<CI版本> install` 复现。详见 §11 |
 | `pnpm test` 全部失败 | Vitest 为**浏览器模式**，需先 `pnpm test:browser:install` 装 Chromium | 环境准备问题，非代码缺陷 |
 | 本机无法 `docker build` | 该环境未安装 Docker | **已解决**：在既有 WSL2 Ubuntu 内安装 Docker Engine（非 Docker Desktop），`docker compose build` 可正常构建；详见 §9 / §10 的两个构建坑 |
-| Prettier 报 CRLF/LF 差异 | 仓库文件为 CRLF，Prettier 期望 LF | 提交前跑 `pnpm format`，或配置 core.autocrlf |
+| Prettier 报 CRLF/LF 差异 | **已于 2026-10-10 修复**：Windows 开发机 `core.autocrlf=true` 把工作区检出为 CRLF，而仓库内容与 Prettier 配置均为 LF，造成"本机 format:check 红、CI 绿"的幽灵差异 | **已根治**：仓库新增 `.gitattributes`（`* text=auto eol=lf`），所有平台检出均为 LF，优先于 `core.autocrlf`。若仍遇到旧检出，跑一次 `pnpm format` 即归一 |
 
 ---
 
