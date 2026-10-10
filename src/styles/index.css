@@ -12,6 +12,8 @@
   }
   html {
     @apply overflow-x-hidden;
+    /* 默认字体（原 FontProvider 在启动时应用的 font-inter，2026-10-10 移除字体切换后固化） */
+    font-family: var(--font-inter);
   }
   body {
     @apply min-h-svh w-full bg-background text-foreground has-[div[data-variant='inset']]:bg-sidebar;

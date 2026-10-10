@@ -4,13 +4,8 @@ import {
   FileX,
   HelpCircle,
   Lock,
-  Bell,
   Package,
-  Palette,
   ServerOff,
-  Settings,
-  Wrench,
-  UserCog,
   UserX,
   Users,
   Mail,
@@ -22,7 +17,8 @@ import { type SidebarData } from '../types'
 
 /**
  * 侧边栏导航（业务化改造后）。
- * 已移除：Tasks / Apps / Chats / Users（原演示模块）与 Clerk 相关入口。
+ * 已移除：Tasks / Apps / Chats / Users（原演示模块）与 Clerk 相关入口；
+ * 2026-10-10 移除设置模块（个人资料/账户/外观/通知/显示均为模板残留，无实际功能）。
  */
 export const sidebarData: SidebarData = {
   user: {
@@ -80,37 +76,6 @@ export const sidebarData: SidebarData = {
           title: '日志',
           url: '/logs',
           icon: ScrollText,
-        },
-        {
-          title: '通知设置',
-          url: '/settings/notifications',
-          icon: Bell,
-        },
-        {
-          title: '设置',
-          icon: Settings,
-          items: [
-            {
-              title: '资料',
-              url: '/settings',
-              icon: UserCog,
-            },
-            {
-              title: '账户',
-              url: '/settings/account',
-              icon: Wrench,
-            },
-            {
-              title: '外观',
-              url: '/settings/appearance',
-              icon: Palette,
-            },
-            {
-              title: '显示',
-              url: '/settings/display',
-              icon: LayoutDashboard,
-            },
-          ],
         },
       ],
     },
