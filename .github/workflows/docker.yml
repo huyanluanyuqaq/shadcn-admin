@@ -71,12 +71,10 @@ jobs:
             type=raw,value=latest
             # 提交短 SHA，便于追溯
             type=sha,format=short
-            # 打 Git tag（vX.Y.Z）时发布版本号镜像。
+            # 打 Git tag（vX.Y.Z）时发布精确版本号镜像，不再额外生成 v1 / v1.0 浮动标签。
             # 注意：metadata-action 的 enable 表达式不支持 is_tag，
             # 而 type=semver 本身只在 ref 是 semver tag 时产出标签（分支推送不会触发），故无需 enable 限制。
             type=semver,pattern=v{{version}}
-            type=semver,pattern=v{{major}}.{{minor}}
-            type=semver,pattern=v{{major}}
 
       - name: Build and push（多架构）
         uses: docker/build-push-action@v6
