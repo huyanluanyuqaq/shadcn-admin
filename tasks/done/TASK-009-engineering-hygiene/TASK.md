@@ -198,7 +198,8 @@ DONE。工作区干净，全部改动已提交（4 个提交，`Refs: TASK-009`�
 
 ## Changed Files
 
-共 **61** 个文件（378 insertions / 332 deletions），分布于 4 个提交：
+共 **63** 个文件（416 insertions / 355 deletions），分布于 5 个工作提交
+（另有 1 个登记提交 `6d2d035` 只动 `tasks/done/TASK-009-*/**`）：
 
 | 提交 | 内容 | 文件数 |
 |------|------|--------|
@@ -206,6 +207,11 @@ DONE。工作区干净，全部改动已提交（4 个提交，`Refs: TASK-009`�
 | `28dfba4` fix: 修复 eslint 报错 | `eslint.config.js`、`server/src/index.ts`、`server/scripts/smoke.ts`、`src/features/subscriptions/components/subscriptions-action-dialog.tsx` | 4 |
 | `7de3481` chore: .gitattributes | `.gitattributes`（新增）、`docs/operations/known-pitfalls.md` | 2 |
 | `4a700fb` test: 同步测试断言 | `src/lib/handle-server-error.test.ts`、`src/components/sign-out-dialog.test.tsx`、`src/components/password-input.test.tsx` | 3 |
+| `c580fd5` docs: 同步过时状态描述 | `AGENTS.md`、`docs/architecture/overview.md` | 2 |
+
+> Workspace 登记表 `projects/README.md`（shadcn-admin 状态 planning → active、
+> 任务清单 backlog 5 → done 9）同属本任务产出，但该文件位于 Workspace 层、
+> 不属于本项目 Git 仓库，故不计入上表。
 
 ---
 
