@@ -217,9 +217,13 @@ DONE。工作区干净，全部改动已提交（4 个提交，`Refs: TASK-009`�
 
 ## Known Issues
 
-1. **CI 实际运行结果未知** —— 本环境无法执行 GitHub Actions。四条门禁
-   （lint / format:check / test / build）已在本地全绿，但 CI 转绿需推送后
-   观察运行记录。
+1. **~~CI 实际运行结果未知~~ → 已转绿（2026-10-10 推送后实证）：**
+   `Continuous Integration`（run 38029205481，2m13s）install → lint →
+   format:check → test → build 全步骤通过；`Build and Push Docker Image`
+   （run 38029205357，7m5s）亦成功。TASK-008 的 pnpm `allowBuilds` 锁版本
+   修复与 TASK-009 的四条门禁修复均获 CI 实证。遗留仅两条无害弃用警告
+   （Node 20 → 24 强制迁移、ubuntu-latest 标签将于 2026-10-19 迁移），
+   不阻塞，可另行处理。
 2. **`AuthProvider.logout` 无直接测试覆盖** —— sign-out-dialog 测试
    mock 掉了 auth context，只验证组件契约（确认 → logout()）。
    `logout` 内部的 `api.logout() → clearSession → navigate` 序列
@@ -241,9 +245,11 @@ DONE。工作区干净，全部改动已提交（4 个提交，`Refs: TASK-009`�
 | 001 | developer | — | 2026-10-10 | 四条门禁本地全绿；遗留 CI 实跑观察 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-next.md`
-**Next Action：** 推送 `main` 后观察 GitHub Actions `Continuous Integration`
-是否转绿（install → lint → format:check → test → build）；随后更新
-Workspace 登记表 `projects/README.md` 与项目文档中的过时状态描述。
+**Next Action：** ~~推送 `main` 后观察 GitHub Actions `Continuous Integration`
+是否转绿~~ ✅ 已完成：两个工作流均 success（见 Known Issues #1）。
+Workspace 登记表 `projects/README.md` 与项目文档的过时状态描述已同步
+（提交 `c580fd5` + Workspace 层文件修订）。后续新任务从 `tasks/backlog/`
+起。
 
 ---
 
