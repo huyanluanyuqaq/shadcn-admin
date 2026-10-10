@@ -39,7 +39,7 @@ async function req(
     ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
   })
   const text = await res.text()
-  let json: any = null
+  let json: any
   try {
     json = text ? JSON.parse(text) : null
   } catch {

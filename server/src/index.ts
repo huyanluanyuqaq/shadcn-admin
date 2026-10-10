@@ -5,7 +5,8 @@ import { serve } from '@hono/node-server'
 import { serveStatic } from '@hono/node-server/serve-static'
 import { Hono } from 'hono'
 import { cors } from 'hono/cors'
-import './env.js'
+// env 必须在任何读取 process.env 的项目模块之前求值（见 env.ts 头部注释）；
+// 命名导入本身即触发 env.js 求值，无需额外的副作用导入。
 import { config } from './env.js'
 import { errorHandler } from './middleware/error.js'
 import { authMiddleware } from './middleware/auth.js'

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { zodResolver } from '@hookform/resolvers/zod'
 import { format } from 'date-fns'
 import { useForm } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
+import type { Subscription } from '@shared/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Subscription } from '@shared/index'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -76,7 +76,7 @@ function SelectField({
     <select
       className={cn(
         'col-span-4 h-9 rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm',
-        className,
+        className
       )}
       value={value}
       disabled={disabled}
@@ -92,8 +92,16 @@ function SelectField({
   )
 }
 
-export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Props) {
+export function SubscriptionsActionDialog({
+  open,
+  onOpenChange,
+  currentRow,
+}: Props) {
   const isEdit = !!currentRow
+
+  // 到期时间选择器的开合状态：必须位于组件顶层（render 回调内调用 Hook 违反
+  // react-hooks/rules-of-hooks）。本对话框单一实例，提升状态无副作用。
+  const [expireOpen, setExpireOpen] = useState(false)
 
   const createSubscription = useCreateSubscription()
   const updateSubscription = useUpdateSubscription()
@@ -107,7 +115,9 @@ export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Pr
 
   useEffect(() => {
     if (!open) return
-    form.reset(currentRow ? toSubscriptionForm(currentRow) : emptySubscriptionForm())
+    form.reset(
+      currentRow ? toSubscriptionForm(currentRow) : emptySubscriptionForm()
+    )
   }, [open, currentRow, form])
 
   const isPending = createSubscription.isPending || updateSubscription.isPending
@@ -204,7 +214,9 @@ export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Pr
                 name='customerId'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>绑定客户</FormLabel>
+                    <FormLabel className='col-span-2 text-end'>
+                      绑定客户
+                    </FormLabel>
                     <SelectField
                       className='col-span-4'
                       value={field.value}
@@ -222,7 +234,9 @@ export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Pr
                 name='poolId'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>订阅池</FormLabel>
+                    <FormLabel className='col-span-2 text-end'>
+                      订阅池
+                    </FormLabel>
                     <SelectField
                       className='col-span-4'
                       value={field.value}
@@ -281,7 +295,9 @@ export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Pr
                 </div>
               </div>
               <div className='grid grid-cols-6 items-center gap-x-4 gap-y-1'>
-                <FormLabel className='col-span-2 text-end'>跳过证书校验</FormLabel>
+                <FormLabel className='col-span-2 text-end'>
+                  跳过证书校验
+                </FormLabel>
                 <div className='col-span-4 flex items-center gap-4'>
                   <FormField
                     control={form.control}
@@ -327,7 +343,9 @@ export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Pr
                 name='proxyUrl'
                 render={({ field }) => (
                   <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                    <FormLabel className='col-span-2 text-end'>代理地址</FormLabel>
+                    <FormLabel className='col-span-2 text-end'>
+                      代理地址
+                    </FormLabel>
                     <FormControl>
                       <Input
                         placeholder='例如 http://127.0.0.1:7890，可留空'
@@ -386,47 +404,44 @@ export function SubscriptionsActionDialog({ open, onOpenChange, currentRow }: Pr
               <FormField
                 control={form.control}
                 name='expireAt'
-                render={({ field }) => {
-                  const [expireOpen, setExpireOpen] = useState(false)
-                  return (
-                    <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
-                      <FormLabel className='col-span-2 text-end'>
-                        到期时间
-                      </FormLabel>
-                      <Popover open={expireOpen} onOpenChange={setExpireOpen}>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant='outline'
-                              className='col-span-4 justify-start text-start font-normal'
-                            >
-                              {field.value ? (
-                                format(field.value, 'yyyy-MM-dd')
-                              ) : (
-                                <span className='text-muted-foreground'>
-                                  长期有效（留空）
-                                </span>
-                              )}
-                              <CalendarIcon className='ms-auto h-4 w-4 opacity-50' />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className='w-auto p-0'>
-                          <Calendar
-                            mode='single'
-                            captionLayout='dropdown'
-                            selected={field.value ?? undefined}
-                            onSelect={(date) => {
-                              field.onChange(date ?? null)
-                              setExpireOpen(false)
-                            }}
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage className='col-span-4 col-start-3' />
-                    </FormItem>
-                  )
-                }}
+                render={({ field }) => (
+                  <FormItem className='grid grid-cols-6 items-center space-y-0 gap-x-4 gap-y-1'>
+                    <FormLabel className='col-span-2 text-end'>
+                      到期时间
+                    </FormLabel>
+                    <Popover open={expireOpen} onOpenChange={setExpireOpen}>
+                      <PopoverTrigger asChild>
+                        <FormControl>
+                          <Button
+                            variant='outline'
+                            className='col-span-4 justify-start text-start font-normal'
+                          >
+                            {field.value ? (
+                              format(field.value, 'yyyy-MM-dd')
+                            ) : (
+                              <span className='text-muted-foreground'>
+                                长期有效（留空）
+                              </span>
+                            )}
+                            <CalendarIcon className='ms-auto h-4 w-4 opacity-50' />
+                          </Button>
+                        </FormControl>
+                      </PopoverTrigger>
+                      <PopoverContent className='w-auto p-0'>
+                        <Calendar
+                          mode='single'
+                          captionLayout='dropdown'
+                          selected={field.value ?? undefined}
+                          onSelect={(date) => {
+                            field.onChange(date ?? null)
+                            setExpireOpen(false)
+                          }}
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    <FormMessage className='col-span-4 col-start-3' />
+                  </FormItem>
+                )}
               />
             </form>
           </Form>
