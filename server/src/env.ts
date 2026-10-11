@@ -60,6 +60,11 @@ export const config = {
   clientDist: process.env.CLIENT_DIST ?? resolve(process.cwd(), 'client', 'dist'),
   /** 是否在启动时自动注册订阅同步任务 */
   enableScheduler: process.env.ENABLE_SCHEDULER !== 'false',
+  /**
+   * Telegram Bot API 基础地址（默认官方）。供冒烟测试指向内嵌 mock，
+   * 也可用于出口受限环境下的自建中转；生产环境无需设置。
+   */
+  telegramApiBase: (process.env.TELEGRAM_API_BASE ?? 'https://api.telegram.org').replace(/\/+$/, ''),
 }
 
 /**

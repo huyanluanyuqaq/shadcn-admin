@@ -18,9 +18,11 @@ import { reminderRoutes } from './routes/reminders.js'
 import { resourceRoutes } from './routes/resources.js'
 import { settingRoutes } from './routes/settings.js'
 import { syncRoutes } from './routes/sync.js'
+import { telegramRoutes } from './routes/telegram.js'
 import { webhookRoutes } from './routes/webhooks.js'
 import { seedAdmin } from './db/seed.js'
 import { loadFromDatabase } from './services/scheduler.js'
+import { startBindPoller } from './services/telegram.js'
 import { writeLog } from './services/logger.js'
 
 const app = new Hono()
@@ -42,6 +44,7 @@ app.route('/api/dashboard', dashboardRoutes)
 app.route('/api/logs', logRoutes)
 app.route('/api/reminders', reminderRoutes)
 app.route('/api/settings', settingRoutes)
+app.route('/api/telegram', telegramRoutes)
 app.route('/api/webhooks', webhookRoutes)
 
 app.notFound((c) => {
@@ -72,6 +75,9 @@ if (config.enableScheduler) {
   const count = loadFromDatabase()
   console.log(`[scheduler] 已注册 ${count} 个订阅同步任务`)
 }
+
+// Telegram 已启用但未绑定 Chat ID 时，恢复 /start 绑定长轮询（重启不丢绑定流程）
+void startBindPoller()
 
 serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`[server] listening on http://localhost:${info.port}`)
