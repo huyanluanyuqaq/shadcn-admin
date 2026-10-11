@@ -5,6 +5,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { NotificationBell } from '@/features/notifications/components/notification-bell'
 import { PlansDialogs } from './components/plans-dialogs'
 import { PlansPrimaryButtons } from './components/plans-primary-buttons'
 import { PlansProvider } from './components/plans-provider'
@@ -20,6 +21,7 @@ export function Plans() {
     <PlansProvider>
       <Header fixed>
         <Search className='me-auto' />
+        <NotificationBell />
         <ThemeSwitch />
         <ConfigDrawer />
         <ProfileDropdown />

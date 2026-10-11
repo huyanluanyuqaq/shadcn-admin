@@ -15,6 +15,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { NotificationBell } from '@/features/notifications/components/notification-bell'
 import { CustomerTrendChart } from './components/customer-trend-chart'
 import { DashboardSkeleton } from './components/dashboard-skeleton'
 import { ExpiringSoonList } from './components/expiring-soon-list'
@@ -30,6 +31,7 @@ export function Dashboard() {
     <>
       <Header fixed>
         <Search className='me-auto' />
+        <NotificationBell />
         <ThemeSwitch />
         <ConfigDrawer />
         <ProfileDropdown />

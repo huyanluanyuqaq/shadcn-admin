@@ -5,6 +5,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { NotificationBell } from '@/features/notifications/components/notification-bell'
 import { EmailsDialogs } from './components/emails-dialogs'
 import { EmailsPrimaryButtons } from './components/emails-primary-buttons'
 import { EmailsProvider } from './components/emails-provider'
@@ -20,6 +21,7 @@ export function Emails() {
     <EmailsProvider>
       <Header fixed>
         <Search className='me-auto' />
+        <NotificationBell />
         <ThemeSwitch />
         <ConfigDrawer />
         <ProfileDropdown />

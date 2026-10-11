@@ -4,6 +4,7 @@ import { Main } from '@/components/layout/main'
 import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
+import { NotificationBell } from '@/features/notifications/components/notification-bell'
 import { CustomersDialogs } from './components/customers-dialogs'
 import { CustomersPrimaryButtons } from './components/customers-primary-buttons'
 import { CustomersProvider } from './components/customers-provider'
@@ -14,6 +15,7 @@ export function Customers() {
     <CustomersProvider>
       <Header fixed>
         <Search className='me-auto' />
+        <NotificationBell />
         <ThemeSwitch />
         <ConfigDrawer />
         <ProfileDropdown />

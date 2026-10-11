@@ -17,8 +17,10 @@ import { Route as errors404RouteImport } from './routes/(errors)/404'
 import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
+import { Route as AuthenticatedWebhooksIndexRouteImport } from './routes/_authenticated/webhooks/index'
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
 import { Route as AuthenticatedPlansIndexRouteImport } from './routes/_authenticated/plans/index'
+import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
 import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authenticated/logs/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
 import { Route as AuthenticatedEmailsIndexRouteImport } from './routes/_authenticated/emails/index'
@@ -64,6 +66,12 @@ const authSignInRoute = authSignInRouteImport.update({
   path: '/sign-in',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedWebhooksIndexRoute =
+  AuthenticatedWebhooksIndexRouteImport.update({
+    id: '/webhooks/',
+    path: '/webhooks/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedSubscriptionsIndexRoute =
   AuthenticatedSubscriptionsIndexRouteImport.update({
     id: '/subscriptions/',
@@ -75,6 +83,12 @@ const AuthenticatedPlansIndexRoute = AuthenticatedPlansIndexRouteImport.update({
   path: '/plans/',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedNotificationsIndexRoute =
+  AuthenticatedNotificationsIndexRouteImport.update({
+    id: '/notifications/',
+    path: '/notifications/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLogsIndexRoute = AuthenticatedLogsIndexRouteImport.update({
   id: '/logs/',
   path: '/logs/',
@@ -118,8 +132,10 @@ export interface FileRoutesByFullPath {
   '/emails/': typeof AuthenticatedEmailsIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/logs/': typeof AuthenticatedLogsIndexRoute
+  '/notifications/': typeof AuthenticatedNotificationsIndexRoute
   '/plans/': typeof AuthenticatedPlansIndexRoute
   '/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
+  '/webhooks/': typeof AuthenticatedWebhooksIndexRoute
 }
 export interface FileRoutesByTo {
   '/sign-in': typeof authSignInRoute
@@ -134,8 +150,10 @@ export interface FileRoutesByTo {
   '/emails': typeof AuthenticatedEmailsIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/logs': typeof AuthenticatedLogsIndexRoute
+  '/notifications': typeof AuthenticatedNotificationsIndexRoute
   '/plans': typeof AuthenticatedPlansIndexRoute
   '/subscriptions': typeof AuthenticatedSubscriptionsIndexRoute
+  '/webhooks': typeof AuthenticatedWebhooksIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -152,8 +170,10 @@ export interface FileRoutesById {
   '/_authenticated/emails/': typeof AuthenticatedEmailsIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
+  '/_authenticated/notifications/': typeof AuthenticatedNotificationsIndexRoute
   '/_authenticated/plans/': typeof AuthenticatedPlansIndexRoute
   '/_authenticated/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
+  '/_authenticated/webhooks/': typeof AuthenticatedWebhooksIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -170,8 +190,10 @@ export interface FileRouteTypes {
     | '/emails/'
     | '/help-center/'
     | '/logs/'
+    | '/notifications/'
     | '/plans/'
     | '/subscriptions/'
+    | '/webhooks/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/sign-in'
@@ -186,8 +208,10 @@ export interface FileRouteTypes {
     | '/emails'
     | '/help-center'
     | '/logs'
+    | '/notifications'
     | '/plans'
     | '/subscriptions'
+    | '/webhooks'
   id:
     | '__root__'
     | '/_authenticated'
@@ -203,8 +227,10 @@ export interface FileRouteTypes {
     | '/_authenticated/emails/'
     | '/_authenticated/help-center/'
     | '/_authenticated/logs/'
+    | '/_authenticated/notifications/'
     | '/_authenticated/plans/'
     | '/_authenticated/subscriptions/'
+    | '/_authenticated/webhooks/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -275,6 +301,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof authSignInRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/webhooks/': {
+      id: '/_authenticated/webhooks/'
+      path: '/webhooks'
+      fullPath: '/webhooks/'
+      preLoaderRoute: typeof AuthenticatedWebhooksIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/subscriptions/': {
       id: '/_authenticated/subscriptions/'
       path: '/subscriptions'
@@ -287,6 +320,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/plans/'
       preLoaderRoute: typeof AuthenticatedPlansIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/notifications/': {
+      id: '/_authenticated/notifications/'
+      path: '/notifications'
+      fullPath: '/notifications/'
+      preLoaderRoute: typeof AuthenticatedNotificationsIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/logs/': {
@@ -334,8 +374,10 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedEmailsIndexRoute: typeof AuthenticatedEmailsIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
+  AuthenticatedNotificationsIndexRoute: typeof AuthenticatedNotificationsIndexRoute
   AuthenticatedPlansIndexRoute: typeof AuthenticatedPlansIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
+  AuthenticatedWebhooksIndexRoute: typeof AuthenticatedWebhooksIndexRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -345,8 +387,10 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedEmailsIndexRoute: AuthenticatedEmailsIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedLogsIndexRoute: AuthenticatedLogsIndexRoute,
+  AuthenticatedNotificationsIndexRoute: AuthenticatedNotificationsIndexRoute,
   AuthenticatedPlansIndexRoute: AuthenticatedPlansIndexRoute,
   AuthenticatedSubscriptionsIndexRoute: AuthenticatedSubscriptionsIndexRoute,
+  AuthenticatedWebhooksIndexRoute: AuthenticatedWebhooksIndexRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =

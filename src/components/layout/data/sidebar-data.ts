@@ -12,6 +12,8 @@ import {
   ScrollText,
   Radio,
   Construction,
+  Bell,
+  Webhook,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -72,6 +74,16 @@ export const sidebarData: SidebarData = {
     {
       title: '系统',
       items: [
+        {
+          title: '通知中心',
+          url: '/notifications',
+          icon: Bell,
+        },
+        {
+          title: 'Webhook 管理',
+          url: '/webhooks',
+          icon: Webhook,
+        },
         {
           title: '日志',
           url: '/logs',
