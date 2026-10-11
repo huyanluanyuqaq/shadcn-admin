@@ -3,6 +3,7 @@ import type { Customer, Subscription } from '@shared/index'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
+import { GB } from '../data/schema'
 import { CustomersActionDialog } from './customers-action-dialog'
 
 /**
@@ -16,6 +17,10 @@ import { CustomersActionDialog } from './customers-action-dialog'
  * 保存流用例改用 getByLabelText 定位，并新增全字段关联断言用例。
  * 注意：vitest-browser 的 getByLabelText 默认子串匹配（'名称' 会连带
  * 命中『订阅名称』），一律传 { exact: true }。
+ *
+ * TASK-022：「拉取订阅更新」预览流量回填「订阅流量上限」——覆盖语义，
+ * 上游未返回流量时保持原值不动。preview mock 经 hoisted 的
+ * subscriptionPreview 共享可控。
  */
 const {
   createCustomer,
@@ -24,6 +29,7 @@ const {
   updateSubscription,
   syncSubscriptionUsage,
   syncEmailBinding,
+  subscriptionPreview,
   subscriptionOptions,
   supplierOptions,
   planOptions,
@@ -34,6 +40,7 @@ const {
   updateSubscription: { isPending: false, mutateAsync: vi.fn() },
   syncSubscriptionUsage: { isPending: false, mutateAsync: vi.fn() },
   syncEmailBinding: { isPending: false, mutateAsync: vi.fn() },
+  subscriptionPreview: { isPending: false, mutateAsync: vi.fn() },
   subscriptionOptions: {
     data: { items: [] as Subscription[] },
     isPending: false,
@@ -60,7 +67,7 @@ vi.mock('../api', () => ({
   useUpdateCustomer: () => updateCustomer,
   usePlanOptions: () => planOptions,
   useSupplierOptions: () => supplierOptions,
-  useSubscriptionPreview: () => ({ mutateAsync: vi.fn() }),
+  useSubscriptionPreview: () => subscriptionPreview,
 }))
 
 const URL = 'https://example.com/sub'
@@ -274,5 +281,69 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
     // 这里只约束合法性，避免偶发 flaky）
     await userEvent.click(getByRole('button', { name: '每天随机时间' }))
     expect(inputEl().value).toMatch(/^\d{1,2} \d{1,2} \* \* \*$/)
+  })
+})
+
+describe('CustomersActionDialog 「拉取订阅更新」回填订阅流量上限（TASK-022）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    subscriptionOptions.data = { items: [] }
+    subscriptionPreview.mutateAsync.mockResolvedValue({
+      trafficTotal: null,
+      expireAt: null,
+    })
+  })
+
+  it('预览返回流量 → 回填「订阅流量上限（GB）」', async () => {
+    subscriptionPreview.mutateAsync.mockResolvedValue({
+      trafficTotal: 10 * GB,
+      expireAt: Date.UTC(2027, 0, 15),
+    })
+    const { getByLabelText, getByRole } = await renderDialog()
+
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
+    await userEvent.click(getByRole('button', { name: '拉取订阅更新' }))
+
+    const cap = getByLabelText('订阅流量上限（GB）', { exact: true })
+    const capEl = () => cap.element() as HTMLInputElement
+    await vi.waitFor(() => {
+      expect(capEl().value).toBe('10')
+    })
+    expect(subscriptionPreview.mutateAsync).toHaveBeenCalledWith(URL)
+  })
+
+  it('覆盖语义：框内已有值（手填）也被新预览值替换', async () => {
+    subscriptionPreview.mutateAsync.mockResolvedValue({
+      trafficTotal: 20 * GB,
+      expireAt: null,
+    })
+    const { getByLabelText, getByRole } = await renderDialog()
+
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
+    const cap = getByLabelText('订阅流量上限（GB）', { exact: true })
+    await userEvent.type(cap, '5')
+
+    await userEvent.click(getByRole('button', { name: '拉取订阅更新' }))
+
+    const capEl = () => cap.element() as HTMLInputElement
+    await vi.waitFor(() => {
+      expect(capEl().value).toBe('20')
+    })
+  })
+
+  it('上游未返回流量 → 保持原值不动（不清空）', async () => {
+    const { getByLabelText, getByRole } = await renderDialog()
+
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
+    const cap = getByLabelText('订阅流量上限（GB）', { exact: true })
+    await userEvent.type(cap, '5')
+
+    await userEvent.click(getByRole('button', { name: '拉取订阅更新' }))
+
+    // 等预览调用完成，再断言值未被清空
+    await vi.waitFor(() => {
+      expect(subscriptionPreview.mutateAsync).toHaveBeenCalledOnce()
+    })
+    expect((cap.element() as HTMLInputElement).value).toBe('5')
   })
 })

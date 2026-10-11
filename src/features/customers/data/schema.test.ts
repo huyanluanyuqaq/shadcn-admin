@@ -6,6 +6,7 @@ import {
   buildSubscriptionInput,
   computeExpireAt,
   emptyCustomerForm,
+  formatTrafficTotalGb,
   GB,
   randomDailyCronExpr,
   resolveAutoTrafficGb,
@@ -582,5 +583,34 @@ describe('emptyCustomerForm 同步周期预填（TASK-020）', () => {
         /^(\d{1,2}) (\d{1,2}) \* \* \*$/
       )
     }
+  })
+})
+
+describe('formatTrafficTotalGb（TASK-022）', () => {
+  it('null/undefined → 空串（表单留空 = 不限）', () => {
+    expect(formatTrafficTotalGb(null)).toBe('')
+    expect(formatTrafficTotalGb(undefined)).toBe('')
+  })
+
+  it('0 → "0"（与 resolveAutoTrafficGb 的 0 口径一致，不当成无来源）', () => {
+    expect(formatTrafficTotalGb(0)).toBe('0')
+  })
+
+  it('字节 → GB：整数、两位小数、舍去尾随零', () => {
+    expect(formatTrafficTotalGb(10 * GB)).toBe('10')
+    expect(formatTrafficTotalGb(1.54 * GB)).toBe('1.54')
+    expect(formatTrafficTotalGb(2.5 * GB)).toBe('2.5')
+    expect(formatTrafficTotalGb(Math.round(2.567 * GB))).toBe('2.57')
+  })
+
+  it('subscriptionFieldsFrom 的流量上限与本函数同口径（复用实证）', () => {
+    expect(
+      subscriptionFieldsFrom(makeSub({ trafficTotal: 1.54 * GB }))
+        .subscriptionTrafficTotalGb
+    ).toBe('1.54')
+    expect(
+      subscriptionFieldsFrom(makeSub({ trafficTotal: null }))
+        .subscriptionTrafficTotalGb
+    ).toBe('')
   })
 })
