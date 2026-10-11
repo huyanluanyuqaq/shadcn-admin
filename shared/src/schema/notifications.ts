@@ -11,11 +11,14 @@ import { z } from 'zod'
  * - **Webhook 渠道**：通用自定义 webhook（URL / 方法 / Content-Type /
  *   自定义请求头 / 自定义 Body 模板 + 模板变量），每条 webhook 自选订阅
  *   哪些事件。PushDeer、Bark、钉钉、方糖等平台均以其官方 webhook 地址接入。
+ * - **Telegram 渠道**：Bot Token + Chat ID 单配置（参照 sublinkPro
+ *   `services/telegram`），订阅事件后由机器人推送到指定聊天；
+ *   启用后向机器人发送 `/start` 可自动绑定 Chat ID。
  * - **站内渠道（in_app）**：写入 `reminders` 表，由前端通知中心展示。
  */
 
 /** 通知渠道 */
-export const notificationChannelSchema = z.enum(['webhook', 'in_app'])
+export const notificationChannelSchema = z.enum(['webhook', 'in_app', 'telegram'])
 export type NotificationChannel = z.infer<typeof notificationChannelSchema>
 
 /** 通知严重级 */
@@ -64,7 +67,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'subscription',
     categoryName: '订阅同步',
     severity: 'success',
-    channels: ['webhook', 'in_app'],
+    channels: ['webhook', 'in_app', 'telegram'],
     defaultEnabled: true,
   },
   {
@@ -74,7 +77,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'subscription',
     categoryName: '订阅同步',
     severity: 'error',
-    channels: ['webhook', 'in_app'],
+    channels: ['webhook', 'in_app', 'telegram'],
     defaultEnabled: true,
   },
   {
@@ -84,7 +87,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'customer',
     categoryName: '客户提醒',
     severity: 'warning',
-    channels: ['webhook', 'in_app'],
+    channels: ['webhook', 'in_app', 'telegram'],
     defaultEnabled: true,
   },
   {
@@ -94,7 +97,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'customer',
     categoryName: '客户提醒',
     severity: 'error',
-    channels: ['webhook', 'in_app'],
+    channels: ['webhook', 'in_app', 'telegram'],
     defaultEnabled: true,
   },
   {
@@ -104,7 +107,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'security',
     categoryName: '安全审计',
     severity: 'info',
-    channels: ['webhook', 'in_app'],
+    channels: ['webhook', 'in_app', 'telegram'],
     defaultEnabled: true,
   },
 ]
@@ -123,6 +126,13 @@ export function getEventDefinition(key: string): NotificationEventDefinition | u
 export function defaultWebhookEventKeys(): NotificationEventKey[] {
   return notificationEventCatalog
     .filter((event) => event.defaultEnabled && event.channels.includes('webhook'))
+    .map((event) => event.key)
+}
+
+/** Telegram 渠道默认订阅的事件集合（与 webhook 同口径：目录 defaultEnabled） */
+export function defaultTelegramEventKeys(): NotificationEventKey[] {
+  return notificationEventCatalog
+    .filter((event) => event.defaultEnabled && event.channels.includes('telegram'))
     .map((event) => event.key)
 }
 
@@ -235,3 +245,128 @@ export const webhookTestResultSchema = z.object({
   error: z.string().nullable(),
 })
 export type WebhookTestResult = z.infer<typeof webhookTestResultSchema>
+
+// ---------- Telegram ----------
+
+/**
+ * Telegram 渠道配置（设计参照 sublinkPro `services/telegram` 的 Config）。
+ *
+ * 与 webhook 的差异：Telegram 是**单配置**而非多条记录——一个机器人 +
+ * 一个目标聊天，存储于 settings 表（键前缀 `telegram.`）。
+ * - `chatId` 可空：启用后向机器人发送 `/start`，服务端经 getUpdates
+ *   长轮询自动绑定首个发送者的 Chat ID（群组 ID 为负数，故按字符串处理）
+ * - `proxyUrl` 可空：国内服务器无法直连 api.telegram.org 时配置代理
+ *   （http/https/socks5），与订阅同步的 proxy_url 同语义
+ */
+
+/** Bot Token 形态：<数字 bot_id>:<授权串>（getMe 做最终校验） */
+function isBotToken(value: string): boolean {
+  return /^\d+:[\w-]{10,}$/.test(value.trim())
+}
+
+/** Chat ID：用户为正整数，群组为负数 */
+function isChatId(value: string): boolean {
+  return /^-?\d+$/.test(value.trim())
+}
+
+function isProxyUrl(value: string): boolean {
+  try {
+    const protocol = new URL(value).protocol
+    return ['http:', 'https:', 'socks5:', 'socks5h:', 'socks4:', 'socks4a:'].includes(protocol)
+  } catch {
+    return false
+  }
+}
+
+/** 基础对象（无 refine，供 status schema 扩展后复用同一组校验） */
+const telegramConfigBaseSchema = z.object({
+  enabled: z.boolean().default(false),
+  botToken: z.string().max(200, 'Bot Token 过长').default(''),
+  /** 目标聊天 ID；空表示尚未绑定（发送 /start 自动绑定） */
+  chatId: z.string().max(32).nullable().default(null),
+  proxyUrl: z.string().max(2048, '代理地址过长').nullable().default(null),
+  eventKeys: z.array(notificationEventKeySchema).default(() => defaultTelegramEventKeys()),
+})
+
+/** 跨字段校验谓词（返回 true 表示通过）：启用时 Token 必须合法；Chat ID 与代理地址格式（若填写） */
+const telegramConfigChecks = {
+  tokenOk: (config: { botToken: string; enabled: boolean }) =>
+    !config.enabled || isBotToken(config.botToken),
+  chatIdOk: (config: { chatId: string | null }) =>
+    config.chatId == null || isChatId(config.chatId),
+  proxyOk: (config: { proxyUrl: string | null }) =>
+    config.proxyUrl == null || config.proxyUrl.trim() === '' || isProxyUrl(config.proxyUrl),
+}
+
+export const telegramConfigSchema = telegramConfigBaseSchema
+  .refine(telegramConfigChecks.tokenOk, {
+    message: 'Bot Token 格式不正确（应形如 123456789:AAHfiqBsKdTeEBmMGqjZUXrXriNFl6jTmFk）',
+    path: ['botToken'],
+  })
+  .refine(telegramConfigChecks.chatIdOk, {
+    message: 'Chat ID 必须为数字（群组为负数）',
+    path: ['chatId'],
+  })
+  .refine(telegramConfigChecks.proxyOk, {
+    message: '代理地址仅支持 http/https/socks5',
+    path: ['proxyUrl'],
+  })
+export type TelegramConfig = z.infer<typeof telegramConfigSchema>
+
+/**
+ * 测试连接入参（当前表单值，可能尚未保存）：Token / Chat ID / 代理地址。
+ *
+ * 不能对 `telegramConfigSchema`（refine 后的 ZodEffects）直接 `.pick()`——
+ * zod 运行期禁止（"pick() cannot be used on object schemas containing
+ * refinements"），故从基础对象重新派生并复用同一组校验谓词。
+ */
+export const telegramTestInputSchema = telegramConfigBaseSchema
+  .pick({ botToken: true, chatId: true, proxyUrl: true })
+  .refine((input) => isBotToken(input.botToken), {
+    message: 'Bot Token 格式不正确（应形如 123456789:AAHfiqBsKdTeEBmMGqjZUXrXriNFl6jTmFk）',
+    path: ['botToken'],
+  })
+  .refine(telegramConfigChecks.chatIdOk, {
+    message: 'Chat ID 必须为数字（群组为负数）',
+    path: ['chatId'],
+  })
+  .refine(telegramConfigChecks.proxyOk, {
+    message: '代理地址仅支持 http/https/socks5',
+    path: ['proxyUrl'],
+  })
+export type TelegramTestInput = z.infer<typeof telegramTestInputSchema>
+
+/** Telegram 配置 + 运行状态（GET /api/telegram 的响应） */
+export const telegramStatusSchema = telegramConfigBaseSchema
+  .extend({
+    /** getMe 校验成功后缓存的机器人用户名（@xxx），未校验为 null */
+    botUsername: z.string().nullable(),
+    /** 最近一次成功测试发送时间（epoch ms），未测试为 null */
+    lastTestAt: z.number().int().nullable(),
+    /** 最近一次失败原因（Token 校验 / 发送 / 长轮询），成功即清除 */
+    lastError: z.string().nullable(),
+  })
+  .refine(telegramConfigChecks.tokenOk, {
+    message: 'Bot Token 格式不正确',
+    path: ['botToken'],
+  })
+  .refine(telegramConfigChecks.chatIdOk, {
+    message: 'Chat ID 必须为数字（群组为负数）',
+    path: ['chatId'],
+  })
+  .refine(telegramConfigChecks.proxyOk, {
+    message: '代理地址仅支持 http/https/socks5',
+    path: ['proxyUrl'],
+  })
+export type TelegramStatus = z.infer<typeof telegramStatusSchema>
+
+/** Telegram 连接测试结果 */
+export const telegramTestResultSchema = z.object({
+  ok: z.boolean(),
+  /** getMe 返回的机器人用户名 */
+  botUsername: z.string().nullable(),
+  /** 测试消息是否已发出（配置了 Chat ID 时才发送） */
+  messageSent: z.boolean(),
+  error: z.string().nullable(),
+})
+export type TelegramTestResult = z.infer<typeof telegramTestResultSchema>
