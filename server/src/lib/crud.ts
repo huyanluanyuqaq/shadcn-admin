@@ -43,6 +43,13 @@ export interface CrudOptions {
    * 典型用途：排序序号取「当前最大值 + 1」，避免客户端计算竞争。
    */
   createDefaults?: () => Record<string, unknown>
+  /**
+   * 写入成功后的回调（create / update / delete / bulk-delete 之后调用）。
+   * 典型用途：订阅路由在此热重载调度器（TASK-021），使新建/修改的 cron 立即生效。
+   * 注意：仅经 CRUD 路由的写入才触发；服务层直写（同步引擎等）不触发。
+   * 钩子异常只记录不抛出——写入已成功，不应让客户端看到 500 误判失败而重试。
+   */
+  afterWrite?: () => void
 }
 
 function serialize<T>(row: Record<string, unknown>): T {
@@ -82,6 +89,19 @@ const conflict = (c: any, message: string) =>
   c.json({ error: 'Conflict', message }, 409)
 
 /**
+ * 执行 afterWrite 钩子。写入已成功，钩子异常只记录不抛出——
+ * 此时返回 500 会让客户端误判写入失败并可能重试，造成重复副作用。
+ */
+function runAfterWrite(hook: CrudOptions['afterWrite']): void {
+  if (!hook) return
+  try {
+    hook()
+  } catch (err) {
+    console.error('[crud] afterWrite 钩子执行失败：', err)
+  }
+}
+
+/**
  * 把「唯一约束冲突」翻译为 409 + 可读提示。
  *
  * 邮箱绑定表对 `email` 建了唯一索引（一对一），重复提交同一邮箱是
@@ -115,6 +135,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     defaultSortOrder = 'desc',
     uniqueHint,
     createDefaults,
+    afterWrite,
   } = opts
 
   const app = new Hono()
@@ -191,6 +212,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
       throw err
     }
     void writeLog('info', name, `创建${name} #${row.id}`)
+    runAfterWrite(afterWrite)
     return c.json(serialize(row), 201)
   })
 
@@ -220,6 +242,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     }
     if (!row) return notFound(c, `${name} 不存在`)
     void writeLog('info', name, `更新${name} #${id}`)
+    runAfterWrite(afterWrite)
     return c.json(serialize(row))
   })
 
@@ -230,6 +253,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     const res = db.delete(table).where(eq(table.id, id)).run()
     if (res.changes === 0) return notFound(c, `${name} 不存在`)
     void writeLog('info', name, `删除${name} #${id}`)
+    runAfterWrite(afterWrite)
     return c.json({ deleted: res.changes })
   })
 
@@ -240,6 +264,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     if (ids.length === 0) return badRequest(c, 'ids 不能为空')
     const res = db.delete(table).where(inArray(table.id, ids)).run()
     void writeLog('info', name, `批量删除${name} ${res.changes} 条`)
+    runAfterWrite(afterWrite)
     return c.json({ deleted: res.changes })
   })
 

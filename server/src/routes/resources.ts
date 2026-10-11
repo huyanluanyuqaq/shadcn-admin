@@ -19,6 +19,7 @@ import {
 } from '../db/schema.js'
 import { createCrudRoutes, parseId, serialize } from '../lib/crud.js'
 import { db } from '../db/index.js'
+import { reload as reloadScheduler } from '../services/scheduler.js'
 import { writeLog } from '../services/logger.js'
 
 /**
@@ -120,6 +121,11 @@ resourceRoutes.route(
       lastRunAt: subscriptions.lastRunAt,
     },
     dateKeys: ['expireAt'],
+    // 写入后热重载调度器（TASK-021）：新建/改 cron/删除后立即生效，
+    // 无需手动点「重载调度」或重启。同步引擎等服务层直写不经 CRUD，不会触发
+    afterWrite: () => {
+      reloadScheduler()
+    },
   }),
 )
 
