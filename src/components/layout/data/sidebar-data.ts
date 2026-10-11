@@ -16,6 +16,7 @@ import {
   Webhook,
   Send,
   MessageSquare,
+  DatabaseBackup,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -100,6 +101,11 @@ export const sidebarData: SidebarData = {
           title: '日志',
           url: '/logs',
           icon: ScrollText,
+        },
+        {
+          title: '系统备份',
+          url: '/backups',
+          icon: DatabaseBackup,
         },
       ],
     },
