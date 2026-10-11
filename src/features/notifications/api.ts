@@ -7,6 +7,9 @@ import {
 import type {
   ListResult,
   Reminder,
+  TelegramConfig,
+  TelegramStatus,
+  TelegramTestResult,
   Webhook,
   WebhookInput,
   WebhookTestResult,
@@ -79,6 +82,55 @@ export function useTestWebhook() {
   return useMutation({
     mutationFn: (id: number) =>
       api.post<WebhookTestResult>(`/webhooks/${id}/test`),
+  })
+}
+
+// ---------- Telegram 渠道 ----------
+
+export const telegramKeys = {
+  all: ['telegram'] as const,
+}
+
+/** Telegram 配置 + 运行状态（单配置，无分页） */
+export function useTelegramConfigQuery() {
+  return useQuery<TelegramStatus & { eventOptions: unknown }>({
+    queryKey: telegramKeys.all,
+    queryFn: () =>
+      api.get<TelegramStatus & { eventOptions: unknown }>('/telegram'),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useSaveTelegramConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: TelegramConfig) =>
+      api.put<TelegramStatus>('/telegram', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: telegramKeys.all })
+    },
+  })
+}
+
+/** 测试连接（表单当前值，可能尚未保存；失败时服务端返回 502） */
+export function useTestTelegram() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (
+      input: Pick<TelegramConfig, 'botToken' | 'chatId' | 'proxyUrl'>
+    ) => api.post<TelegramTestResult>('/telegram/test', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: telegramKeys.all })
+    },
+  })
+}
+
+/** /start 绑定状态（等待绑定时轮询） */
+export function useTelegramBindStatusQuery(enabled: boolean) {
+  return useQuery<{ polling: boolean }>({
+    queryKey: [...telegramKeys.all, 'bind-status'],
+    queryFn: () => api.get<{ polling: boolean }>('/telegram/bind-status'),
+    refetchInterval: enabled ? 3_000 : false,
   })
 }
 

@@ -18,6 +18,7 @@ import { Route as errors403RouteImport } from './routes/(errors)/403'
 import { Route as errors401RouteImport } from './routes/(errors)/401'
 import { Route as authSignInRouteImport } from './routes/(auth)/sign-in'
 import { Route as AuthenticatedWebhooksIndexRouteImport } from './routes/_authenticated/webhooks/index'
+import { Route as AuthenticatedTelegramIndexRouteImport } from './routes/_authenticated/telegram/index'
 import { Route as AuthenticatedSubscriptionsIndexRouteImport } from './routes/_authenticated/subscriptions/index'
 import { Route as AuthenticatedPlansIndexRouteImport } from './routes/_authenticated/plans/index'
 import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
@@ -70,6 +71,12 @@ const AuthenticatedWebhooksIndexRoute =
   AuthenticatedWebhooksIndexRouteImport.update({
     id: '/webhooks/',
     path: '/webhooks/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedTelegramIndexRoute =
+  AuthenticatedTelegramIndexRouteImport.update({
+    id: '/telegram/',
+    path: '/telegram/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedSubscriptionsIndexRoute =
@@ -135,6 +142,7 @@ export interface FileRoutesByFullPath {
   '/notifications/': typeof AuthenticatedNotificationsIndexRoute
   '/plans/': typeof AuthenticatedPlansIndexRoute
   '/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
+  '/telegram/': typeof AuthenticatedTelegramIndexRoute
   '/webhooks/': typeof AuthenticatedWebhooksIndexRoute
 }
 export interface FileRoutesByTo {
@@ -153,6 +161,7 @@ export interface FileRoutesByTo {
   '/notifications': typeof AuthenticatedNotificationsIndexRoute
   '/plans': typeof AuthenticatedPlansIndexRoute
   '/subscriptions': typeof AuthenticatedSubscriptionsIndexRoute
+  '/telegram': typeof AuthenticatedTelegramIndexRoute
   '/webhooks': typeof AuthenticatedWebhooksIndexRoute
 }
 export interface FileRoutesById {
@@ -173,6 +182,7 @@ export interface FileRoutesById {
   '/_authenticated/notifications/': typeof AuthenticatedNotificationsIndexRoute
   '/_authenticated/plans/': typeof AuthenticatedPlansIndexRoute
   '/_authenticated/subscriptions/': typeof AuthenticatedSubscriptionsIndexRoute
+  '/_authenticated/telegram/': typeof AuthenticatedTelegramIndexRoute
   '/_authenticated/webhooks/': typeof AuthenticatedWebhooksIndexRoute
 }
 export interface FileRouteTypes {
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/notifications/'
     | '/plans/'
     | '/subscriptions/'
+    | '/telegram/'
     | '/webhooks/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/notifications'
     | '/plans'
     | '/subscriptions'
+    | '/telegram'
     | '/webhooks'
   id:
     | '__root__'
@@ -230,6 +242,7 @@ export interface FileRouteTypes {
     | '/_authenticated/notifications/'
     | '/_authenticated/plans/'
     | '/_authenticated/subscriptions/'
+    | '/_authenticated/telegram/'
     | '/_authenticated/webhooks/'
   fileRoutesById: FileRoutesById
 }
@@ -308,6 +321,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedWebhooksIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/telegram/': {
+      id: '/_authenticated/telegram/'
+      path: '/telegram'
+      fullPath: '/telegram/'
+      preLoaderRoute: typeof AuthenticatedTelegramIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/subscriptions/': {
       id: '/_authenticated/subscriptions/'
       path: '/subscriptions'
@@ -377,6 +397,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedNotificationsIndexRoute: typeof AuthenticatedNotificationsIndexRoute
   AuthenticatedPlansIndexRoute: typeof AuthenticatedPlansIndexRoute
   AuthenticatedSubscriptionsIndexRoute: typeof AuthenticatedSubscriptionsIndexRoute
+  AuthenticatedTelegramIndexRoute: typeof AuthenticatedTelegramIndexRoute
   AuthenticatedWebhooksIndexRoute: typeof AuthenticatedWebhooksIndexRoute
 }
 
@@ -390,6 +411,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedNotificationsIndexRoute: AuthenticatedNotificationsIndexRoute,
   AuthenticatedPlansIndexRoute: AuthenticatedPlansIndexRoute,
   AuthenticatedSubscriptionsIndexRoute: AuthenticatedSubscriptionsIndexRoute,
+  AuthenticatedTelegramIndexRoute: AuthenticatedTelegramIndexRoute,
   AuthenticatedWebhooksIndexRoute: AuthenticatedWebhooksIndexRoute,
 }
 
