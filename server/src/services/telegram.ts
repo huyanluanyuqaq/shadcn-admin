@@ -209,6 +209,8 @@ export function formatTelegramMessage(eventKey: NotificationEventKey, payload: N
       return `⏰ <b>客户即将到期</b>\n\n${title}\n${message}`
     case 'customer.traffic_exhausted':
       return `🚫 <b>客户流量用尽</b>\n\n${title}\n${message}`
+    case 'customer.traffic_threshold':
+      return `📊 <b>客户流量阈值提醒</b>\n\n${title}\n${message}`
     case 'security.user_login':
       return `🔐 <b>管理员登录</b>\n\n${title}\n${message}`
     default:

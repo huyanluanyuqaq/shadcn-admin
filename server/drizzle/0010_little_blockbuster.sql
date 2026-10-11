@@ -1,0 +1,1 @@
+ALTER TABLE `customers` ADD `traffic_threshold_notified` integer DEFAULT 0 NOT NULL;

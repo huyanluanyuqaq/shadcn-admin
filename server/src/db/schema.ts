@@ -82,6 +82,12 @@ export const customers = sqliteTable(
     trafficTotal: integer('traffic_total'),
     /** 手动流量上限，单位字节；优先级高于月流量，为空表示未设置 */
     trafficManualCap: integer('traffic_manual_cap'),
+    /**
+     * 已通知的最高流量阈值（TASK-013）：50 / 80 / 100，0 表示尚未通知过。
+     * 穿越式触发：用量占比达到的更高阈值 > 本列时才发通知并更新本列；
+     * 用量回落到阈值以下时重置为 0（适配月度流量重置 / 手动调量）。
+     */
+    trafficThresholdNotified: integer('traffic_threshold_notified').notNull().default(0),
     /** 订阅链接，从该链接拉取到期时间等订阅信息 */
     subscriptionUrl: text('subscription_url'),
     /** 订阅链接到期时间（从订阅链接拉取） */

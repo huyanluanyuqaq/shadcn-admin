@@ -1,13 +1,10 @@
-import { and, count, desc, eq, isNotNull, lte, type SQL } from 'drizzle-orm'
+import { and, count, desc, eq, type SQL } from 'drizzle-orm'
 import { Hono } from 'hono'
 import { paginationSchema } from '@repo/shared'
 import { db } from '../db/index.js'
-import { customers, reminders } from '../db/schema.js'
+import { reminders } from '../db/schema.js'
 import { writeLog } from '../services/logger.js'
-import { publish } from '../services/notifications.js'
-
-const DAY = 24 * 60 * 60 * 1000
-const DEFAULT_WINDOW_DAYS = 7
+import { DEFAULT_SCAN_WINDOW_DAYS, runReminderScan } from '../services/reminder-scan.js'
 
 export const reminderRoutes = new Hono()
 
@@ -88,66 +85,18 @@ reminderRoutes.post('/read-all', (c) => {
 })
 
 /**
- * 扫描客户，为「即将到期」与「流量用尽」生成提醒。
- * 同一客户 + 同一类型 + 同一天只生成一条，避免每轮重复。
+ * 扫描客户，生成「即将到期」「流量用尽」站内提醒，并按流量阈值
+ * （50% / 80% / 100%，TASK-013）发送穿越式通知。
+ *
+ * 逻辑在 `services/reminder-scan.ts`（调度器每日任务共用同一实现）；
+ * 到期/用尽按「同客户 + 同类型 + 同一天」去重，阈值穿越按
+ * `customers.traffic_threshold_notified` 去重。
  */
 reminderRoutes.post('/scan', (c) => {
-  const windowDays = Number(c.req.query('days') ?? DEFAULT_WINDOW_DAYS)
-  const window = (Number.isFinite(windowDays) ? windowDays : DEFAULT_WINDOW_DAYS) * DAY
-  const now = Date.now()
-
-  const expiring = db
-    .select()
-    .from(customers)
-    .where(and(isNotNull(customers.expireAt), lte(customers.expireAt, new Date(now + window))))
-    .all()
-
-  const overTraffic = db
-    .select()
-    .from(customers)
-    .where(isNotNull(customers.trafficTotal))
-    .all()
-    .filter((r) => r.trafficTotal !== null && r.trafficUsed >= r.trafficTotal)
-
-  const existing = db.select().from(reminders).all()
-  const exists = new Set(
-    existing.map((r) => `${r.customerId}:${r.type}:${Math.floor(r.remindAt.getTime() / DAY)}`),
-  )
-
-  let created = 0
-  /** 生成一条站内提醒；当天同客户同类型已存在时跳过（返回 false） */
-  const insert = (customerId: number, type: string, remindAt: number, message: string): boolean => {
-    const key = `${customerId}:${type}:${Math.floor(remindAt / DAY)}`
-    if (exists.has(key)) return false
-    db.insert(reminders)
-      .values({ customerId, type, remindAt: new Date(remindAt), message })
-      .run()
-    exists.add(key)
-    created++
-    return true
-  }
-
-  for (const cust of expiring) {
-    const at = cust.expireAt ? cust.expireAt.getTime() : now
-    if (!insert(cust.id, 'expire', at, `客户「${cust.name}」即将到期`)) continue
-    const daysLeft = Math.max(0, Math.ceil((at - now) / DAY))
-    publish('customer.expire_soon', {
-      title: '客户即将到期',
-      message: `客户「${cust.name}」将于 ${new Date(at).toLocaleDateString('zh-CN')} 到期（剩余 ${daysLeft} 天）`,
-      data: { customerId: cust.id, expireAt: at, daysLeft },
-    })
-  }
-  for (const cust of overTraffic) {
-    if (!insert(cust.id, 'traffic', now, `客户「${cust.name}」流量已用尽`)) continue
-    publish('customer.traffic_exhausted', {
-      title: '客户流量用尽',
-      message: `客户「${cust.name}」流量已用尽`,
-      data: { customerId: cust.id },
-    })
-  }
-
-  if (created > 0) {
-    void writeLog('info', 'reminder', `到期扫描生成 ${created} 条提醒`)
-  }
-  return c.json({ created })
+  const windowDays = Number(c.req.query('days') ?? DEFAULT_SCAN_WINDOW_DAYS)
+  const result = runReminderScan(windowDays)
+  return c.json({
+    created: result.created,
+    thresholds: result.thresholds,
+  })
 })

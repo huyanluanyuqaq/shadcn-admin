@@ -22,7 +22,7 @@ import { syncRoutes } from './routes/sync.js'
 import { telegramRoutes } from './routes/telegram.js'
 import { webhookRoutes } from './routes/webhooks.js'
 import { seedAdmin } from './db/seed.js'
-import { loadFromDatabase } from './services/scheduler.js'
+import { loadFromDatabase, startReminderScanJob } from './services/scheduler.js'
 import { startBindPoller } from './services/telegram.js'
 import { writeLog } from './services/logger.js'
 
@@ -76,6 +76,8 @@ seedAdmin()
 if (config.enableScheduler) {
   const count = loadFromDatabase()
   console.log(`[scheduler] 已注册 ${count} 个订阅同步任务`)
+  // 每日提醒扫描（到期 / 流量用尽 / 流量阈值穿越通知，TASK-013）
+  startReminderScanJob()
 }
 
 // Telegram 已启用但未绑定 Chat ID 时，恢复 /start 绑定长轮询（重启不丢绑定流程）

@@ -3,6 +3,7 @@ import { Hono } from 'hono'
 import type { DashboardStats } from '@repo/shared'
 import { db } from '../db/index.js'
 import { customers } from '../db/schema.js'
+import { listTrafficThresholdStatuses } from '../services/traffic-threshold.js'
 
 const DAY = 24 * 60 * 60 * 1000
 const EXPIRING_WINDOW_DAYS = 7
@@ -99,6 +100,7 @@ dashboardRoutes.get('/stats', (c) => {
     customerTrend,
     customersByPool,
     expiringSoon,
+    trafficThresholds: listTrafficThresholdStatuses(),
   }
 
   return c.json(stats)
