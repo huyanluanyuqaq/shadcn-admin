@@ -3,6 +3,7 @@ import type { BatchSyncResult, SyncResult } from '@repo/shared'
 import { db } from '../db/index.js'
 import { subscriptions } from '../db/schema.js'
 import { writeLog } from './logger.js'
+import { publish } from './notifications.js'
 import { fetchSubscriptionUsage } from './subscription-parser.js'
 
 /**
@@ -84,6 +85,15 @@ export async function syncOne(id: number): Promise<SyncResult> {
         .run()
     })
 
+    // 通知（C8 增量对比）：仅当用量/到期真正变化时才通知，避免每轮空转刷屏
+    if (isChanged) {
+      publish('subscription.sync_succeeded', {
+        title: '订阅同步成功',
+        message: `订阅「${row.name?.trim() || row.url}」用量/到期信息已更新`,
+        data: { subscriptionId: id, url: row.url },
+      })
+    }
+
     return {
       id,
       ok: true,
@@ -101,6 +111,11 @@ export async function syncOne(id: number): Promise<SyncResult> {
       .where(eq(subscriptions.id, id))
       .run()
     void writeLog('error', 'subscription-sync', `订阅 #${id} 同步失败：${message}`, { url: row.url })
+    publish('subscription.sync_failed', {
+      title: '订阅同步失败',
+      message: `订阅「${row.name?.trim() || row.url}」同步失败：${message}`,
+      data: { subscriptionId: id, url: row.url },
+    })
     return { id, ok: false, changed: false, upload: null, download: null, total: null, expire: null, error: message }
   } finally {
     inFlight.delete(id)
@@ -189,8 +204,18 @@ export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
     void writeLog('warn', 'subscription-sync', `批量同步完成：${failures.length}/${rows.length} 条失败`, {
       failures: failures.slice(0, 10),
     })
-  } else if (rows.length > 0) {
+    publish('subscription.sync_failed', {
+      title: '订阅同步失败',
+      message: `批量同步完成：${failures.length}/${rows.length} 条失败`,
+      data: { total: rows.length, failed: failures.length, failures: failures.slice(0, 10) },
+    })
+  } else if (updates.length > 0) {
     void writeLog('info', 'subscription-sync', `批量同步完成：${rows.length} 条全部成功，变化 ${updates.length} 条`)
+    publish('subscription.sync_succeeded', {
+      title: '订阅同步成功',
+      message: `批量同步完成：${rows.length} 条成功，${updates.length} 条信息更新`,
+      data: { total: rows.length, changed: updates.length },
+    })
   }
 
   return {

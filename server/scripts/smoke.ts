@@ -6,7 +6,8 @@
  *   pnpm --filter server smoke      # 本脚本
  *
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
- * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）。
+ * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
+ * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）。
  * 退出码非 0 表示存在失败项。
  */
 
@@ -870,7 +871,87 @@ async function main() {
     check(`删除${label}`, del.status === 200, del.json)
   }
 
-  // 14. 设置读写
+  // 14. 通知：Webhook 渠道 CRUD / 启停 / 测试发送 / 站内通知已读
+  const webhookCreate = await req('/api/webhooks', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-webhook-${suffix}`,
+      url: 'http://127.0.0.1:9/hook',
+      method: 'POST',
+      contentType: 'application/json',
+      headers: '{"X-Smoke":"1"}',
+      body: '',
+      enabled: false,
+      eventKeys: ['subscription.sync_failed'],
+    },
+  })
+  check('创建 Webhook', webhookCreate.status === 201, webhookCreate.json)
+
+  const webhookInvalid = await req('/api/webhooks', {
+    method: 'POST',
+    token,
+    body: { name: 'bad', url: 'ftp://example.com', eventKeys: ['subscription.sync_failed'] },
+  })
+  check('非法 Webhook 地址返回 400', webhookInvalid.status === 400, webhookInvalid.json)
+
+  const webhookList = await req('/api/webhooks', { token })
+  check(
+    'Webhook 列表包含新建项',
+    webhookList.status === 200 &&
+      Array.isArray(webhookList.json?.items) &&
+      webhookList.json.items.some((w: any) => w.id === webhookCreate.json?.id),
+    webhookList.json
+  )
+
+  const webhookToggle = await req(`/api/webhooks/${webhookCreate.json?.id}/toggle`, {
+    method: 'PATCH',
+    token,
+  })
+  check(
+    'Webhook 启停切换',
+    webhookToggle.status === 200 && webhookToggle.json?.enabled === true,
+    webhookToggle.json
+  )
+  // 验证完毕即停用，避免后续触发点向该地址派发
+  await req(`/api/webhooks/${webhookCreate.json?.id}/toggle`, {
+    method: 'PATCH',
+    token,
+  })
+
+  const webhookTest = await req(`/api/webhooks/${webhookCreate.json?.id}/test`, {
+    method: 'POST',
+    token,
+  })
+  check(
+    '测试发送不可达地址返回 502 且带原因',
+    webhookTest.status === 502 && typeof webhookTest.json?.message === 'string',
+    webhookTest.json
+  )
+
+  const unread = await req('/api/reminders/unread-count', { token })
+  check(
+    '未读数量可读取',
+    unread.status === 200 && typeof unread.json?.count === 'number',
+    unread.json
+  )
+
+  const readAll = await req('/api/reminders/read-all', { method: 'POST', token })
+  check(
+    '全部已读执行成功',
+    readAll.status === 200 && typeof readAll.json?.updated === 'number',
+    readAll.json
+  )
+  const unreadAfter = await req('/api/reminders/unread-count', { token })
+  check('全部已读后未读数为 0', unreadAfter.json?.count === 0, unreadAfter.json)
+
+  const webhookDelete = await req(`/api/webhooks/${webhookCreate.json?.id}`, {
+    method: 'DELETE',
+    token,
+  })
+  check('删除 Webhook', webhookDelete.status === 200, webhookDelete.json)
+
+  // 15. 设置读写
   const putSettings = await req('/api/settings', {
     method: 'PUT',
     token,

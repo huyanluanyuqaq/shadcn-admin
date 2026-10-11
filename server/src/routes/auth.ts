@@ -6,6 +6,7 @@ import { db } from '../db/index.js'
 import { admins } from '../db/schema.js'
 import { signToken, verifyToken, type AuthPayload } from '../middleware/auth.js'
 import { writeLog } from '../services/logger.js'
+import { publish } from '../services/notifications.js'
 
 /** 注入到上下文的认证信息 */
 type AuthEnv = { Variables: { auth: AuthPayload } }
@@ -34,6 +35,11 @@ authRoutes.post('/login', async (c) => {
 
   const { token, expiresAt } = await signToken(admin.username, admin.id)
   await writeLog('info', 'auth', `管理员登录成功（${username}）`)
+  publish('security.user_login', {
+    title: '管理员登录',
+    message: `管理员 ${username} 登录成功`,
+    data: { username },
+  })
   return c.json({ token, username: admin.username, expiresAt })
 })
 

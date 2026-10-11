@@ -2,7 +2,7 @@ import { sql } from 'drizzle-orm'
 import { index, integer, real, sqliteTable, text, uniqueIndex } from 'drizzle-orm/sqlite-core'
 
 /**
- * 数据模型（10 张表），对应架构总览 §5。
+ * 数据模型（11 张表），对应架构总览 §5。
  *
  * 约定：
  * - 时间列统一为 integer + timestamp_ms（毫秒）
@@ -218,3 +218,36 @@ export const settings = sqliteTable('settings', {
   value: text('value'),
   updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
 })
+
+/**
+ * 通知 Webhook 渠道（参照 sublinkPro 的 Webhook 模型，见 shared/schema/notifications.ts）。
+ *
+ * 通用自定义 webhook：URL / 方法 / Content-Type / 自定义请求头 / 自定义 Body 模板。
+ * PushDeer、Bark、钉钉、方糖等平台均以其官方 webhook 地址接入。
+ *
+ * - `headers` / `body` 为 JSON 字符串 / 模板文本，读写由 Service 层负责
+ * - `eventKeys` 为该 webhook 订阅的事件 key 列表（JSON 数组字符串），
+ *   读取时经 `normalizeNotificationEventKeys` 过滤目录外取值
+ * - `enabled` 默认 false：新建后需手动启用，与 sublinkPro 一致
+ */
+export const webhooks = sqliteTable(
+  'webhooks',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    name: text('name').notNull(),
+    url: text('url').notNull(),
+    method: text('method').notNull().default('POST'),
+    contentType: text('content_type').notNull().default('application/json'),
+    /** 自定义请求头，JSON 对象字符串 */
+    headers: text('headers'),
+    /** 自定义 Body 模板；留空表示按 Content-Type 自动序列化 payload */
+    body: text('body'),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(false),
+    /** 订阅的事件 key 列表，JSON 数组字符串 */
+    eventKeys: text('event_keys').notNull().default('[]'),
+    lastTestAt: integer('last_test_at', { mode: 'timestamp_ms' }),
+    createdAt: integer('created_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+    updatedAt: integer('updated_at', { mode: 'timestamp_ms' }).notNull().default(nowMs),
+  },
+  (t) => [index('idx_webhooks_enabled').on(t.enabled)],
+)

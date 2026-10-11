@@ -18,6 +18,7 @@ import { reminderRoutes } from './routes/reminders.js'
 import { resourceRoutes } from './routes/resources.js'
 import { settingRoutes } from './routes/settings.js'
 import { syncRoutes } from './routes/sync.js'
+import { webhookRoutes } from './routes/webhooks.js'
 import { seedAdmin } from './db/seed.js'
 import { loadFromDatabase } from './services/scheduler.js'
 import { writeLog } from './services/logger.js'
@@ -41,6 +42,7 @@ app.route('/api/dashboard', dashboardRoutes)
 app.route('/api/logs', logRoutes)
 app.route('/api/reminders', reminderRoutes)
 app.route('/api/settings', settingRoutes)
+app.route('/api/webhooks', webhookRoutes)
 
 app.notFound((c) => {
   if (c.req.path.startsWith('/api')) return c.json({ error: 'Not Found', path: c.req.path }, 404)

@@ -4,6 +4,7 @@ import { paginationSchema } from '@repo/shared'
 import { db } from '../db/index.js'
 import { customers, reminders } from '../db/schema.js'
 import { writeLog } from '../services/logger.js'
+import { publish } from '../services/notifications.js'
 
 const DAY = 24 * 60 * 60 * 1000
 const DEFAULT_WINDOW_DAYS = 7
@@ -67,6 +68,25 @@ reminderRoutes.patch('/:id/read', (c) => {
   return c.json({ id: row.id, isRead: row.isRead })
 })
 
+/** 未读数量（通知中心铃铛轮询） */
+reminderRoutes.get('/unread-count', (c) => {
+  const total = db
+    .select({ value: count() })
+    .from(reminders)
+    .where(eq(reminders.isRead, false))
+    .get()?.value ?? 0
+  return c.json({ count: total })
+})
+
+/** 全部标记已读 */
+reminderRoutes.post('/read-all', (c) => {
+  const res = db.update(reminders).set({ isRead: true }).where(eq(reminders.isRead, false)).run()
+  if (res.changes > 0) {
+    void writeLog('info', 'reminder', `标记 ${res.changes} 条通知为已读`)
+  }
+  return c.json({ updated: res.changes })
+})
+
 /**
  * 扫描客户，为「即将到期」与「流量用尽」生成提醒。
  * 同一客户 + 同一类型 + 同一天只生成一条，避免每轮重复。
@@ -95,22 +115,35 @@ reminderRoutes.post('/scan', (c) => {
   )
 
   let created = 0
-  const insert = (customerId: number, type: string, remindAt: number, message: string) => {
+  /** 生成一条站内提醒；当天同客户同类型已存在时跳过（返回 false） */
+  const insert = (customerId: number, type: string, remindAt: number, message: string): boolean => {
     const key = `${customerId}:${type}:${Math.floor(remindAt / DAY)}`
-    if (exists.has(key)) return
+    if (exists.has(key)) return false
     db.insert(reminders)
       .values({ customerId, type, remindAt: new Date(remindAt), message })
       .run()
     exists.add(key)
     created++
+    return true
   }
 
   for (const cust of expiring) {
     const at = cust.expireAt ? cust.expireAt.getTime() : now
-    insert(cust.id, 'expire', at, `客户「${cust.name}」即将到期`)
+    if (!insert(cust.id, 'expire', at, `客户「${cust.name}」即将到期`)) continue
+    const daysLeft = Math.max(0, Math.ceil((at - now) / DAY))
+    publish('customer.expire_soon', {
+      title: '客户即将到期',
+      message: `客户「${cust.name}」将于 ${new Date(at).toLocaleDateString('zh-CN')} 到期（剩余 ${daysLeft} 天）`,
+      data: { customerId: cust.id, expireAt: at, daysLeft },
+    })
   }
   for (const cust of overTraffic) {
-    insert(cust.id, 'traffic', now, `客户「${cust.name}」流量已用尽`)
+    if (!insert(cust.id, 'traffic', now, `客户「${cust.name}」流量已用尽`)) continue
+    publish('customer.traffic_exhausted', {
+      title: '客户流量用尽',
+      message: `客户「${cust.name}」流量已用尽`,
+      data: { customerId: cust.id },
+    })
   }
 
   if (created > 0) {
