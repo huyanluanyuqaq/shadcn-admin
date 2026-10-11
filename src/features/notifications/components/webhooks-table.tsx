@@ -248,7 +248,9 @@ export function WebhooksTable() {
           size='sm'
           className='ms-3'
           onClick={() => void refetch()}
+          disabled={isFetching}
         >
+          <RefreshCw className={isFetching ? 'animate-spin' : ''} />
           重试
         </Button>
       </div>

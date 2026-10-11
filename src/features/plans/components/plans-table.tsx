@@ -161,8 +161,10 @@ export function PlansTable({ search, navigate }: DataTableProps) {
             variant='outline'
             size='sm'
             onClick={() => void refetch()}
+            disabled={isFetching}
             className='shrink-0'
           >
+            <RefreshCw className={cn(isFetching && 'animate-spin')} />
             重试
           </Button>
         </AlertDescription>
