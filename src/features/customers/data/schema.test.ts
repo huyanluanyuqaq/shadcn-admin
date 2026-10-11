@@ -573,3 +573,14 @@ describe('randomDailyCronExpr', () => {
     expect(minutes.size).toBeGreaterThanOrEqual(15)
   })
 })
+
+describe('emptyCustomerForm 同步周期预填（TASK-020）', () => {
+  it('新建客户预填「每天随机时间」而非固定每 6 小时', () => {
+    // 每次调用都是一次新随机：约束形态（每日 cron）而非具体值
+    for (let i = 0; i < 10; i++) {
+      expect(emptyCustomerForm().subscriptionCronExpr).toMatch(
+        /^(\d{1,2}) (\d{1,2}) \* \* \*$/
+      )
+    }
+  })
+})

@@ -243,6 +243,16 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
     }
   })
 
+  // TASK-020：新建客户打开对话框即预填「每天随机时间」，不再固定每 6 小时
+  it('新建客户：同步周期默认预填随机每日 cron', async () => {
+    const { getByLabelText } = await renderDialog()
+
+    const value = (
+      getByLabelText('同步周期', { exact: true }).element() as HTMLInputElement
+    ).value
+    expect(value).toMatch(/^\d{1,2} \d{1,2} \* \* \*$/)
+  })
+
   // TASK-019：「每天随机时间」按钮——点击生成 `分 时 * * *` 填入输入框，
   // 每次重新随机；type='button' 不误触发表单提交。
   it('同步周期：「每天随机时间」按钮生成合法每日 cron 且不提交表单', async () => {
@@ -250,14 +260,13 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
 
     const cronInput = getByLabelText('同步周期', { exact: true })
     const inputEl = () => cronInput.element() as HTMLInputElement
-    // 新建默认值为每 6 小时
-    expect(inputEl().value).toBe('0 */6 * * *')
+    // 新建默认值已是随机每日时间（TASK-020 预填）
+    expect(inputEl().value).toMatch(/^\d{1,2} \d{1,2} \* \* \*$/)
 
     await userEvent.click(getByRole('button', { name: '每天随机时间' }))
 
     const value = inputEl().value
     expect(value).toMatch(/^\d{1,2} \d{1,2} \* \* \*$/)
-    expect(value).not.toBe('0 */6 * * *')
     // 按钮在 form 内但 type='button'，不得触发提交
     expect(createCustomer.mutateAsync).not.toHaveBeenCalled()
 
