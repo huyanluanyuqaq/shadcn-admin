@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { Customer, Subscription } from '@shared/index'
+import type { Customer, Plan, Subscription } from '@shared/index'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render } from 'vitest-browser-react'
 import { userEvent } from 'vitest/browser'
@@ -18,9 +18,10 @@ import { CustomersActionDialog } from './customers-action-dialog'
  * 注意：vitest-browser 的 getByLabelText 默认子串匹配（'名称' 会连带
  * 命中『订阅名称』），一律传 { exact: true }。
  *
- * TASK-022：「拉取订阅更新」预览流量回填「订阅流量上限」——覆盖语义，
- * 上游未返回流量时保持原值不动。preview mock 经 hoisted 的
- * subscriptionPreview 共享可控。
+ * TASK-022/023：「拉取订阅更新」预览流量回填「订阅流量上限」——覆盖语义，
+ * 上游未返回流量时保持原值不动。TASK-023 起该字段**只读**（订阅链接实际
+ * 流量，仅来自拉取结果/匹配订阅预填），无法手填；月流量改为始终跟随套餐。
+ * preview mock 经 hoisted 的 subscriptionPreview 共享可控。
  */
 const {
   createCustomer,
@@ -46,7 +47,7 @@ const {
     isPending: false,
   },
   supplierOptions: { data: { items: [] }, isPending: false },
-  planOptions: { data: { items: [] }, isPending: false },
+  planOptions: { data: { items: [] as Plan[] }, isPending: false },
 }))
 
 vi.mock('@/features/emails/queries', () => ({
@@ -72,7 +73,11 @@ vi.mock('../api', () => ({
 
 const URL = 'https://example.com/sub'
 
-function makeSubscription(id: number, customerId: number | null): Subscription {
+function makeSubscription(
+  id: number,
+  customerId: number | null,
+  overrides?: Partial<Subscription>
+): Subscription {
   return {
     id,
     name: `sub-${id}`,
@@ -93,6 +98,23 @@ function makeSubscription(id: number, customerId: number | null): Subscription {
     nextRunAt: null,
     syncStatus: 'idle',
     lastError: null,
+    createdAt: 1,
+    updatedAt: 1,
+    ...overrides,
+  }
+}
+
+function makePlan(id: number, trafficLimit: number | null): Plan {
+  return {
+    id,
+    name: `plan-${id}`,
+    priceMonthly: 99,
+    priceQuarterly: 260,
+    priceSemiannual: 480,
+    priceYearly: 880,
+    trafficLimit,
+    description: null,
+    status: 'active',
     createdAt: 1,
     updatedAt: 1,
   }
@@ -284,7 +306,7 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
   })
 })
 
-describe('CustomersActionDialog 「拉取订阅更新」回填订阅流量上限（TASK-022）', () => {
+describe('CustomersActionDialog 「拉取订阅更新」回填订阅流量上限（TASK-022/023）', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     subscriptionOptions.data = { items: [] }
@@ -312,31 +334,49 @@ describe('CustomersActionDialog 「拉取订阅更新」回填订阅流量上限
     expect(subscriptionPreview.mutateAsync).toHaveBeenCalledWith(URL)
   })
 
-  it('覆盖语义：框内已有值（手填）也被新预览值替换', async () => {
-    subscriptionPreview.mutateAsync.mockResolvedValue({
-      trafficTotal: 20 * GB,
-      expireAt: null,
-    })
+  it('覆盖语义：再次拉取 → 新预览值替换旧值', async () => {
+    subscriptionPreview.mutateAsync
+      .mockResolvedValueOnce({ trafficTotal: 10 * GB, expireAt: null })
+      .mockResolvedValueOnce({ trafficTotal: 20 * GB, expireAt: null })
     const { getByLabelText, getByRole } = await renderDialog()
 
     await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
     const cap = getByLabelText('订阅流量上限（GB）', { exact: true })
-    await userEvent.type(cap, '5')
+    const capEl = () => cap.element() as HTMLInputElement
 
     await userEvent.click(getByRole('button', { name: '拉取订阅更新' }))
+    await vi.waitFor(() => {
+      expect(capEl().value).toBe('10')
+    })
 
-    const capEl = () => cap.element() as HTMLInputElement
+    await userEvent.click(getByRole('button', { name: '拉取订阅更新' }))
     await vi.waitFor(() => {
       expect(capEl().value).toBe('20')
     })
   })
 
-  it('上游未返回流量 → 保持原值不动（不清空）', async () => {
-    const { getByLabelText, getByRole } = await renderDialog()
+  // TASK-023：字段只读——订阅链接实际流量只能来自拉取结果/匹配订阅预填
+  it('只读：无法手填「订阅流量上限（GB）」', async () => {
+    const { getByLabelText } = await renderDialog()
 
-    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
     const cap = getByLabelText('订阅流量上限（GB）', { exact: true })
     await userEvent.type(cap, '5')
+    expect((cap.element() as HTMLInputElement).value).toBe('')
+  })
+
+  it('上游未返回流量 → 保持原值不动（不清空）', async () => {
+    // 编辑模式命中已登记订阅：字段预填订阅侧存量实际流量
+    const currentRow = makeCustomer(9)
+    subscriptionOptions.data = {
+      items: [makeSubscription(42, 9, { trafficTotal: 8 * GB })],
+    }
+    const { getByLabelText, getByRole } = await renderDialog(currentRow)
+
+    const cap = getByLabelText('订阅流量上限（GB）', { exact: true })
+    const capEl = () => cap.element() as HTMLInputElement
+    await vi.waitFor(() => {
+      expect(capEl().value).toBe('8')
+    })
 
     await userEvent.click(getByRole('button', { name: '拉取订阅更新' }))
 
@@ -344,6 +384,87 @@ describe('CustomersActionDialog 「拉取订阅更新」回填订阅流量上限
     await vi.waitFor(() => {
       expect(subscriptionPreview.mutateAsync).toHaveBeenCalledOnce()
     })
-    expect((cap.element() as HTMLInputElement).value).toBe('5')
+    expect(capEl().value).toBe('8')
+  })
+})
+
+// TASK-023：月流量始终跟随套餐（唯一自动来源，套餐变更即覆盖）
+describe('CustomersActionDialog 月流量始终跟随套餐（TASK-023）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    subscriptionOptions.data = { items: [] }
+  })
+
+  it('新建：选中套餐后月流量自动填充套餐值', async () => {
+    planOptions.data = { items: [makePlan(1, 100 * GB)] }
+
+    const { getByLabelText, getByRole } = await renderDialog()
+
+    await userEvent.click(getByRole('combobox', { name: '套餐' }))
+    await userEvent.click(
+      getByRole('option', { name: 'plan-1 · 月付（30 天）' })
+    )
+
+    const monthly = getByLabelText('月流量（GB）', { exact: true })
+    await vi.waitFor(() => {
+      expect((monthly.element() as HTMLInputElement).value).toBe('100')
+    })
+  })
+
+  it('新建：切换套餐 → 月流量跟随新套餐值', async () => {
+    planOptions.data = {
+      items: [makePlan(1, 100 * GB), makePlan(2, 200 * GB)],
+    }
+
+    const { getByLabelText, getByRole } = await renderDialog()
+    const monthly = getByLabelText('月流量（GB）', { exact: true })
+    const monthlyEl = () => monthly.element() as HTMLInputElement
+
+    await userEvent.click(getByRole('combobox', { name: '套餐' }))
+    await userEvent.click(
+      getByRole('option', { name: 'plan-1 · 月付（30 天）' })
+    )
+    await vi.waitFor(() => {
+      expect(monthlyEl().value).toBe('100')
+    })
+
+    await userEvent.click(getByRole('combobox', { name: '套餐' }))
+    await userEvent.click(
+      getByRole('option', { name: 'plan-2 · 月付（30 天）' })
+    )
+    await vi.waitFor(() => {
+      expect(monthlyEl().value).toBe('200')
+    })
+  })
+
+  it('编辑：存量月流量与套餐不一致 → 打开即显示套餐值（覆盖旧值）', async () => {
+    planOptions.data = { items: [makePlan(1, 100 * GB)] }
+    const currentRow = makeCustomer(9)
+    currentRow.planId = 1
+    currentRow.planTier = 'monthly'
+    currentRow.trafficTotal = 50 * GB
+
+    const { getByLabelText } = await renderDialog(currentRow)
+
+    const monthly = getByLabelText('月流量（GB）', { exact: true })
+    await vi.waitFor(() => {
+      expect((monthly.element() as HTMLInputElement).value).toBe('100')
+    })
+  })
+
+  it('未选套餐：保留存量月流量，且可手动填写', async () => {
+    planOptions.data = { items: [makePlan(1, 100 * GB)] }
+    const currentRow = makeCustomer(9)
+    currentRow.trafficTotal = 50 * GB
+
+    const { getByLabelText } = await renderDialog(currentRow)
+
+    const monthly = getByLabelText('月流量（GB）', { exact: true })
+    await vi.waitFor(() => {
+      expect((monthly.element() as HTMLInputElement).value).toBe('50')
+    })
+    await userEvent.clear(monthly)
+    await userEvent.type(monthly, '30')
+    expect((monthly.element() as HTMLInputElement).value).toBe('30')
   })
 })
