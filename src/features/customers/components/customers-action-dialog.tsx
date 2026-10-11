@@ -59,8 +59,8 @@ import {
   customerFormSchema,
   customerStatusOptions,
   emptyCustomerForm,
-  GB,
   parsePlanValue,
+  resolveAutoTrafficGb,
   resolveProviderName,
   subscriptionFieldsFrom,
   toCustomerForm,
@@ -220,23 +220,47 @@ export function CustomersActionDialog({
     form.setValue('expireAt', new Date(autoExpireMs), { shouldDirty: true })
   }, [autoExpireMs, form])
 
-  // 选了套餐且月流量为空时，用套餐的月流量上限自动填充（不覆盖已填值）
-  useEffect(() => {
-    if (!planTrafficLimit) return
-    if (form.getValues('trafficMonthlyGb') !== '') return
-    form.setValue(
-      'trafficMonthlyGb',
-      String(Number((planTrafficLimit / GB).toFixed(2)))
-    )
-  }, [planTrafficLimit, form])
-
-  // —— 订阅链接：与订阅管理联动 ——
+  // —— 订阅链接匹配：订阅信息流量（月流量自动填充的低优先级来源）——
+  const subscriptionUrl = useWatch({
+    control: form.control,
+    name: 'subscriptionUrl',
+  })
   const subscriptionItems = subscriptionOptions.data?.items ?? []
-  /** 编辑模式：按客户已存订阅链接匹配订阅管理中的记录 */
+  /** 编辑模式：按客户已存订阅链接匹配订阅管理中的记录（第三部分预填充用） */
   const matchedSub =
     isEdit && currentRow?.subscriptionUrl
       ? subscriptionItems.find((s) => s.url === currentRow.subscriptionUrl)
       : undefined
+  /**
+   * 当前表单链接是否已存在于订阅管理（保存时将更新而非新建）。
+   * 新建模式与修改链接时即时跟踪；编辑模式打开时等同于 matchedSub。
+   */
+  const urlMatch = subscriptionUrl.trim()
+    ? subscriptionItems.find((s) => s.url === subscriptionUrl.trim())
+    : undefined
+  /**
+   * 「拉取订阅更新」预览结果（按链接键控）：链接变化即自然失效，
+   * 避免旧链接的流量残留在新链接上（未登记链接只能靠预览获取流量）。
+   */
+  const [urlPreview, setUrlPreview] = useState<{
+    url: string
+    traffic: number | null
+  } | null>(null)
+  /** 订阅信息流量（字节）：预览值优先（同一次打开内最新），否则匹配订阅上报值 */
+  const subscriptionTraffic =
+    (urlPreview?.url === subscriptionUrl.trim() ? urlPreview.traffic : null) ??
+    urlMatch?.trafficTotal ??
+    null
+
+  // 月流量自动填充（不覆盖已填值，手动填写永远优先）：
+  // 套餐月流量（订阅链接被使用时高优先级）> 订阅信息流量（默认来源）
+  useEffect(() => {
+    const auto = resolveAutoTrafficGb(planTrafficLimit, subscriptionTraffic)
+    if (auto === '') return
+    if (form.getValues('trafficMonthlyGb') !== '') return
+    form.setValue('trafficMonthlyGb', auto, { shouldDirty: true })
+  }, [planTrafficLimit, subscriptionTraffic, form])
+
   const matchedSubRef = useRef<Subscription | undefined>(undefined)
   useEffect(() => {
     matchedSubRef.current = matchedSub
@@ -277,18 +301,10 @@ export function CustomersActionDialog({
     form.setValue('subscriptionName', providerName, { shouldDirty: true })
   }, [providerName, form])
 
-  const subscriptionUrl = useWatch({
-    control: form.control,
-    name: 'subscriptionUrl',
-  })
   const subscriptionExpireAt = useWatch({
     control: form.control,
     name: 'subscriptionExpireAt',
   })
-  /** 输入的链接是否已存在于订阅管理（保存时将更新而非新建） */
-  const urlMatch = subscriptionUrl.trim()
-    ? subscriptionItems.find((s) => s.url === subscriptionUrl.trim())
-    : undefined
 
   const handleFetchPreview = async () => {
     const url = form.getValues('subscriptionUrl').trim()
@@ -298,6 +314,8 @@ export function CustomersActionDialog({
     }
     try {
       const preview = await fetchPreview.mutateAsync(url)
+      // 预览流量作为「订阅信息流量」参与月流量自动填充（不覆盖已填值）
+      setUrlPreview({ url, traffic: preview.trafficTotal })
       form.setValue(
         'subscriptionExpireAt',
         preview.expireAt ? new Date(preview.expireAt) : null,
@@ -667,6 +685,10 @@ export function CustomersActionDialog({
                         inputMode='decimal'
                         {...field}
                       />
+                      <p className='text-xs text-muted-foreground'>
+                        未填写时自动填充：套餐月流量（订阅链接使用时优先）→
+                        订阅信息流量
+                      </p>
                       <FormMessage />
                     </FormItem>
                   )}

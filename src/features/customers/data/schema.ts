@@ -209,6 +209,24 @@ export function computeExpireAt(
   return addDays(purchasedAt, days)
 }
 
+/**
+ * 月流量自动填充值（GB 字符串；'' 表示无可用来源）。
+ *
+ * 优先级：**套餐月流量 > 订阅信息流量**。订阅链接被使用时两者同时存在，
+ * 套餐月流量为高优先级；无套餐月流量时回落订阅信息流量（默认来源）。
+ * 用户手填值由调用方守卫（不覆盖已填值），不在本函数内处理。
+ *
+ * 0 与 null/undefined 一视同仁视为「无来源」（0 字节无业务意义，与套餐
+ * 自动填充的既有口径一致）；GB 换算与 `toCustomerForm` 相同。
+ */
+export function resolveAutoTrafficGb(
+  planTrafficLimit: number | null | undefined,
+  subscriptionTraffic: number | null | undefined
+): string {
+  const bytes = planTrafficLimit || subscriptionTraffic || null
+  return bytes === null ? '' : String(Number((bytes / GB).toFixed(2)))
+}
+
 /** 表单值 → 写入 API 的入参 */
 export function toCustomerInput(
   values: CustomerForm,
