@@ -1,6 +1,6 @@
 # 架构总览 — 用户订阅管理系统（基于 shadcn-admin 二次开发）
 
-> 状态：**已实施**（TASK-001 ~ TASK-009 全部完成；§1「现状与差距」为接入时
+> 状态：**已实施**（TASK-001 ~ TASK-010 全部完成；§1「现状与差距」为接入时
 > 的基线快照，保留作历史记录，不代表当前状态）
 > 创建：2026-10-09 · 作者：Architect
 > 关联：[ADR-001 后端技术栈选型](../decisions/ADR-001-backend-stack.md)、
@@ -142,7 +142,8 @@ shadcn-admin/
 | `subscriptions` | 订阅链接 | url, customer_id, pool_id, traffic_total/used, expire_at, **cron_expr, last_run_at, next_run_at, sync_status, last_error, user_agent, headers(json), skip_tls_verify, proxy_url** |
 | `subscription_pool` | 供应商（订阅池） | name, url, remark |
 | `email_bindings` | **邮箱与订阅的绑定关系**（非邮箱账号） | email(唯一), subscription_id(级联), status, remark |
-| `reminders` | 到期提醒（通知源） | customer_id, type, remind_at, is_read |
+| `reminders` | 到期提醒 + **站内通知**（in_app 渠道落库） | customer_id, type(事件 key), remind_at, is_read |
+| `webhooks` | **通知 Webhook**（自选订阅事件，见 §12） | name, url, method, content_type, headers(json), body(模板), enabled, event_keys(json), last_test_at |
 | `logs` | 日志（操作 + 定时任务） | level, module, message, created_at |
 | `settings` | 系统配置 | key, value |
 | `admins` | 管理员账号（单管理员起步） | username, password_hash |
@@ -364,3 +365,59 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 | SQLite 并发写锁 | 高并发写失败 | 启用 WAL 模式；写入集中在人工操作场景 |
 | 后端无测试 | 回归风险 | P5 补齐；P0 起即设计可测的 Service 层 |
 | 与 `business-manager` 混淆 | 组件误复制导致样式崩溃 | 见 `AGENTS.md` §13.1：Tailwind 3.4 与 4 不兼容，禁止跨项目复制 |
+
+---
+
+## 12. 通知设计（参照 sublinkPro）
+
+> 本章设计以 [sublinkPro](https://github.com/ZeroDeng01/sublinkPro) 的通知三件套
+> （`services/notifications/{catalog,config,publish}.go` + `models/webhook.go`）为参照
+> （2026-10-11 调研其源码），按 Node/SQLite 特性适配落地为 TASK-010。
+
+### 12.1 事件目录（Event Catalog）
+
+点分层级事件 key 集中定义于 `shared/src/schema/notifications.ts`，前后端共用：
+
+| 事件 key | 名称 | 分类 | 严重级 | 触发点 |
+|----------|------|------|--------|--------|
+| `subscription.sync_succeeded` | 订阅同步成功 | subscription | success | 同步且**用量/到期真正变化**时（C8 增量对比，防刷屏） |
+| `subscription.sync_failed` | 订阅同步失败 | subscription | error | 单条或批量同步失败（批量时附前 10 条失败摘要） |
+| `customer.expire_soon` | 客户即将到期 | customer | warning | 提醒扫描**新生成**到期提醒时 |
+| `customer.traffic_exhausted` | 客户流量用尽 | customer | error | 提醒扫描**新生成**流量提醒时 |
+| `security.user_login` | 管理员登录 | security | info | 登录成功 |
+
+每条事件声明可用渠道（`webhook` + `in_app`，目录结构保留 Telegram 等扩展位，首期不实现）
+与 `defaultEnabled`。新增事件 = 目录追加一条 + 在触发点调 `publish()`，无需改派发器。
+
+### 12.2 双渠道派发
+
+```
+publish(eventKey, { title, message, data })
+   ├─ in_app：写入 reminders 表（type = 事件 key），供 Header 铃铛 / 通知中心展示
+   └─ webhook：查询订阅了该事件的 enabled webhooks → 并发派发（上限 4）
+```
+
+- **fire-and-forget**：`publish` 返回 `void`，调用方（如同步循环）不等待投递结果；
+  单渠道失败仅记 `logs`（module=`notification`），**绝不阻断主流程**。
+- **webhook 投递**：模板变量替换（URL 用 `encodeURIComponent`，JSON body 用 JSON 转义，
+  form 用 URL 编码）→ 合并自定义请求头 → `AbortSignal.timeout(10_000)` →
+  `>=400` 判定失败并记录。
+- **模板变量**：`{{title}} {{message}} {{time}} {{event}} {{eventName}} {{severity}}
+  {{category}} {{categoryName}}`，body 另支持 `{{json .}}`（整个 payload 的 JSON）。
+  凭此可零改代码接入 PushDeer / Bark / 钉钉 / 方糖等官方 webhook 地址。
+
+### 12.3 前端
+
+| 页面 / 组件 | 路径 | 说明 |
+|-------------|------|------|
+| Webhook 管理 | `/webhooks` | CRUD + 事件多选（按分类分组）+ 启用开关 + 测试发送 |
+| 通知中心 | `/notifications` | URL 驱动的筛选（已读/未读）/ 分页 / 标记已读 |
+| 通知铃铛 | Header（全局） | 未读角标（30s 轮询）+ 最近 6 条 Popover + 全部已读 |
+
+站内通知复用 `reminders` 表而非新表：提醒与通知同源（都是「需要人看的事件」），
+以 `type` 区分（事件 key vs 旧 `expire`/`traffic`），避免重复建设已读/未读状态机。
+
+### 12.4 与 §10 约束的关系
+
+C1（事务内禁网络 IO）对通知同样生效：`publish` 一律在事务外调用；
+C8（增量对比）同时是通知的防刷屏机制——无变化不写库、不通知。
