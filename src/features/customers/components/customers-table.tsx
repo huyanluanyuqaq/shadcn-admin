@@ -163,19 +163,40 @@ export function CustomersTable() {
         'flex flex-1 flex-col gap-4'
       )}
     >
-      <DataTableToolbar
-        table={table}
-        searchPlaceholder='搜索客户名称或邮箱…'
-        filters={[
-          { columnId: 'status', title: '状态', options: filterOptions.status },
-          {
-            columnId: 'poolId',
-            title: '供应商',
-            options: filterOptions.poolId,
-          },
-          { columnId: 'planId', title: '套餐', options: filterOptions.planId },
-        ]}
-      />
+      <div className='flex items-center justify-between gap-2'>
+        <DataTableToolbar
+          table={table}
+          searchPlaceholder='搜索客户名称或邮箱…'
+          filters={[
+            {
+              columnId: 'status',
+              title: '状态',
+              options: filterOptions.status,
+            },
+            {
+              columnId: 'poolId',
+              title: '供应商',
+              options: filterOptions.poolId,
+            },
+            {
+              columnId: 'planId',
+              title: '套餐',
+              options: filterOptions.planId,
+            },
+          ]}
+        />
+        <Button
+          variant='outline'
+          size='icon'
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          aria-label='刷新'
+          title='刷新'
+          className='size-8 shrink-0'
+        >
+          <RefreshCw className={cn(isFetching && 'animate-spin')} />
+        </Button>
+      </div>
       <div className='overflow-hidden rounded-md border'>
         <Table>
           <TableHeader>
@@ -215,8 +236,15 @@ export function CustomersTable() {
                         variant='outline'
                         size='sm'
                         onClick={() => void refetch()}
+                        disabled={isFetching}
+                        className='shrink-0'
                       >
-                        <RefreshCw className='h-4 w-4' />
+                        <RefreshCw
+                          className={cn(
+                            'h-4 w-4',
+                            isFetching && 'animate-spin'
+                          )}
+                        />
                         重试
                       </Button>
                     </AlertDescription>

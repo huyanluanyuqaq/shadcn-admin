@@ -166,32 +166,45 @@ export function SubscriptionsTable() {
         'flex flex-1 flex-col gap-4'
       )}
     >
-      <DataTableToolbar
-        table={table}
-        searchPlaceholder='搜索订阅名称或地址…'
-        filters={[
-          {
-            columnId: 'syncStatus',
-            title: '同步状态',
-            options: filterOptions.syncStatus,
-          },
-          {
-            columnId: 'enabled',
-            title: '启用状态',
-            options: filterOptions.enabled,
-          },
-          {
-            columnId: 'customerId',
-            title: '绑定客户',
-            options: filterOptions.customerId,
-          },
-          {
-            columnId: 'poolId',
-            title: '供应商',
-            options: filterOptions.poolId,
-          },
-        ]}
-      />
+      <div className='flex items-center justify-between gap-2'>
+        <DataTableToolbar
+          table={table}
+          searchPlaceholder='搜索订阅名称或地址…'
+          filters={[
+            {
+              columnId: 'syncStatus',
+              title: '同步状态',
+              options: filterOptions.syncStatus,
+            },
+            {
+              columnId: 'enabled',
+              title: '启用状态',
+              options: filterOptions.enabled,
+            },
+            {
+              columnId: 'customerId',
+              title: '绑定客户',
+              options: filterOptions.customerId,
+            },
+            {
+              columnId: 'poolId',
+              title: '供应商',
+              options: filterOptions.poolId,
+            },
+          ]}
+        />
+        <Button
+          variant='outline'
+          size='icon'
+          onClick={() => void refetch()}
+          disabled={isFetching}
+          aria-label='刷新'
+          title='刷新'
+          className='size-8 shrink-0'
+        >
+          <RefreshCw className={cn(isFetching && 'animate-spin')} />
+        </Button>
+      </div>
       <div className='overflow-hidden rounded-md border'>
         <Table>
           <TableHeader>
@@ -231,8 +244,15 @@ export function SubscriptionsTable() {
                         variant='outline'
                         size='sm'
                         onClick={() => void refetch()}
+                        disabled={isFetching}
+                        className='shrink-0'
                       >
-                        <RefreshCw className='h-4 w-4' />
+                        <RefreshCw
+                          className={cn(
+                            'h-4 w-4',
+                            isFetching && 'animate-spin'
+                          )}
+                        />
                         重试
                       </Button>
                     </AlertDescription>
