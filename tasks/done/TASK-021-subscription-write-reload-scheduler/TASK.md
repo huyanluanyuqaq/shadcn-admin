@@ -153,6 +153,7 @@ Requires Human Approval: false
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 1 | workbuddy | human | 2026-10-11 | 实现+验证+归档完成，待人类批准合并推送 main |
+| 2 | human | workbuddy | 2026-10-11 | 批准合并（「提交」）→ 已 ff 合并 main 并推送 origin，分支已删 |
 
 ---
 
@@ -162,7 +163,7 @@ Requires Human Approval: false
 - [x] 根 `tsc -b` 通过
 - [x] 隔离冒烟 0 失败（139/139，含 12.10 新增 6 项检查）
 - [x] 任务文档归档至 `tasks/done/`
-- [ ] **人类批准后**：按 019→020→021 顺序 ff 合并 main + 推送 origin + 删分支
+- [x] **人类批准后**：按 019→020→021 顺序 ff 合并 main + 推送 origin + 删分支（2026-10-11 完成）
 
 ---
 
