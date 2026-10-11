@@ -30,6 +30,17 @@ export default defineConfig({
         changeOrigin: true,
       },
     },
+    // 监视器排除 tasks/：chokidar 持有子目录句柄时，Windows 上 git mv/mv
+    // 移动「含子目录的目录」会被 MoveFile 拒绝（Permission denied）。
+    // tasks/ 为任务文档目录，无需 HMR；node_modules/.git/dist 为显式保留的默认忽略项。
+    watch: {
+      ignored: [
+        '**/node_modules/**',
+        '**/.git/**',
+        '**/dist/**',
+        '**/tasks/**',
+      ],
+    },
   },
   test: {
     silent: 'passed-only',
