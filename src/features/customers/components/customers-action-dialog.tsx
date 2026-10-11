@@ -62,6 +62,7 @@ import {
   customerFormSchema,
   customerStatusOptions,
   emptyCustomerForm,
+  formatTrafficTotalGb,
   parsePlanValue,
   randomDailyCronExpr,
   resolveAutoTrafficGb,
@@ -330,6 +331,16 @@ export function CustomersActionDialog({
         preview.expireAt ? new Date(preview.expireAt) : null,
         { shouldDirty: true }
       )
+      // 预览流量回填「订阅流量上限」（TASK-022）：覆盖语义——按钮以
+      // 链接为准，与到期时间行为一致；上游未返回流量时保持原值不动，
+      // 不清空（空值保存 = 「不限」，不能猜）。
+      if (preview.trafficTotal != null) {
+        form.setValue(
+          'subscriptionTrafficTotalGb',
+          formatTrafficTotalGb(preview.trafficTotal),
+          { shouldDirty: true }
+        )
+      }
       if (preview.expireAt) {
         toast.success(
           `已获取订阅到期时间：${format(new Date(preview.expireAt), 'yyyy-MM-dd')}`

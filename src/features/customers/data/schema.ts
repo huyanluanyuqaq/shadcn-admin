@@ -231,6 +231,19 @@ export function resolveAutoTrafficGb(
 }
 
 /**
+ * 字节 → GB 数字字符串（「订阅流量上限」表单口径）：
+ * null/undefined → ''（表单留空 = 不限）；否则两位小数内舍去尾零
+ * （如 10 GB → '10'、1.54 GB → '1.54'）。
+ *
+ * `subscriptionFieldsFrom` 与预览回填（TASK-022）共用，保证两处
+ * 口径一致；改舍入规则只需改这一处。
+ */
+export function formatTrafficTotalGb(bytes: number | null | undefined): string {
+  if (bytes === null || bytes === undefined) return ''
+  return String(Number((bytes / GB).toFixed(2)))
+}
+
+/**
  * 生成「每天随机时间」的 cron 表达式：`分 时 * * *`。
  *
  * 分钟 0-59、小时 0-23 均匀随机——把订阅同步打散到一天中的随机时刻，
@@ -307,11 +320,7 @@ export function subscriptionFieldsFrom(
     subscriptionProxyUrl: subscription.proxyUrl ?? '',
     subscriptionSkipTlsVerify: subscription.skipTlsVerify,
     subscriptionEnabled: subscription.enabled,
-    subscriptionTrafficTotalGb:
-      subscription.trafficTotal === null ||
-      subscription.trafficTotal === undefined
-        ? ''
-        : String(Number((subscription.trafficTotal / GB).toFixed(2))),
+    subscriptionTrafficTotalGb: formatTrafficTotalGb(subscription.trafficTotal),
     subscriptionExpireAt: subscription.expireAt
       ? new Date(subscription.expireAt)
       : null,
