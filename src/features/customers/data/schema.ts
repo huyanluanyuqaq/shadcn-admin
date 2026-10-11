@@ -125,7 +125,10 @@ export function emptyCustomerForm(): CustomerForm {
     subscriptionUrl: '',
     subscriptionExpireAt: null,
     subscriptionName: '',
-    subscriptionCronExpr: DEFAULT_CRON,
+    // 新建即预填「每天随机时间」（TASK-020）：把同步打散到随机时刻，
+    // 避免整点惊群；编辑路径不走这里（toCustomerForm 回落 DEFAULT_CRON，
+    // 命中匹配订阅后由 subscriptionFieldsFrom 覆盖为订阅现值）
+    subscriptionCronExpr: randomDailyCronExpr(),
     subscriptionUserAgent: '',
     subscriptionHeaders: '',
     subscriptionProxyUrl: '',
