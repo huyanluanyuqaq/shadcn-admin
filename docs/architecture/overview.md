@@ -1,6 +1,6 @@
 # 架构总览 — 用户订阅管理系统（基于 shadcn-admin 二次开发）
 
-> 状态：**已实施**（TASK-001 ~ TASK-010 全部完成；§1「现状与差距」为接入时
+> 状态：**已实施**（TASK-001 ~ TASK-011 全部完成；§1「现状与差距」为接入时
 > 的基线快照，保留作历史记录，不代表当前状态）
 > 创建：2026-10-09 · 作者：Architect
 > 关联：[ADR-001 后端技术栈选型](../decisions/ADR-001-backend-stack.md)、
@@ -372,7 +372,8 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 
 > 本章设计以 [sublinkPro](https://github.com/ZeroDeng01/sublinkPro) 的通知三件套
 > （`services/notifications/{catalog,config,publish}.go` + `models/webhook.go`）为参照
-> （2026-10-11 调研其源码），按 Node/SQLite 特性适配落地为 TASK-010。
+> （2026-10-11 调研其源码），按 Node/SQLite 特性适配落地为 TASK-010；
+> Telegram 渠道（`services/telegram`）于 TASK-011 落地，见 §12.5。
 
 ### 12.1 事件目录（Event Catalog）
 
@@ -386,15 +387,17 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 | `customer.traffic_exhausted` | 客户流量用尽 | customer | error | 提醒扫描**新生成**流量提醒时 |
 | `security.user_login` | 管理员登录 | security | info | 登录成功 |
 
-每条事件声明可用渠道（`webhook` + `in_app`，目录结构保留 Telegram 等扩展位，首期不实现）
-与 `defaultEnabled`。新增事件 = 目录追加一条 + 在触发点调 `publish()`，无需改派发器。
+每条事件声明可用渠道（`webhook` + `in_app` + `telegram`，Telegram 于 TASK-011 落地，
+见 §12.5）与 `defaultEnabled`。新增事件 = 目录追加一条 + 在触发点调 `publish()`，
+无需改派发器。
 
-### 12.2 双渠道派发
+### 12.2 三渠道派发
 
 ```
 publish(eventKey, { title, message, data })
    ├─ in_app：写入 reminders 表（type = 事件 key），供 Header 铃铛 / 通知中心展示
-   └─ webhook：查询订阅了该事件的 enabled webhooks → 并发派发（上限 4）
+   ├─ webhook：查询订阅了该事件的 enabled webhooks → 并发派发（上限 4）
+   └─ telegram：向配置的机器人聊天推送（启用 + 已绑定 Chat ID + 订阅该事件时）
 ```
 
 - **fire-and-forget**：`publish` 返回 `void`，调用方（如同步循环）不等待投递结果；
@@ -405,12 +408,15 @@ publish(eventKey, { title, message, data })
 - **模板变量**：`{{title}} {{message}} {{time}} {{event}} {{eventName}} {{severity}}
   {{category}} {{categoryName}}`，body 另支持 `{{json .}}`（整个 payload 的 JSON）。
   凭此可零改代码接入 PushDeer / Bark / 钉钉 / 方糖等官方 webhook 地址。
+- **telegram 投递**：分事件消息格式化（emoji + 加粗标题，HTML parse_mode）→
+  `sendMessage` → 失败仅记日志；详见 §12.5。
 
 ### 12.3 前端
 
 | 页面 / 组件 | 路径 | 说明 |
 |-------------|------|------|
 | Webhook 管理 | `/webhooks` | CRUD + 事件多选（按分类分组）+ 启用开关 + 测试发送 |
+| Telegram 机器人 | `/telegram` | 单配置（Token / Chat ID / 代理 / 事件订阅）+ `/start` 自动绑定 + 测试连接 + 运行状态 |
 | 通知中心 | `/notifications` | URL 驱动的筛选（已读/未读）/ 分页 / 标记已读 |
 | 通知铃铛 | Header（全局） | 未读角标（30s 轮询）+ 最近 6 条 Popover + 全部已读 |
 
@@ -421,3 +427,23 @@ publish(eventKey, { title, message, data })
 
 C1（事务内禁网络 IO）对通知同样生效：`publish` 一律在事务外调用；
 C8（增量对比）同时是通知的防刷屏机制——无变化不写库、不通知。
+
+### 12.5 Telegram 渠道（TASK-011，参照 sublinkPro `services/telegram`）
+
+设计参照 sublinkPro，但**刻意收窄**：sublinkPro 的机器人是完整远程管理端
+（stats/monitor/subscriptions 命令 + 内联键盘 + 长轮询常驻），本项目为通知系统，
+仅保留两类能力——**通知推送**与 **Chat ID 自动绑定**，无交互命令面。
+
+| 维度 | 决策 |
+|------|------|
+| 存储 | settings 表 KV（键前缀 `telegram.`，sublinkPro 同思路）；单配置（一个机器人 + 一个目标聊天），非多条记录 |
+| Token 校验 | `getMe`（保存前可经「测试连接」预校验），成功后缓存 botUsername |
+| Chat ID 绑定 | 启用后向机器人发送 `/start`，服务端 getUpdates 长轮询（单次挂起 30s、offset 推进）绑定**首个**发送者；群组 ID 为负数故按字符串处理；**绑定后即停**，不常驻连接 |
+| 消息格式 | HTML parse_mode（仅转义 `& < >`，比 sublinkPro 的 Markdown 转义稳健、兼容 CJK）；分事件标题（✅ 同步成功 / ❌ 同步失败 / ⏰ 即将到期 / 🚫 流量用尽 / 🔐 管理员登录 + 加粗） |
+| 代理 | undici `ProxyAgent`（http/https/socks5），与订阅同步同语义；国内服务器访问 api.telegram.org 所需 |
+| 出网基址 | `config.telegramApiBase`（env `TELEGRAM_API_BASE`，默认官方地址）；冒烟测试指向内嵌 mock，出口受限环境可自建中转 |
+
+长轮询启停由配置驱动：PUT 保存时按「已启用 + 有 Token + 未绑定 Chat ID」启动，
+绑定成功 / 停用 / 改配置即停；服务重启后按持久化配置恢复（`index.ts` 启动处）。
+派发路径与 webhook 一致：四重检查（启用 / Token / Chat ID / 事件订阅）后
+fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
