@@ -21,6 +21,7 @@ import { DashboardSkeleton } from './components/dashboard-skeleton'
 import { ExpiringSoonList } from './components/expiring-soon-list'
 import { ProviderPieChart } from './components/provider-pie-chart'
 import { StatCards } from './components/stat-cards'
+import { TrafficThresholdList } from './components/traffic-threshold-list'
 import { useDashboardStatsQuery } from './queries'
 
 export function Dashboard() {
@@ -115,6 +116,20 @@ export function Dashboard() {
                 </CardContent>
               </Card>
             </div>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>流量阈值提醒</CardTitle>
+                <CardDescription>
+                  共 {data.trafficThresholds.length} 个客户达到流量阈值 （50% /
+                  80% /
+                  100%），按当前所在最高阈值标注；达到新阈值时将自动发送通知
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TrafficThresholdList items={data.trafficThresholds} />
+              </CardContent>
+            </Card>
 
             <Card>
               <CardHeader>

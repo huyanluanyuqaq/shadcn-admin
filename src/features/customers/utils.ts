@@ -1,23 +1,24 @@
 import { format } from 'date-fns'
+import {
+  effectiveTrafficTotal,
+  formatTrafficBytes,
+  trafficUsagePercent,
+} from '@shared/index'
+
+/**
+ * 流量相关函数已上移 shared（`@shared/index`，TASK-013 起前后端共用同一实现），
+ * 此处保留再导出，既有导入点无需改动。
+ */
+export {
+  effectiveTrafficTotal,
+  formatTrafficBytes as formatBytes,
+  trafficUsagePercent,
+}
 
 /** 取出可展示的错误信息（ApiError 已带服务端 message） */
 export function getErrorMessage(error: unknown, fallback = '操作失败'): string {
   if (error instanceof Error && error.message) return error.message
   return fallback
-}
-
-/** 字节 → 人类可读文本 */
-export function formatBytes(bytes: number | null | undefined): string {
-  if (bytes === null || bytes === undefined) return '-'
-  if (bytes < 1024) return `${bytes} B`
-  const units = ['KB', 'MB', 'GB', 'TB', 'PB']
-  let value = bytes
-  let unitIndex = -1
-  while (value >= 1024 && unitIndex < units.length - 1) {
-    value /= 1024
-    unitIndex += 1
-  }
-  return `${value.toFixed(2)} ${units[unitIndex]}`
 }
 
 /** epoch 毫秒 → `yyyy-MM-dd HH:mm`，空值返回 `-` */
@@ -33,24 +34,4 @@ export function formatDateTime(value: number | null | undefined): string {
 export function daysLeft(expireAt: number | null | undefined): number | null {
   if (expireAt === null || expireAt === undefined) return null
   return Math.ceil((expireAt - Date.now()) / 86_400_000)
-}
-
-/** 流量使用率（0–100），不限流量或无上限时返回 null */
-export function trafficUsagePercent(
-  used: number,
-  total: number | null | undefined
-): number | null {
-  if (!total || total <= 0) return null
-  return Math.min(100, Math.round((used / total) * 100))
-}
-
-/**
- * 生效流量上限：手动流量上限（trafficManualCap）优先级最高，
- * 未设置时回落到月流量（trafficTotal）；两者都为空表示不限。
- */
-export function effectiveTrafficTotal(
-  trafficTotal: number | null | undefined,
-  trafficManualCap: number | null | undefined
-): number | null {
-  return trafficManualCap ?? trafficTotal ?? null
 }
