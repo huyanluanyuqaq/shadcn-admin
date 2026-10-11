@@ -10,7 +10,7 @@
 Task ID: TASK-016
 Title: 客户表单流量上限自动填充优先级（套餐 → 订阅信息 → 手动）
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P2
 Owner: workbuddy
 Owner Since: 2026-10-11
@@ -131,7 +131,7 @@ File Scope:
   - src/features/customers/data/schema.test.ts     # 单测
   - src/features/customers/components/customers-action-dialog.tsx  # 接线与文案
   - docs/architecture/overview.md                  # §12.9
-  - tasks/active/TASK-016-traffic-limit-priority/** # 任务文件
+  - tasks/done/TASK-016-traffic-limit-priority/** # 任务文件
 Non-Scope (files):
   - shared/**                                      # 无共享契约变更
   - server/**                                      # 无后端变更
@@ -168,9 +168,14 @@ Non-Scope (files):
 
 ## Current State
 
-> 2026-10-11：实现与验证完成，Status=REVIEW，等待人类审查。
-> 分支 `feat/TASK-016-traffic-limit-priority`（4 个提交），未合并 main、未推送。
-> 遗留：人类审查 + 3000 实例人工复核三个场景（见 HANDOFF-001 Next Action）。
+> 2026-10-11：实现与验证完成；人类批准「提交并推送」后已合并 main 并推送 origin。
+> 分支 `feat/TASK-016-traffic-limit-priority` 共 5 个提交（4f52930 feat web / eafb064 test /
+> c8bcb3c docs / 79ecd52 docs-task / 458390a 合入 TASK-015），main 快进后分支已删除。
+> 注意：因本地运行需要，`feat/TASK-015-system-backup` 曾合入本分支（合并提交 458390a，
+> 零冲突），故本次推送同时包含 TASK-015 系统备份与 TASK-016 流量优先级两个功能；
+> `feat/TASK-015-system-backup` 原分支保留至本次推送后删除，其提交已全部随 main 到达 origin。
+> 遗留：3000 实例人工复核三个场景（编辑匹配客户 / 拉取订阅更新 / 使用）——运行时已验证
+> 服务与模块正常，表单交互场景仍建议人类最终确认。
 
 ---
 
@@ -182,8 +187,8 @@ Non-Scope (files):
 | src/features/customers/components/customers-action-dialog.tsx | 修改 | 上移订阅匹配派生；`urlPreview` 键控预览流量；月流量自动填充改三级优先级链；提示文案；移除未用的 `GB` 导入 |
 | src/features/customers/data/schema.test.ts | 修改 | `resolveAutoTrafficGb` 6 组单测 |
 | docs/architecture/overview.md | 修改 | §5 新增「客户表单流量上限自动填充优先级（TASK-016）」说明表 |
-| tasks/active/TASK-016-traffic-limit-priority/TASK.md | 新增 | 任务定义 |
-| tasks/active/TASK-016-traffic-limit-priority/handoffs/HANDOFF-001-developer-to-human.md | 新增 | 交接记录 |
+| tasks/done/TASK-016-traffic-limit-priority/TASK.md | 新增 | 任务定义 |
+| tasks/done/TASK-016-traffic-limit-priority/handoffs/HANDOFF-001-developer-to-human.md | 新增 | 交接记录 |
 
 ---
 
@@ -200,8 +205,8 @@ Non-Scope (files):
 | 001 | developer | human(review) | 2026-10-11 | 实现+验证完毕（test/build/lint/format 全绿），待审查合并 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-human.md`
-**Next Action：** 人类审查 diff（重点 `subscriptionTraffic` 派生与自动填充 effect），
-通过后合并 main；3000 实例人工复核三场景（编辑匹配客户 / 拉取订阅更新 / 使用）。
+**Next Action：** 已完成（2026-10-11 人类批准后合并 main 并推送 origin，分支已删除）；
+剩余仅人类可选确认：3000 实例人工复核三个场景（编辑匹配客户 / 拉取订阅更新 / 使用）。
 
 ---
 
