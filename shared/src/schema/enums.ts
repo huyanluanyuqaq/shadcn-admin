@@ -27,6 +27,7 @@ export const logModuleSchema = z.enum([
   'email',
   'plan',
   'reminder',
+  'notification',
   'scheduler',
   'system',
 ])

@@ -8,3 +8,4 @@
 export * from './schema/common.js'
 export * from './schema/enums.js'
 export * from './schema/entities.js'
+export * from './schema/notifications.js'
