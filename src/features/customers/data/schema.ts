@@ -215,18 +215,18 @@ export function computeExpireAt(
 /**
  * 月流量自动填充值（GB 字符串；'' 表示无可用来源）。
  *
- * 优先级：**套餐月流量 > 订阅信息流量**。订阅链接被使用时两者同时存在，
- * 套餐月流量为高优先级；无套餐月流量时回落订阅信息流量（默认来源）。
- * 用户手填值由调用方守卫（不覆盖已填值），不在本函数内处理。
+ * **始终跟随套餐**（TASK-023）：套餐是唯一自动来源——套餐变更即覆盖，
+ * 不再回落到订阅信息流量（TASK-016 的订阅兜底语义作废）。调用方
+ * （对话框 effect）在套餐变更/打开时无条件写入；0 与 null/undefined
+ * 一视同仁视为「无来源」（0 字节无业务意义，与套餐自动填充的既有
+ * 口径一致），此时保留用户已存/已填值，可手动填写。
  *
- * 0 与 null/undefined 一视同仁视为「无来源」（0 字节无业务意义，与套餐
- * 自动填充的既有口径一致）；GB 换算与 `toCustomerForm` 相同。
+ * GB 换算与 `toCustomerForm` 相同（两位小数内舍去尾零）。
  */
 export function resolveAutoTrafficGb(
-  planTrafficLimit: number | null | undefined,
-  subscriptionTraffic: number | null | undefined
+  planTrafficLimit: number | null | undefined
 ): string {
-  const bytes = planTrafficLimit || subscriptionTraffic || null
+  const bytes = planTrafficLimit || null
   return bytes === null ? '' : String(Number((bytes / GB).toFixed(2)))
 }
 

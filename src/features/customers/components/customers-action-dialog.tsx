@@ -230,7 +230,7 @@ export function CustomersActionDialog({
     form.setValue('expireAt', new Date(autoExpireMs), { shouldDirty: true })
   }, [autoExpireMs, form])
 
-  // —— 订阅链接匹配：订阅信息流量（月流量自动填充的低优先级来源）——
+  // —— 订阅链接匹配（第三部分预填充与保存时的建/改判定）——
   const subscriptionUrl = useWatch({
     control: form.control,
     name: 'subscriptionUrl',
@@ -248,28 +248,16 @@ export function CustomersActionDialog({
   const urlMatch = subscriptionUrl.trim()
     ? subscriptionItems.find((s) => s.url === subscriptionUrl.trim())
     : undefined
-  /**
-   * 「拉取订阅更新」预览结果（按链接键控）：链接变化即自然失效，
-   * 避免旧链接的流量残留在新链接上（未登记链接只能靠预览获取流量）。
-   */
-  const [urlPreview, setUrlPreview] = useState<{
-    url: string
-    traffic: number | null
-  } | null>(null)
-  /** 订阅信息流量（字节）：预览值优先（同一次打开内最新），否则匹配订阅上报值 */
-  const subscriptionTraffic =
-    (urlPreview?.url === subscriptionUrl.trim() ? urlPreview.traffic : null) ??
-    urlMatch?.trafficTotal ??
-    null
 
-  // 月流量自动填充（不覆盖已填值，手动填写永远优先）：
-  // 套餐月流量（订阅链接被使用时高优先级）> 订阅信息流量（默认来源）
+  // 月流量始终跟随所选套餐的月流量（TASK-023）：套餐变更/打开对话框即
+  // 覆盖写入，不再回落到订阅信息流量（TASK-016 订阅兜底语义作废）；
+  // 未选套餐或套餐未设月流量时保留已存/已填值（无来源可跟随，可手填）。
   useEffect(() => {
-    const auto = resolveAutoTrafficGb(planTrafficLimit, subscriptionTraffic)
+    const auto = resolveAutoTrafficGb(planTrafficLimit)
     if (auto === '') return
-    if (form.getValues('trafficMonthlyGb') !== '') return
+    if (form.getValues('trafficMonthlyGb') === auto) return
     form.setValue('trafficMonthlyGb', auto, { shouldDirty: true })
-  }, [planTrafficLimit, subscriptionTraffic, form])
+  }, [planTrafficLimit, form])
 
   const matchedSubRef = useRef<Subscription | undefined>(undefined)
   useEffect(() => {
@@ -324,16 +312,15 @@ export function CustomersActionDialog({
     }
     try {
       const preview = await fetchPreview.mutateAsync(url)
-      // 预览流量作为「订阅信息流量」参与月流量自动填充（不覆盖已填值）
-      setUrlPreview({ url, traffic: preview.trafficTotal })
       form.setValue(
         'subscriptionExpireAt',
         preview.expireAt ? new Date(preview.expireAt) : null,
         { shouldDirty: true }
       )
-      // 预览流量回填「订阅流量上限」（TASK-022）：覆盖语义——按钮以
-      // 链接为准，与到期时间行为一致；上游未返回流量时保持原值不动，
-      // 不清空（空值保存 = 「不限」，不能猜）。
+      // 预览流量回填「订阅流量上限」（TASK-022，TASK-023 起该字段只读：
+      // 订阅链接实际流量，仅能来自拉取结果）：覆盖语义——按钮以链接为准，
+      // 与到期时间行为一致；上游未返回流量时保持原值不动，不清空
+      // （空值保存 = 「不限」，不能猜）。
       if (preview.trafficTotal != null) {
         form.setValue(
           'subscriptionTrafficTotalGb',
@@ -735,8 +722,7 @@ export function CustomersActionDialog({
                         />
                       </FormControl>
                       <p className='text-xs text-muted-foreground'>
-                        未填写时自动填充：套餐月流量（订阅链接使用时优先）→
-                        订阅信息流量
+                        始终跟随所选套餐的月流量（切换套餐即同步）；未选套餐时可手动填写
                       </p>
                       <FormMessage />
                     </FormItem>
@@ -884,11 +870,15 @@ export function CustomersActionDialog({
                         <FormLabel>订阅流量上限（GB）</FormLabel>
                         <FormControl>
                           <Input
-                            placeholder='留空表示不限'
-                            inputMode='decimal'
+                            readOnly
+                            className='bg-muted'
+                            placeholder='未获取'
                             {...field}
                           />
                         </FormControl>
+                        <p className='text-xs text-muted-foreground'>
+                          订阅链接实际流量：点击「拉取订阅更新」后按上游返回的订阅信息自动填充
+                        </p>
                         <FormMessage />
                       </FormItem>
                     )}
