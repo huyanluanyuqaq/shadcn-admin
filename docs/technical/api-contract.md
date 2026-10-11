@@ -150,6 +150,10 @@
 生效流量上限（列表用量条）按 `trafficManualCap ?? trafficTotal` 派生，手动上限优先。
 `dateKeys` 含 `expireAt` / `purchasedAt` / `subscriptionExpireAt`（number ↔ Date 由 CRUD 工厂转换）。
 
+迁移 0010（TASK-013）新增阈值通知状态列 `customers.traffic_threshold_notified`（number，默认 0）：
+记录「当前所在最高已通知阈值」（0 = 未达到任何阈值），**仅服务端内部维护，不参与表单入参**
+（客户表单的订阅字段仍只有上表六列）。
+
 #### 客户第三部分 → 订阅管理的实时同步
 
 客户表单第三部分（订阅链接 + 订阅配置）的字段与订阅管理编辑页一致，保存客户时
@@ -253,7 +257,7 @@ HEAD 优先回退 GET · 10s 超时 · 并发上限 5 · jitter 0–10 分钟 ·
 | DELETE | `/api/logs` | 清空日志 |
 | GET | `/api/reminders` | 分页提醒列表，支持 `isRead` |
 | PATCH | `/api/reminders/:id/read` | 标记已读 |
-| POST | `/api/reminders/scan` | 扫描到期/超流量客户并生成提醒 → `{ created: number }` |
+| POST | `/api/reminders/scan` | 扫描到期/超流量客户并生成提醒，并按流量阈值（50/80/100）发送穿越式通知 → `{ created: number, thresholds: { checked, notified, reset } }`（TASK-013；`days` 查询参数控制到期窗口，默认 7） |
 
 ---
 
@@ -261,9 +265,13 @@ HEAD 优先回退 GET · 10s 超时 · 并发上限 5 · jitter 0–10 分钟 ·
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/dashboard/stats` | → `DashboardStats` |
+| GET | `/api/dashboard/stats` | → `DashboardStats`（含 `trafficThresholds[]`：达到 50%/80%/100% 阈值的客户，降序上限 10，TASK-013） |
 | GET | `/api/settings` | → `Setting[]` |
 | PUT | `/api/settings` | body `Setting[]`，upsert |
+
+`DashboardStats.trafficThresholds[]` 元素：`{ id, name, used, total, percent, threshold, notified }`。
+`threshold` 为当前所在最高阈值（50/80/100），`notified` 表示该阈值是否已发出通知
+（扫描落库于 `customers.traffic_threshold_notified`，穿越式触发、回落重置）。
 
 ---
 

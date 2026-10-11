@@ -385,7 +385,8 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 | `subscription.sync_succeeded` | 订阅同步成功 | subscription | success | 同步且**用量/到期真正变化**时（C8 增量对比，防刷屏） |
 | `subscription.sync_failed` | 订阅同步失败 | subscription | error | 单条或批量同步失败（批量时附前 10 条失败摘要） |
 | `customer.expire_soon` | 客户即将到期 | customer | warning | 提醒扫描**新生成**到期提醒时 |
-| `customer.traffic_exhausted` | 客户流量用尽 | customer | error | 提醒扫描**新生成**流量提醒时 |
+| `customer.traffic_exhausted` | 客户流量用尽 | customer | error | 提醒扫描**新生成**流量提醒时（按天去重） |
+| `customer.traffic_threshold` | 客户流量阈值提醒 | customer | warning | 客户流量达到 50% / 80% / 100% 阈值**且为更高阈值**时（TASK-013，见 §12.7） |
 | `security.user_login` | 管理员登录 | security | info | 登录成功 |
 
 每条事件声明可用渠道（`webhook` + `in_app` + `telegram` + `feishu`，Telegram 于
@@ -478,3 +479,25 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 测试连接（`POST /api/feishu/test`）验证的是**当前表单值**（可能尚未保存），
 因此测试前**强制清除 token 缓存**重新换取——否则缓存命中会让错误凭证
 「假成功」（TASK-012 冒烟实测发现并修复）。
+
+### 12.7 流量阈值提醒（TASK-013）
+
+需求：仪表盘新增流量阈值提醒，阈值 50% / 80% / 100%，达到阈值时发送通知，
+**每次通知取当前所在的最高阈值**。
+
+| 维度 | 决策 |
+|------|------|
+| 评估对象 | **客户**（`customers`），与 `traffic_exhausted` 扫描口径一致；不做订阅粒度 |
+| 生效上限 | `trafficManualCap ?? trafficTotal`（手动上限优先）；为 null/<=0 不评估 |
+| 阈值常量 | `TRAFFIC_THRESHOLDS = [50, 80, 100]`（shared `schema/traffic.ts`，前后端共用；比较用精确值，避免取整提前触发） |
+| 触发语义 | **穿越式**：`customers.traffic_threshold_notified` 记录「当前所在最高阈值」，仅当它**上升**时发 1 条通知（取新最高档）；同一阈值不重复发 |
+| 回落重置 | 用量回落到已通知阈值之下时状态同步下调（不通知），再次穿越可重新通知——适配月度流量重置 / 手动调量 |
+| 通知事件 | `customer.traffic_threshold`（warning，四渠道，defaultEnabled），payload.data 带 `customerId/threshold/percent/used/total` |
+| 扫描入口 | ① 调度器每日任务（env `REMINDER_SCAN_CRON`，默认 `0 9 * * *`，随 `enableScheduler` 注册）；② 手动 `POST /api/reminders/scan`。逻辑同在 `services/reminder-scan.ts` |
+| 仪表盘 | `GET /api/dashboard/stats` 增量 `trafficThresholds[]`（占比 ≥ 50% 的客户，降序，上限 10，含 `notified` 状态）；前端「流量阈值提醒」卡片按档位着色（50 黄 / 80 橙 / 100 红） |
+
+与 `customer.traffic_exhausted` 的关系：100% 档穿越时会**同时**存在一条阈值通知
+（一次性）与当天的用尽提醒（按天去重）。前者是穿越告警，后者是每日状态提醒，
+语义不同，刻意并存、互不抑制。
+
+实现约束同 §12.4：`publish()` 在事务外调用（C1）；阈值状态写库集中单事务（C2）。
