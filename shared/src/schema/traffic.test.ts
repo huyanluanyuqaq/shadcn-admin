@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   TRAFFIC_THRESHOLDS,
+  effectiveCustomerTrafficTotal,
   effectiveTrafficTotal,
   formatTrafficBytes,
   highestTrafficThreshold,
@@ -24,6 +25,25 @@ describe('effectiveTrafficTotal', () => {
 
   it('两者都无表示不限', () => {
     expect(effectiveTrafficTotal(null, null)).toBeNull()
+  })
+})
+
+describe('effectiveCustomerTrafficTotal（阈值评估：手动 > 套餐 > 存量）', () => {
+  it('手动上限为最高优先级（压过套餐与存量）', () => {
+    expect(effectiveCustomerTrafficTotal(100, 200, 50)).toBe(50)
+  })
+
+  it('无手动上限时按套餐月流量（压过存量陈旧值）', () => {
+    expect(effectiveCustomerTrafficTotal(100, 200, null)).toBe(200)
+  })
+
+  it('套餐未设月流量时回落存量月流量', () => {
+    expect(effectiveCustomerTrafficTotal(100, null, null)).toBe(100)
+    expect(effectiveCustomerTrafficTotal(100, undefined, undefined)).toBe(100)
+  })
+
+  it('三者都无表示不限', () => {
+    expect(effectiveCustomerTrafficTotal(null, null, null)).toBeNull()
   })
 })
 

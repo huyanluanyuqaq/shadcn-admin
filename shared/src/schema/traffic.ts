@@ -22,14 +22,37 @@ export const trafficThresholdSchema = z.union([
 export type TrafficThreshold = z.infer<typeof trafficThresholdSchema>
 
 /**
- * 生效流量上限：手动流量上限（trafficManualCap）优先级最高，
- * 未设置时回落到月流量（trafficTotal）；两者都为空表示不限（null）。
+ * 生效流量上限（非套餐口径）：手动流量上限（trafficManualCap）优先级最高，
+ * 未设置时回落到传入的月流量（trafficTotal）；两者都为空表示不限（null）。
+ *
+ * 客户表格「流量使用」列使用本函数（Customer API 不返回套餐月流量，
+ * 行内展示仍以存量 `traffic_total` 为基准）；阈值评估请用
+ * `effectiveCustomerTrafficTotal`（套餐口径）。
  */
 export function effectiveTrafficTotal(
   trafficTotal: number | null | undefined,
   trafficManualCap: number | null | undefined
 ): number | null {
   return trafficManualCap ?? trafficTotal ?? null
+}
+
+/**
+ * 客户生效流量上限（阈值评估口径，TASK-023）：
+ * **手动流量上限 > 套餐月流量 > 存量月流量**。
+ *
+ * - `trafficManualCap`：手动设置，最高优先级；
+ * - `planTrafficLimit`：客户对应套餐的月流量（`plans.traffic_limit`），
+ *   套餐改流量后即时跟进，不受存量 `traffic_total` 陈旧值影响；
+ * - `trafficTotal`：存量回落——客户未选套餐（或套餐未设月流量）时
+ *   仍按表单已存值评估，保持既有行为；
+ * - 三者都为空表示不限（null）。
+ */
+export function effectiveCustomerTrafficTotal(
+  trafficTotal: number | null | undefined,
+  planTrafficLimit: number | null | undefined,
+  trafficManualCap: number | null | undefined
+): number | null {
+  return trafficManualCap ?? planTrafficLimit ?? trafficTotal ?? null
 }
 
 /** 流量使用率（0–100 取整），不限流量时返回 null */
