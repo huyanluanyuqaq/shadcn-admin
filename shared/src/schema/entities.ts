@@ -282,6 +282,27 @@ export const settingSchema = z.object({
 })
 export type Setting = z.infer<typeof settingSchema>
 
+// ---------- 系统备份（TASK-015） ----------
+
+/** 单个备份文件（服务端 backups 目录内的 app-YYYYMMDD-HHmmss-sss.db） */
+export const backupFileSchema = z.object({
+  filename: z.string(),
+  /** 字节数 */
+  size: z.number().int(),
+  /** 创建时间（epoch ms） */
+  createdAt: z.number().int(),
+})
+export type BackupFile = z.infer<typeof backupFileSchema>
+
+/** 备份保留策略（随列表返回，供管理页展示） */
+export const backupPolicySchema = z.object({
+  /** 保留份数（超出删最旧） */
+  keep: z.number().int(),
+  /** 每日备份 cron 表达式 */
+  cron: z.string(),
+})
+export type BackupPolicy = z.infer<typeof backupPolicySchema>
+
 // ---------- 认证 ----------
 
 export const loginInputSchema = z.object({
