@@ -168,20 +168,25 @@ shadcn-admin/
 `headers` 以 JSON 存储自定义请求头，`skip_tls_verify` / `proxy_url` 为单条链接的可选项
 （对应 sublinkPro 的 `RequestHeaders` / `InsecureSkipVerify` / `ProxyLink`）。
 
-**客户表单流量上限自动填充优先级（TASK-016）：**
+**客户表单流量上限自动填充优先级（TASK-016 → TASK-023 修订）：**
 客户表单（即「订阅面板」，含「订阅信息」「订阅链接」两部分）的**月流量**字段
-在未填写时按三级优先级自动填充；生效上限口径
-（`effectiveTrafficTotal` = `trafficManualCap ?? trafficTotal`）不变：
+**始终跟随套餐**——套餐是唯一自动来源，切换套餐/打开对话框即覆盖写入，
+不再回落到订阅信息流量；未选套餐或套餐未设月流量时保留已存/已填值
+（可手动填写）。生效上限口径（`effectiveCustomerTrafficTotal` =
+`trafficManualCap ?? 套餐月流量 ?? trafficTotal`，TASK-023）：
 
 | 优先级 | 来源 | 说明 |
 |--------|------|------|
-| 最高 | 手动设置 | 用户已手填的值永不覆盖；`trafficManualCap` 在生效计算中仍为最高优先级 |
-| 高 | 套餐月流量（`plans.traffic_limit`） | 订阅链接被使用（链接匹配到订阅管理记录 / 已点「使用」/ 已「拉取订阅更新」）时，优先于订阅信息流量 |
-| 默认 | 订阅信息流量（`subscriptions.traffic_total`） | 匹配订阅的上报值或「拉取订阅更新」预览值；链接被修改后预览值作废，不残留 |
+| 最高 | 手动流量上限（`customers.traffic_manual_cap`） | 阈值评估中压过套餐与存量月流量 |
+| 高 | 套餐月流量（`plans.traffic_limit`） | 客户对应套餐的月流量；套餐改流量后阈值即时跟进，不受存量 `traffic_total` 陈旧值影响 |
+| 默认 | 存量月流量（`customers.traffic_total`） | 客户未选套餐（或套餐未设月流量）时的回落，保持既有行为 |
 
 解析逻辑在前端 `src/features/customers/data/schema.ts` 的 `resolveAutoTrafficGb`
-（纯函数，前后端无共享契约变更）；第三部分「订阅流量上限（GB）」是保存时同步到
-订阅管理的字段，不参与本优先级链。
+（纯函数，单一套餐来源，前后端无共享契约变更）；阈值侧口径在 shared
+`schema/traffic.ts` 的 `effectiveCustomerTrafficTotal`（前后端唯一事实来源）。
+第三部分「订阅流量上限（GB）」自 TASK-023 起为**只读**的订阅链接实际流量，
+仅由「拉取订阅更新」预览回填（覆盖语义，上游未返回则不动）或编辑模式命中
+已登记订阅时预填，不再手填、不参与本优先级链。
 
 ---
 
@@ -385,7 +390,7 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 
 | 口径 | 说明 |
 |------|------|
-| 只镜像用量 | `customers.traffic_total` 是月流量上限（套餐/表单管理，TASK-016 三级优先级语义）、`expire_at` 同为表单管理字段，均**不覆盖** |
+| 只镜像用量 | `customers.traffic_total` 是月流量上限（表单管理，TASK-023 起始终跟随套餐）、`expire_at` 同为表单管理字段，均**不覆盖** |
 | 成功即写 | 不回写受 C8 增量对比约束——即使订阅侧无变化，客户侧也可能是旧值（如新建时写 0），每次成功同步都镜像 |
 | 写入口仅两处 | 同步引擎（本条）+ 表单保存（`toCustomerInput` 透传原值）；无其他写点 |
 
@@ -526,7 +531,7 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 | 维度 | 决策 |
 |------|------|
 | 评估对象 | **客户**（`customers`），与 `traffic_exhausted` 扫描口径一致；不做订阅粒度 |
-| 生效上限 | `trafficManualCap ?? trafficTotal`（手动上限优先）；为 null/<=0 不评估 |
+| 生效上限 | `trafficManualCap ?? 套餐月流量 ?? trafficTotal`（`effectiveCustomerTrafficTotal`，TASK-023：手动上限最高优先级，其次客户对应套餐 `plans.traffic_limit`，套餐未设时回落存量值）；为 null/<=0 不评估 |
 | 阈值常量 | `TRAFFIC_THRESHOLDS = [50, 80, 100]`（shared `schema/traffic.ts`，前后端共用；比较用精确值，避免取整提前触发） |
 | 触发语义 | **穿越式**：`customers.traffic_threshold_notified` 记录「当前所在最高阈值」，仅当它**上升**时发 1 条通知（取新最高档）；同一阈值不重复发 |
 | 回落重置 | 用量回落到已通知阈值之下时状态同步下调（不通知），再次穿越可重新通知——适配月度流量重置 / 手动调量 |
