@@ -8,6 +8,7 @@
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
  * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
  * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）、
+ * 流量阈值（TASK-013：50/80/100 穿越式通知 / 最高阈值去重 / 回落重置 / 手动上限优先）、
  * Telegram 渠道（mock Bot API：配置校验 / /start 自动绑定 / 事件派发 / 测试连接）、
  * 飞书渠道（mock 开放平台 API：配置校验 / 事件派发交互卡片 / 测试连接）。
  *
@@ -584,6 +585,161 @@ async function main() {
     scan.status === 200 && typeof scan.json?.created === 'number',
     scan.json
   )
+
+  // 11.5 流量阈值（TASK-013）：50% / 80% / 100% 穿越式通知，每次取当前最高阈值
+  /** 拉取某客户的阈值站内通知（reminders.type = customer.traffic_threshold） */
+  const thresholdRemindersOf = async (customerId: number) => {
+    const res = await req('/api/reminders?page=1&pageSize=200', { token })
+    return (res.json?.items ?? []).filter(
+      (r: any) => r.type === 'customer.traffic_threshold' && r.customerId === customerId
+    )
+  }
+
+  // 客户 A：60% → 首次扫描发「50% 阈值」一条；重复扫描不重复发
+  const thA = await req('/api/customers', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-threshold-a-${suffix}`,
+      trafficTotal: 100 * 1024 ** 3,
+      trafficUsed: 60 * 1024 ** 3,
+    },
+  })
+  check('创建阈值客户 A（60%）', thA.status === 201, thA.json)
+
+  const scanThA1 = await req('/api/reminders/scan', { method: 'POST', token })
+  const thARows1 = await thresholdRemindersOf(thA.json?.id)
+  check(
+    '客户 A 穿越 50% 阈值：发出 1 条通知',
+    scanThA1.status === 200 &&
+      (scanThA1.json?.thresholds?.notified ?? 0) >= 1 &&
+      thARows1.length === 1 &&
+      thARows1[0]?.message?.includes('50% 阈值'),
+    { notified: scanThA1.json?.thresholds?.notified, rows: thARows1.length }
+  )
+
+  const scanThA2 = await req('/api/reminders/scan', { method: 'POST', token })
+  const thARows2 = await thresholdRemindersOf(thA.json?.id)
+  check(
+    '客户 A 停留在 60%：重复扫描不重复通知',
+    scanThA2.status === 200 && thARows2.length === 1,
+    { rows: thARows2.length }
+  )
+
+  // 客户 A：60% → 85%，只发「80% 阈值」一条（取当前最高阈值）
+  const thAUp = await req(`/api/customers/${thA.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { trafficUsed: 85 * 1024 ** 3 },
+  })
+  check('客户 A 用量调整到 85%', thAUp.status === 200, thAUp.json)
+
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thARows3 = await thresholdRemindersOf(thA.json?.id)
+  check(
+    '客户 A 穿越 80% 阈值：再发 1 条（累计 2 条，最新为 80%）',
+    thARows3.length === 2 && thARows3[0]?.message?.includes('80% 阈值'),
+    { rows: thARows3.length, latest: thARows3[0]?.message }
+  )
+
+  // 客户 A：85% → 30%：不新增通知且状态重置；再回到 60% 可重新通知（适配流量重置）
+  await req(`/api/customers/${thA.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { trafficUsed: 30 * 1024 ** 3 },
+  })
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thARows4 = await thresholdRemindersOf(thA.json?.id)
+  check(
+    '客户 A 回落到 30%：不新增通知（累计仍 2 条）',
+    thARows4.length === 2,
+    { rows: thARows4.length }
+  )
+
+  await req(`/api/customers/${thA.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { trafficUsed: 60 * 1024 ** 3 },
+  })
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thARows5 = await thresholdRemindersOf(thA.json?.id)
+  check(
+    '客户 A 重置后再次穿越 50%：重新发 1 条（累计 3 条）',
+    thARows5.length === 3 && thARows5[0]?.message?.includes('50% 阈值'),
+    { rows: thARows5.length, latest: thARows5[0]?.message }
+  )
+
+  // 客户 B：一次从 30% 跳到 95% —— 只发「80% 阈值」一条（最高阈值），不发 50%
+  const thB = await req('/api/customers', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-threshold-b-${suffix}`,
+      trafficTotal: 100 * 1024 ** 3,
+      trafficUsed: 30 * 1024 ** 3,
+    },
+  })
+  check('创建阈值客户 B（30%）', thB.status === 201, thB.json)
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thBRows1 = await thresholdRemindersOf(thB.json?.id)
+  check('客户 B 处于 30%：不触发通知', thBRows1.length === 0, { rows: thBRows1.length })
+
+  await req(`/api/customers/${thB.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { trafficUsed: 95 * 1024 ** 3 },
+  })
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thBRows2 = await thresholdRemindersOf(thB.json?.id)
+  check(
+    '客户 B 一次跳到 95%：只发 1 条且为最高阈值 80%（非 50%）',
+    thBRows2.length === 1 && thBRows2[0]?.message?.includes('80% 阈值'),
+    { rows: thBRows2.length, latest: thBRows2[0]?.message }
+  )
+
+  // 客户 C：手动上限优先 —— 月流量 100G 的 30% = 手动上限 50G 的 60% → 触发 50%
+  const thC = await req('/api/customers', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-threshold-c-${suffix}`,
+      trafficTotal: 100 * 1024 ** 3,
+      trafficManualCap: 50 * 1024 ** 3,
+      trafficUsed: 30 * 1024 ** 3,
+    },
+  })
+  check('创建阈值客户 C（手动上限 50G，用量 30G）', thC.status === 201, thC.json)
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thCRows = await thresholdRemindersOf(thC.json?.id)
+  check(
+    '客户 C 按手动上限计算（60%）：触发 50% 阈值',
+    thCRows.length === 1 && thCRows[0]?.message?.includes('50% 阈值'),
+    { rows: thCRows.length, latest: thCRows[0]?.message }
+  )
+
+  // 仪表盘 stats：trafficThresholds 含三个阈值客户（A=50% 已通知 / B=80% / C=50%）
+  const statsAfter = await req('/api/dashboard/stats', { token })
+  const thItems: any[] = statsAfter.json?.trafficThresholds ?? []
+  const thById = new Map(thItems.map((i) => [i.id, i]))
+  check(
+    '仪表盘 stats 返回 trafficThresholds（A=50% 已通知 / B=80% / C=50%）',
+    statsAfter.status === 200 &&
+      thById.get(thA.json?.id)?.threshold === 50 &&
+      thById.get(thA.json?.id)?.notified === true &&
+      thById.get(thB.json?.id)?.threshold === 80 &&
+      thById.get(thC.json?.id)?.threshold === 50,
+    {
+      count: thItems.length,
+      a: thById.get(thA.json?.id),
+      b: thById.get(thB.json?.id),
+      c: thById.get(thC.json?.id),
+    }
+  )
+
+  // 清理阈值客户（级联删除其站内通知），避免多次运行相互干扰
+  for (const cust of [thA, thB, thC]) {
+    await req(`/api/customers/${cust.json?.id}`, { method: 'DELETE', token })
+  }
 
   // 12. 订阅同步（无外网时应失败但不崩溃）
   const sync = await req(`/api/subscriptions/${subscription.json?.id}/sync`, {
@@ -1245,7 +1401,7 @@ async function main() {
     tgConfig.status === 200 &&
       tgConfig.json?.enabled === false &&
       Array.isArray(tgConfig.json?.eventOptions) &&
-      tgConfig.json.eventOptions.length === 5,
+      tgConfig.json.eventOptions.length === 6,
     tgConfig.json && {
       enabled: tgConfig.json.enabled,
       eventOptions: tgConfig.json.eventOptions?.length,
@@ -1485,7 +1641,7 @@ async function main() {
     fsConfig.status === 200 &&
       fsConfig.json?.enabled === false &&
       Array.isArray(fsConfig.json?.eventOptions) &&
-      fsConfig.json.eventOptions.length === 5,
+      fsConfig.json.eventOptions.length === 6,
     fsConfig.json && {
       enabled: fsConfig.json.enabled,
       eventOptions: fsConfig.json.eventOptions?.length,

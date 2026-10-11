@@ -175,9 +175,10 @@ describe('Telegram 表单', () => {
     expect(form.botToken).toBe('')
     expect(form.chatId).toBe('')
     expect(form.proxyUrl).toBe('')
-    // 目录内 5 个事件均 defaultEnabled 且开放 telegram 渠道，默认全选
+    // 目录内 6 个事件均 defaultEnabled 且开放 telegram 渠道，默认全选
     expect(form.eventKeys).toContain('security.user_login')
-    expect(form.eventKeys).toHaveLength(5)
+    expect(form.eventKeys).toContain('customer.traffic_threshold')
+    expect(form.eventKeys).toHaveLength(6)
   })
 
   it('编辑回显：null 的 chatId/proxyUrl 回退空串', () => {
@@ -189,7 +190,7 @@ describe('Telegram 表单', () => {
 
   it('编辑回显：eventKeys 为空时回退目录默认集', () => {
     const form = toTelegramForm(makeTelegramStatus({ eventKeys: [] }))
-    expect(form.eventKeys).toHaveLength(5)
+    expect(form.eventKeys).toHaveLength(6)
   })
 
   it('写入入参：token 去空格，空 chatId/proxyUrl 归一为 null', () => {
@@ -352,9 +353,10 @@ describe('飞书表单', () => {
     expect(form.receiveId).toBe('')
     expect(form.receiveIdType).toBe('chat_id')
     expect(form.proxyUrl).toBe('')
-    // 目录内 5 个事件均 defaultEnabled 且开放 feishu 渠道，默认全选
+    // 目录内 6 个事件均 defaultEnabled 且开放 feishu 渠道，默认全选
     expect(form.eventKeys).toContain('security.user_login')
-    expect(form.eventKeys).toHaveLength(5)
+    expect(form.eventKeys).toContain('customer.traffic_threshold')
+    expect(form.eventKeys).toHaveLength(6)
   })
 
   it('编辑回显：null 的 proxyUrl 回退空串', () => {
@@ -368,7 +370,7 @@ describe('飞书表单', () => {
 
   it('编辑回显：eventKeys 为空时回退目录默认集', () => {
     const form = toFeishuForm(makeFeishuStatus({ eventKeys: [] }))
-    expect(form.eventKeys).toHaveLength(5)
+    expect(form.eventKeys).toHaveLength(6)
   })
 
   it('写入入参：凭证去空格，空 proxyUrl 归一为 null', () => {
