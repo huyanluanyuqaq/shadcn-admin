@@ -27,6 +27,7 @@ import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_auth
 import { Route as AuthenticatedFeishuIndexRouteImport } from './routes/_authenticated/feishu/index'
 import { Route as AuthenticatedEmailsIndexRouteImport } from './routes/_authenticated/emails/index'
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
+import { Route as AuthenticatedBackupsIndexRouteImport } from './routes/_authenticated/backups/index'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
 
 const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
@@ -126,6 +127,12 @@ const AuthenticatedCustomersIndexRoute =
     path: '/customers/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedBackupsIndexRoute =
+  AuthenticatedBackupsIndexRouteImport.update({
+    id: '/backups/',
+    path: '/backups/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedErrorsErrorRoute =
   AuthenticatedErrorsErrorRouteImport.update({
     id: '/errors/$error',
@@ -142,6 +149,7 @@ export interface FileRoutesByFullPath {
   '/500': typeof errors500Route
   '/503': typeof errors503Route
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/backups/': typeof AuthenticatedBackupsIndexRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
   '/emails/': typeof AuthenticatedEmailsIndexRoute
   '/feishu/': typeof AuthenticatedFeishuIndexRoute
@@ -162,6 +170,7 @@ export interface FileRoutesByTo {
   '/503': typeof errors503Route
   '/': typeof AuthenticatedIndexRoute
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/backups': typeof AuthenticatedBackupsIndexRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
   '/emails': typeof AuthenticatedEmailsIndexRoute
   '/feishu': typeof AuthenticatedFeishuIndexRoute
@@ -184,6 +193,7 @@ export interface FileRoutesById {
   '/(errors)/503': typeof errors503Route
   '/_authenticated/': typeof AuthenticatedIndexRoute
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
+  '/_authenticated/backups/': typeof AuthenticatedBackupsIndexRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
   '/_authenticated/emails/': typeof AuthenticatedEmailsIndexRoute
   '/_authenticated/feishu/': typeof AuthenticatedFeishuIndexRoute
@@ -206,6 +216,7 @@ export interface FileRouteTypes {
     | '/500'
     | '/503'
     | '/errors/$error'
+    | '/backups/'
     | '/customers/'
     | '/emails/'
     | '/feishu/'
@@ -226,6 +237,7 @@ export interface FileRouteTypes {
     | '/503'
     | '/'
     | '/errors/$error'
+    | '/backups'
     | '/customers'
     | '/emails'
     | '/feishu'
@@ -247,6 +259,7 @@ export interface FileRouteTypes {
     | '/(errors)/503'
     | '/_authenticated/'
     | '/_authenticated/errors/$error'
+    | '/_authenticated/backups/'
     | '/_authenticated/customers/'
     | '/_authenticated/emails/'
     | '/_authenticated/feishu/'
@@ -397,6 +410,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedCustomersIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/backups/': {
+      id: '/_authenticated/backups/'
+      path: '/backups'
+      fullPath: '/backups/'
+      preLoaderRoute: typeof AuthenticatedBackupsIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/errors/$error': {
       id: '/_authenticated/errors/$error'
       path: '/errors/$error'
@@ -410,6 +430,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedIndexRoute: typeof AuthenticatedIndexRoute
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
+  AuthenticatedBackupsIndexRoute: typeof AuthenticatedBackupsIndexRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
   AuthenticatedEmailsIndexRoute: typeof AuthenticatedEmailsIndexRoute
   AuthenticatedFeishuIndexRoute: typeof AuthenticatedFeishuIndexRoute
@@ -425,6 +446,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedIndexRoute: AuthenticatedIndexRoute,
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
+  AuthenticatedBackupsIndexRoute: AuthenticatedBackupsIndexRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
   AuthenticatedEmailsIndexRoute: AuthenticatedEmailsIndexRoute,
   AuthenticatedFeishuIndexRoute: AuthenticatedFeishuIndexRoute,

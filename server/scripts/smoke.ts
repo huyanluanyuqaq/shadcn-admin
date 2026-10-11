@@ -41,7 +41,7 @@ function check(name: string, ok: boolean, detail?: unknown) {
 async function req(
   path: string,
   init: { method?: string; body?: unknown; token?: string } = {}
-): Promise<{ status: number; json: any }> {
+): Promise<{ status: number; json: any; headers: Headers }> {
   const res = await fetch(`${BASE}${path}`, {
     method: init.method ?? 'GET',
     headers: {
@@ -57,7 +57,7 @@ async function req(
   } catch {
     json = text
   }
-  return { status: res.status, json }
+  return { status: res.status, json, headers: res.headers }
 }
 
 const suffix = Date.now()
@@ -1881,6 +1881,122 @@ async function main() {
         enabled: fsCleanup.json.enabled,
         appId: fsCleanup.json.appId,
       }
+    )
+  }
+
+  // 18. 系统备份（TASK-015）
+  {
+    // 18.1 立即备份（VACUUM INTO 在线一致性导出）
+    const backupCreated = await req('/api/backups', { method: 'POST', token })
+    check(
+      '立即备份成功（201 + 文件名合法 + 大小为正）',
+      backupCreated.status === 201 &&
+        /^app-\d{8}-\d{6}-\d{3}\.db$/.test(
+          String(backupCreated.json?.filename ?? '')
+        ) &&
+        typeof backupCreated.json?.size === 'number' &&
+        backupCreated.json.size > 0,
+      backupCreated.json
+    )
+    const backupName = backupCreated.json?.filename as string | undefined
+
+    // 18.2 列表含新建文件 + 保留策略
+    const backupList = await req('/api/backups', { token })
+    check(
+      '备份列表含新建文件且返回保留策略',
+      backupList.status === 200 &&
+        Array.isArray(backupList.json?.items) &&
+        backupName !== undefined &&
+        backupList.json.items.some(
+          (i: { filename: string }) => i.filename === backupName
+        ) &&
+        typeof backupList.json?.policy?.keep === 'number' &&
+        typeof backupList.json?.policy?.cron === 'string',
+      backupList.json?.policy
+    )
+
+    // 18.3 下载（附件 + sqlite 内容类型 + 原文件名）
+    if (backupName) {
+      const backupDownload = await req(
+        `/api/backups/${backupName}/download`,
+        { token }
+      )
+      check(
+        '下载备份返回附件（content-type + content-disposition）',
+        backupDownload.status === 200 &&
+          String(
+            backupDownload.headers.get('content-type') ?? ''
+          ).includes('application/vnd.sqlite3') &&
+          String(backupDownload.headers.get('content-disposition') ?? '').includes(
+            `filename="${backupName}"`
+          ),
+        {
+          ct: backupDownload.headers.get('content-type'),
+          cd: backupDownload.headers.get('content-disposition'),
+        }
+      )
+    }
+
+    // 18.4 非法文件名（路径穿越 / 白名单外）一律拒绝；不存在的备份 404
+    const traversal = await req(
+      '/api/backups/..%2F..%2Fapp.db/download',
+      { token }
+    )
+    const notWhitelisted = await req('/api/backups/not-a-backup.db/download', {
+      token,
+    })
+    check(
+      '非法文件名（路径穿越 / 白名单外）拒绝下载',
+      (traversal.status === 400 || traversal.status === 404) &&
+        (notWhitelisted.status === 400 || notWhitelisted.status === 404),
+      { traversal: traversal.status, notWhitelisted: notWhitelisted.status }
+    )
+    const deleteMissing = await req(
+      '/api/backups/app-20260101-000000-000.db',
+      { method: 'DELETE', token }
+    )
+    check(
+      '删除不存在的备份返回 404',
+      deleteMissing.status === 404,
+      deleteMissing.status
+    )
+
+    // 18.5 保留策略：连做 8 次，默认 keep=7 截断，最旧被删、最新保留
+    const createdNames: string[] = backupName ? [backupName] : []
+    for (let i = 0; i < 7; i++) {
+      const r = await req('/api/backups', { method: 'POST', token })
+      if (r.status === 201 && r.json?.filename) createdNames.push(r.json.filename)
+    }
+    const afterRetention = await req('/api/backups', { token })
+    const retainedNames: string[] = (afterRetention.json?.items ?? []).map(
+      (i: { filename: string }) => i.filename
+    )
+    check(
+      '保留策略生效：超出 keep（默认 7）自动删最旧',
+      afterRetention.status === 200 &&
+        createdNames.length === 8 &&
+        retainedNames.length === 7 &&
+        !retainedNames.includes(createdNames[0]) &&
+        retainedNames.includes(createdNames[7]),
+      { count: retainedNames.length, keep: afterRetention.json?.policy?.keep }
+    )
+
+    // 18.6 清理：删除本段创建的全部备份（不动其他既有文件）
+    const finalList = await req('/api/backups', { token })
+    const toDelete: string[] = (finalList.json?.items ?? [])
+      .map((i: { filename: string }) => i.filename)
+      .filter((name: string) => createdNames.includes(name))
+    for (const name of toDelete) {
+      await req(`/api/backups/${name}`, { method: 'DELETE', token })
+    }
+    const afterCleanup = await req('/api/backups', { token })
+    check(
+      '清理：本段创建的备份全部删除',
+      afterCleanup.status === 200 &&
+        (afterCleanup.json?.items ?? []).every(
+          (i: { filename: string }) => !createdNames.includes(i.filename)
+        ),
+      (afterCleanup.json?.items ?? []).length
     )
   }
 

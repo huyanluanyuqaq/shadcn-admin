@@ -11,6 +11,7 @@ import { config } from './env.js'
 import { errorHandler } from './middleware/error.js'
 import { authMiddleware } from './middleware/auth.js'
 import { authRoutes } from './routes/auth.js'
+import { backupRoutes } from './routes/backups.js'
 import { dashboardRoutes } from './routes/dashboard.js'
 import { feishuRoutes } from './routes/feishu.js'
 import { healthRoutes } from './routes/health.js'
@@ -22,7 +23,11 @@ import { syncRoutes } from './routes/sync.js'
 import { telegramRoutes } from './routes/telegram.js'
 import { webhookRoutes } from './routes/webhooks.js'
 import { seedAdmin } from './db/seed.js'
-import { loadFromDatabase, startReminderScanJob } from './services/scheduler.js'
+import {
+  loadFromDatabase,
+  startBackupJob,
+  startReminderScanJob,
+} from './services/scheduler.js'
 import { startBindPoller } from './services/telegram.js'
 import { writeLog } from './services/logger.js'
 
@@ -48,6 +53,7 @@ app.route('/api/settings', settingRoutes)
 app.route('/api/telegram', telegramRoutes)
 app.route('/api/feishu', feishuRoutes)
 app.route('/api/webhooks', webhookRoutes)
+app.route('/api/backups', backupRoutes)
 
 app.notFound((c) => {
   if (c.req.path.startsWith('/api')) return c.json({ error: 'Not Found', path: c.req.path }, 404)
@@ -78,6 +84,8 @@ if (config.enableScheduler) {
   console.log(`[scheduler] 已注册 ${count} 个订阅同步任务`)
   // 每日提醒扫描（到期 / 流量用尽 / 流量阈值穿越通知，TASK-013）
   startReminderScanJob()
+  // 每日数据库备份（VACUUM INTO 在线备份 + 保留策略，TASK-015）
+  startBackupJob()
 }
 
 // Telegram 已启用但未绑定 Chat ID 时，恢复 /start 绑定长轮询（重启不丢绑定流程）
