@@ -14,11 +14,14 @@ import { z } from 'zod'
  * - **Telegram 渠道**：Bot Token + Chat ID 单配置（参照 sublinkPro
  *   `services/telegram`），订阅事件后由机器人推送到指定聊天；
  *   启用后向机器人发送 `/start` 可自动绑定 Chat ID。
+ * - **飞书渠道**：企业自建应用（App ID + App Secret）+ 接收对象
+ *   （chat_id / open_id / user_id / union_id / email）单配置，
+ *   经 tenant_access_token 调 `im/v1/messages` 以交互卡片推送。
  * - **站内渠道（in_app）**：写入 `reminders` 表，由前端通知中心展示。
  */
 
 /** 通知渠道 */
-export const notificationChannelSchema = z.enum(['webhook', 'in_app', 'telegram'])
+export const notificationChannelSchema = z.enum(['webhook', 'in_app', 'telegram', 'feishu'])
 export type NotificationChannel = z.infer<typeof notificationChannelSchema>
 
 /** 通知严重级 */
@@ -67,7 +70,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'subscription',
     categoryName: '订阅同步',
     severity: 'success',
-    channels: ['webhook', 'in_app', 'telegram'],
+    channels: ['webhook', 'in_app', 'telegram', 'feishu'],
     defaultEnabled: true,
   },
   {
@@ -77,7 +80,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'subscription',
     categoryName: '订阅同步',
     severity: 'error',
-    channels: ['webhook', 'in_app', 'telegram'],
+    channels: ['webhook', 'in_app', 'telegram', 'feishu'],
     defaultEnabled: true,
   },
   {
@@ -87,7 +90,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'customer',
     categoryName: '客户提醒',
     severity: 'warning',
-    channels: ['webhook', 'in_app', 'telegram'],
+    channels: ['webhook', 'in_app', 'telegram', 'feishu'],
     defaultEnabled: true,
   },
   {
@@ -97,7 +100,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'customer',
     categoryName: '客户提醒',
     severity: 'error',
-    channels: ['webhook', 'in_app', 'telegram'],
+    channels: ['webhook', 'in_app', 'telegram', 'feishu'],
     defaultEnabled: true,
   },
   {
@@ -107,7 +110,7 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'security',
     categoryName: '安全审计',
     severity: 'info',
-    channels: ['webhook', 'in_app', 'telegram'],
+    channels: ['webhook', 'in_app', 'telegram', 'feishu'],
     defaultEnabled: true,
   },
 ]
@@ -370,3 +373,168 @@ export const telegramTestResultSchema = z.object({
   error: z.string().nullable(),
 })
 export type TelegramTestResult = z.infer<typeof telegramTestResultSchema>
+
+// ---------- Feishu ----------
+
+/**
+ * 飞书渠道配置（企业自建应用，参照飞书开放平台 im/v1/messages）。
+ *
+ * 与 Telegram 的差异：飞书没有「Token 即全部」的单凭证，而是
+ * App ID + App Secret 换取 tenant_access_token（有效期 7200s，服务端缓存），
+ * 发送时还需指定接收对象及其 ID 类型。
+ * - `receiveIdType`：chat_id（群）/ open_id（用户）/ user_id / union_id / email
+ * - `receiveId`：与类型匹配的 ID（群聊以 oc_ 开头，open_id 以 ou_ 开头）
+ */
+
+/** 接收对象 ID 类型（飞书 receive_id_type 枚举） */
+export const feishuReceiveIdTypeSchema = z.enum([
+  'chat_id',
+  'open_id',
+  'user_id',
+  'union_id',
+  'email',
+])
+export type FeishuReceiveIdType = z.infer<typeof feishuReceiveIdTypeSchema>
+
+/** App ID 形态：cli_ 前缀（飞书开发者后台「凭证与基础信息」） */
+function isAppId(value: string): boolean {
+  return /^cli_[a-zA-Z0-9]{6,}$/.test(value.trim())
+}
+
+/** App Secret：非空即可（最终由 token 换取校验） */
+function isAppSecret(value: string): boolean {
+  return value.trim().length > 0
+}
+
+/** 接收对象按类型校验：chat_id=oc_ / open_id=ou_ / union_id=on_ / email=邮箱；user_id 无固定前缀 */
+function isReceiveId(value: string, type: FeishuReceiveIdType): boolean {
+  const trimmed = value.trim()
+  if (trimmed === '') return false
+  switch (type) {
+    case 'chat_id':
+      return /^oc_[a-zA-Z0-9]+$/.test(trimmed)
+    case 'open_id':
+      return /^ou_[a-zA-Z0-9]+$/.test(trimmed)
+    case 'union_id':
+      return /^on_[a-zA-Z0-9]+$/.test(trimmed)
+    case 'email':
+      return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)
+    case 'user_id':
+      return true
+  }
+}
+
+/** 基础对象（无 refine，供 status schema 扩展后复用同一组校验） */
+const feishuConfigBaseSchema = z.object({
+  enabled: z.boolean().default(false),
+  appId: z.string().max(64, 'App ID 过长').default(''),
+  appSecret: z.string().max(128, 'App Secret 过长').default(''),
+  /** 接收对象 ID（类型由 receiveIdType 指定） */
+  receiveId: z.string().max(100, '接收对象 ID 过长').default(''),
+  receiveIdType: feishuReceiveIdTypeSchema.default('chat_id'),
+  proxyUrl: z.string().max(2048, '代理地址过长').nullable().default(null),
+  eventKeys: z.array(notificationEventKeySchema).default(() => defaultFeishuEventKeys()),
+})
+
+/** 跨字段校验谓词（返回 true 表示通过）：启用时凭证与接收对象必须合法；代理地址格式（若填写） */
+const feishuConfigChecks = {
+  appIdOk: (config: { appId: string; enabled: boolean }) =>
+    !config.enabled || isAppId(config.appId),
+  appSecretOk: (config: { appSecret: string; enabled: boolean }) =>
+    !config.enabled || isAppSecret(config.appSecret),
+  receiveIdOk: (config: { receiveId: string; receiveIdType: FeishuReceiveIdType; enabled: boolean }) =>
+    !config.enabled || isReceiveId(config.receiveId, config.receiveIdType),
+  proxyOk: (config: { proxyUrl: string | null }) =>
+    config.proxyUrl == null || config.proxyUrl.trim() === '' || isProxyUrl(config.proxyUrl),
+}
+
+export const feishuConfigSchema = feishuConfigBaseSchema
+  .refine(feishuConfigChecks.appIdOk, {
+    message: 'App ID 格式不正确（应形如 cli_a1b2c3d4e5f6g7h8）',
+    path: ['appId'],
+  })
+  .refine(feishuConfigChecks.appSecretOk, {
+    message: 'App Secret 不能为空',
+    path: ['appSecret'],
+  })
+  .refine(feishuConfigChecks.receiveIdOk, {
+    message: '接收对象 ID 与所选类型不匹配（chat_id 以 oc_ 开头，open_id 以 ou_ 开头）',
+    path: ['receiveId'],
+  })
+  .refine(feishuConfigChecks.proxyOk, {
+    message: '代理地址仅支持 http/https/socks5',
+    path: ['proxyUrl'],
+  })
+export type FeishuConfig = z.infer<typeof feishuConfigSchema>
+
+/** 飞书配置 + 运行状态（GET /api/feishu 的响应） */
+export const feishuStatusSchema = feishuConfigBaseSchema
+  .extend({
+    /** 机器人应用名称（bot/v3/info 的 app_name，未校验为 null） */
+    botName: z.string().nullable(),
+    /** 最近一次成功测试发送时间（epoch ms），未测试为 null */
+    lastTestAt: z.number().int().nullable(),
+    /** 最近一次失败原因（凭证 / 发送），成功即清除 */
+    lastError: z.string().nullable(),
+  })
+  .refine(feishuConfigChecks.appIdOk, {
+    message: 'App ID 格式不正确',
+    path: ['appId'],
+  })
+  .refine(feishuConfigChecks.appSecretOk, {
+    message: 'App Secret 不能为空',
+    path: ['appSecret'],
+  })
+  .refine(feishuConfigChecks.receiveIdOk, {
+    message: '接收对象 ID 与所选类型不匹配',
+    path: ['receiveId'],
+  })
+  .refine(feishuConfigChecks.proxyOk, {
+    message: '代理地址仅支持 http/https/socks5',
+    path: ['proxyUrl'],
+  })
+export type FeishuStatus = z.infer<typeof feishuStatusSchema>
+
+/**
+ * 测试连接入参（当前表单值，可能尚未保存）。
+ *
+ * 与 Telegram 同理：不能对 refine 后的 schema `.pick()`（zod 运行期禁止），
+ * 从基础对象重新派生；测试场景下凭证与接收对象**一律必填**（不受 enabled 影响）。
+ */
+export const feishuTestInputSchema = feishuConfigBaseSchema
+  .pick({ appId: true, appSecret: true, receiveId: true, receiveIdType: true, proxyUrl: true })
+  .refine((input) => isAppId(input.appId), {
+    message: 'App ID 格式不正确（应形如 cli_a1b2c3d4e5f6g7h8）',
+    path: ['appId'],
+  })
+  .refine((input) => isAppSecret(input.appSecret), {
+    message: 'App Secret 不能为空',
+    path: ['appSecret'],
+  })
+  .refine((input) => isReceiveId(input.receiveId, input.receiveIdType), {
+    message: '接收对象 ID 与所选类型不匹配（chat_id 以 oc_ 开头，open_id 以 ou_ 开头）',
+    path: ['receiveId'],
+  })
+  .refine(feishuConfigChecks.proxyOk, {
+    message: '代理地址仅支持 http/https/socks5',
+    path: ['proxyUrl'],
+  })
+export type FeishuTestInput = z.infer<typeof feishuTestInputSchema>
+
+/** 飞书连接测试结果 */
+export const feishuTestResultSchema = z.object({
+  ok: z.boolean(),
+  /** bot/v3/info 返回的机器人应用名称 */
+  botName: z.string().nullable(),
+  /** 测试消息是否已发出（凭证有效即发送） */
+  messageSent: z.boolean(),
+  error: z.string().nullable(),
+})
+export type FeishuTestResult = z.infer<typeof feishuTestResultSchema>
+
+/** 飞书渠道默认订阅的事件集合（与 webhook/telegram 同口径：目录 defaultEnabled） */
+export function defaultFeishuEventKeys(): NotificationEventKey[] {
+  return notificationEventCatalog
+    .filter((event) => event.defaultEnabled && event.channels.includes('feishu'))
+    .map((event) => event.key)
+}
