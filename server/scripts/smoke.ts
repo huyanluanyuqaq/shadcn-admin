@@ -7,6 +7,8 @@
  *
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
  * 订阅同步回写客户用量（TASK-017：mock 上游单条/批量回写 + 失败不回写）、
+ * 订阅写入后自动热重载调度器（TASK-021：CRUD 写后 reload，jobs 增减 /
+ * 非法 cron 跳过 / 停用不注册 / 删除恢复基线）、
  * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
  * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）、
  * 流量阈值（TASK-013：50/80/100 穿越式通知 / 最高阈值去重 / 回落重置 / 手动上限优先）、
@@ -1406,6 +1408,107 @@ async function main() {
     }
   )
   check('删除第二个供应商', delSyncPool.status === 200, delSyncPool.json)
+
+  // 12.10 订阅写入后自动热重载调度器（TASK-021）：CRUD 写后 afterWrite
+  // 钩子调用 scheduler.reload()——新建/改 cron/删除立即生效，无需手动
+  // 「重载调度」或重启。一律用 jobs 增量断言（快照库可能带历史启用订阅，
+  // 绝对值不稳）。
+  const jobsBefore = (await req('/api/subscriptions/scheduler/status', { token }))
+    .json?.jobs as number
+
+  // ① 创建（enabled + 合法每日 cron）→ job +1（否则新订阅要等重载/重启才跑）
+  const autoSub = await req('/api/subscriptions', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-autoreload-${suffix}`,
+      url: `https://example.com/autoreload-${suffix}`,
+      cronExpr: '37 4 * * *',
+      enabled: true,
+    },
+  })
+  const jobsAfterCreate = (
+    await req('/api/subscriptions/scheduler/status', { token })
+  ).json?.jobs as number
+  check(
+    '自动重载：创建启用订阅后 job +1',
+    autoSub.status === 201 && jobsAfterCreate === jobsBefore + 1,
+    { jobsBefore, jobsAfterCreate }
+  )
+
+  // ② 修改 cronExpr → 全量重建而非叠加（job 数不变）
+  const patchCron = await req(`/api/subscriptions/${autoSub.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { cronExpr: '41 5 * * *' },
+  })
+  const jobsAfterPatch = (
+    await req('/api/subscriptions/scheduler/status', { token })
+  ).json?.jobs as number
+  check(
+    '自动重载：修改 cron 后 job 数不变（重建而非叠加）',
+    patchCron.status === 200 && jobsAfterPatch === jobsAfterCreate,
+    { jobsAfterCreate, jobsAfterPatch }
+  )
+
+  // ③ 改为非法 cron → startOne 记日志跳过（既有语义），job -1
+  const patchBad = await req(`/api/subscriptions/${autoSub.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { cronExpr: 'not-a-cron' },
+  })
+  const jobsAfterBad = (
+    await req('/api/subscriptions/scheduler/status', { token })
+  ).json?.jobs as number
+  check(
+    '自动重载：非法 cron 的启用订阅不注册 job（-1）',
+    patchBad.status === 200 && jobsAfterBad === jobsAfterCreate - 1,
+    { jobsAfterCreate, jobsAfterBad }
+  )
+
+  // ④ 改回合法 cron → 恢复注册（+1）
+  const patchGood = await req(`/api/subscriptions/${autoSub.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { cronExpr: '43 6 * * *' },
+  })
+  const jobsAfterGood = (
+    await req('/api/subscriptions/scheduler/status', { token })
+  ).json?.jobs as number
+  check(
+    '自动重载：改回合法 cron 后恢复注册（+1）',
+    patchGood.status === 200 && jobsAfterGood === jobsAfterCreate,
+    { jobsAfterBad, jobsAfterGood }
+  )
+
+  // ⑤ 停用 → job -1（loadFromDatabase 只注册 enabled=true）
+  const patchDisabled = await req(`/api/subscriptions/${autoSub.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { enabled: false },
+  })
+  const jobsAfterDisabled = (
+    await req('/api/subscriptions/scheduler/status', { token })
+  ).json?.jobs as number
+  check(
+    '自动重载：停用订阅后 job -1',
+    patchDisabled.status === 200 && jobsAfterDisabled === jobsAfterCreate - 1,
+    { jobsAfterCreate, jobsAfterDisabled }
+  )
+
+  // ⑥ 删除 → job 数恢复基线
+  const delAutoSub = await req(`/api/subscriptions/${autoSub.json?.id}`, {
+    method: 'DELETE',
+    token,
+  })
+  const jobsAfterDelete = (
+    await req('/api/subscriptions/scheduler/status', { token })
+  ).json?.jobs as number
+  check(
+    '自动重载：删除订阅后 job 数恢复基线',
+    delAutoSub.status === 200 && jobsAfterDelete === jobsBefore,
+    { jobsBefore, jobsAfterDelete }
+  )
 
   // 13. 删除与级联：客户删除会级联删掉其订阅（归档则保留，见 12.7）
   const bulk = await req('/api/customers/bulk-delete', {
