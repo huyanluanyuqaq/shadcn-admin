@@ -168,6 +168,21 @@ shadcn-admin/
 `headers` 以 JSON 存储自定义请求头，`skip_tls_verify` / `proxy_url` 为单条链接的可选项
 （对应 sublinkPro 的 `RequestHeaders` / `InsecureSkipVerify` / `ProxyLink`）。
 
+**客户表单流量上限自动填充优先级（TASK-016）：**
+客户表单（即「订阅面板」，含「订阅信息」「订阅链接」两部分）的**月流量**字段
+在未填写时按三级优先级自动填充；生效上限口径
+（`effectiveTrafficTotal` = `trafficManualCap ?? trafficTotal`）不变：
+
+| 优先级 | 来源 | 说明 |
+|--------|------|------|
+| 最高 | 手动设置 | 用户已手填的值永不覆盖；`trafficManualCap` 在生效计算中仍为最高优先级 |
+| 高 | 套餐月流量（`plans.traffic_limit`） | 订阅链接被使用（链接匹配到订阅管理记录 / 已点「使用」/ 已「拉取订阅更新」）时，优先于订阅信息流量 |
+| 默认 | 订阅信息流量（`subscriptions.traffic_total`） | 匹配订阅的上报值或「拉取订阅更新」预览值；链接被修改后预览值作废，不残留 |
+
+解析逻辑在前端 `src/features/customers/data/schema.ts` 的 `resolveAutoTrafficGb`
+（纯函数，前后端无共享契约变更）；第三部分「订阅流量上限（GB）」是保存时同步到
+订阅管理的字段，不参与本优先级链。
+
 ---
 
 ## 6. 前端改造映射
