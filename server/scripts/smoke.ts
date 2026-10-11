@@ -7,9 +7,15 @@
  *
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
  * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
- * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）。
+ * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）、
+ * Telegram 渠道（mock Bot API：配置校验 / /start 自动绑定 / 事件派发 / 测试连接）。
+ *
+ * Telegram 快乐路径需要服务端指向内嵌 mock（否则只执行离线校验并跳过）：
+ *   TELEGRAM_API_BASE=http://127.0.0.1:3998 pnpm --filter server dev
  * 退出码非 0 表示存在失败项。
  */
+
+import { createServer, type Server } from 'node:http'
 
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:3000'
 const USERNAME = process.env.SMOKE_USERNAME ?? 'admin'
@@ -53,6 +59,133 @@ async function req(
 }
 
 const suffix = Date.now()
+
+// ---------- Telegram mock Bot API ----------
+
+/** mock 服务端口（固定；被占用时快乐路径自动跳过） */
+const MOCK_PORT = 3998
+/** mock 识别的 Bot Token（需过 isBotToken 正则：<数字>:<授权串>） */
+const MOCK_TOKEN = '123456789:SMOKE-MOCK-TOKEN-1234'
+/** mock 聊天 ID（群组样式负数，同时验证负数 Chat ID 分支） */
+const MOCK_CHAT_ID = '-1002233445566'
+const MOCK_BOT_USERNAME = 'smoke_mock_bot'
+
+type MockSentMessage = {
+  chatId: string
+  text: string
+  parseMode?: string
+  at: number
+}
+
+const mockState = {
+  /** sendMessage 收包记录（断言消息内容与 parse_mode） */
+  sent: [] as MockSentMessage[],
+  /** getUpdates 调用次数（验证长轮询确实打到 mock） */
+  getUpdatesCalls: 0,
+  /** 模拟用户发送 /start 的开关（一次生效） */
+  startArmed: false,
+}
+
+/**
+ * 内嵌 mock Telegram Bot API（127.0.0.1:3998）：
+ * - getMe：返回固定机器人用户名（token 不匹配时 401，模拟 Telegram 行为）
+ * - sendMessage：记录收包后返回成功
+ * - getUpdates：armed 时返回一条 /start 更新，否则空数组；
+ *   响应前延迟 250ms，避免本地空转热循环（真实 API 会按 timeout 挂起）
+ */
+function startMockTelegram(): Promise<Server | null> {
+  return new Promise((resolve) => {
+    const server = createServer((req, res) => {
+      const chunks: Buffer[] = []
+      req.on('data', (chunk: Buffer) => chunks.push(chunk))
+      req.on('end', async () => {
+        const raw = Buffer.concat(chunks).toString('utf8')
+        let body: Record<string, unknown>
+        try {
+          body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+        } catch {
+          body = {}
+        }
+        const send = (status: number, payload: unknown) => {
+          res.writeHead(status, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(payload))
+        }
+        const url = new URL(req.url ?? '/', `http://127.0.0.1:${MOCK_PORT}`)
+        const matched = /^\/bot([^/]+)\/(\w+)$/.exec(url.pathname)
+        if (!matched) return send(404, { ok: false, description: 'Not Found' })
+        const [, token, method] = matched
+        if (token !== MOCK_TOKEN) {
+          return send(401, { ok: false, description: 'Unauthorized' })
+        }
+        if (method === 'getMe') {
+          return send(200, {
+            ok: true,
+            result: {
+              id: 1,
+              is_bot: true,
+              username: MOCK_BOT_USERNAME,
+              first_name: 'Smoke Mock',
+            },
+          })
+        }
+        if (method === 'sendMessage') {
+          mockState.sent.push({
+            chatId: String(body.chat_id ?? ''),
+            text: String(body.text ?? ''),
+            parseMode:
+              typeof body.parse_mode === 'string' ? body.parse_mode : undefined,
+            at: Date.now(),
+          })
+          return send(200, {
+            ok: true,
+            result: {
+              message_id: mockState.sent.length,
+              chat: { id: body.chat_id },
+              text: body.text,
+            },
+          })
+        }
+        if (method === 'getUpdates') {
+          mockState.getUpdatesCalls++
+          await new Promise((r) => setTimeout(r, 250))
+          if (mockState.startArmed) {
+            mockState.startArmed = false
+            return send(200, {
+              ok: true,
+              result: [
+                {
+                  update_id: 900001,
+                  message: {
+                    message_id: 1,
+                    chat: { id: Number(MOCK_CHAT_ID), type: 'group' },
+                    text: '/start',
+                  },
+                },
+              ],
+            })
+          }
+          return send(200, { ok: true, result: [] })
+        }
+        return send(404, { ok: false, description: `Not Found: ${method}` })
+      })
+    })
+    server.on('error', () => resolve(null))
+    server.listen(MOCK_PORT, '127.0.0.1', () => resolve(server))
+  })
+}
+
+/** 轮询等待异步谓词成立（截止时间毫秒） */
+async function waitFor(
+  deadlineMs: number,
+  predicate: () => Promise<boolean>
+): Promise<boolean> {
+  const started = Date.now()
+  for (;;) {
+    if (await predicate()) return true
+    if (Date.now() - started >= deadlineMs) return false
+    await new Promise((r) => setTimeout(r, 100))
+  }
+}
 
 async function main() {
   console.log(`冒烟测试 → ${BASE}\n`)
@@ -958,6 +1091,250 @@ async function main() {
     body: [{ key: `smoke.setting.${suffix}`, value: 'ok' }],
   })
   check('写入系统设置', putSettings.status === 200, putSettings.json)
+
+  // 16. Telegram 渠道：内嵌 mock Bot API
+  //
+  // 离线校验（schema 拒绝）不依赖 mock 接线，始终执行；
+  // 快乐路径仅在检测到服务端指向 mock（TELEGRAM_API_BASE 覆盖）时执行。
+  const ALL_TG_EVENTS = [
+    'subscription.sync_succeeded',
+    'subscription.sync_failed',
+    'customer.expire_soon',
+    'customer.traffic_exhausted',
+    'security.user_login',
+  ]
+  const mockServer = await startMockTelegram()
+  if (!mockServer) {
+    console.log('  ! mock Telegram 服务启动失败（127.0.0.1:3998 被占用），跳过快乐路径')
+  }
+
+  // 16.1 归一化：先停用清空，隔离历史状态
+  const tgReset = await req('/api/telegram', {
+    method: 'PUT',
+    token,
+    body: {
+      enabled: false,
+      botToken: '',
+      chatId: null,
+      proxyUrl: null,
+      eventKeys: ALL_TG_EVENTS,
+    },
+  })
+  check(
+    'Telegram 配置写入（停用态归一化）',
+    tgReset.status === 200 && tgReset.json?.enabled === false,
+    tgReset.json
+  )
+
+  const tgConfig = await req('/api/telegram', { token })
+  check(
+    'Telegram 配置读取：默认停用且附带渠道事件目录',
+    tgConfig.status === 200 &&
+      tgConfig.json?.enabled === false &&
+      Array.isArray(tgConfig.json?.eventOptions) &&
+      tgConfig.json.eventOptions.length === 5,
+    tgConfig.json && {
+      enabled: tgConfig.json.enabled,
+      eventOptions: tgConfig.json.eventOptions?.length,
+    }
+  )
+
+  // 16.2 离线校验：schema 拒绝（不触网）
+  for (const [label, body, expected] of [
+    [
+      'Bot Token 格式非法',
+      {
+        enabled: true,
+        botToken: 'not-a-token',
+        chatId: null,
+        proxyUrl: null,
+        eventKeys: ALL_TG_EVENTS,
+      },
+      'Bot Token',
+    ],
+    [
+      'Chat ID 非数字',
+      {
+        enabled: false,
+        botToken: '',
+        chatId: 'abc',
+        proxyUrl: null,
+        eventKeys: ALL_TG_EVENTS,
+      },
+      'Chat ID',
+    ],
+    [
+      '代理协议不支持',
+      {
+        enabled: false,
+        botToken: '',
+        chatId: null,
+        proxyUrl: 'ftp://127.0.0.1:1',
+        eventKeys: ALL_TG_EVENTS,
+      },
+      '代理地址',
+    ],
+  ] as const) {
+    const rejected = await req('/api/telegram', {
+      method: 'PUT',
+      token,
+      body,
+    })
+    check(
+      `Telegram 配置非法时返回 400（${label}）`,
+      rejected.status === 400 &&
+        String(rejected.json?.message ?? '').includes(expected),
+      rejected.json
+    )
+  }
+
+  // 16.3 探测服务端是否指向 mock：mock token 经 getMe 校验
+  // （未接线时请求打到真实 API，401 → 502，据此跳过快乐路径）
+  let tgWired = false
+  if (mockServer) {
+    const probe = await req('/api/telegram/test', {
+      method: 'POST',
+      token,
+      body: { botToken: MOCK_TOKEN, chatId: null, proxyUrl: null },
+    })
+    tgWired =
+      probe.status === 200 &&
+      probe.json?.ok === true &&
+      probe.json?.botUsername === `@${MOCK_BOT_USERNAME}`
+  }
+  if (!mockServer || !tgWired) {
+    console.log(
+      '  ! 服务端未指向 mock Telegram（TELEGRAM_API_BASE 未覆盖），跳过快乐路径'
+    )
+  }
+
+  if (mockServer && tgWired) {
+    // 16.4 启用且未绑定 Chat ID → 服务端启动 /start 绑定长轮询
+    const tgEnable = await req('/api/telegram', {
+      method: 'PUT',
+      token,
+      body: {
+        enabled: true,
+        botToken: MOCK_TOKEN,
+        chatId: null,
+        proxyUrl: null,
+        eventKeys: ALL_TG_EVENTS,
+      },
+    })
+    check(
+      '启用 Telegram 返回 200 且 Chat ID 待绑定',
+      tgEnable.status === 200 &&
+        tgEnable.json?.enabled === true &&
+        tgEnable.json?.chatId === null,
+      tgEnable.json && {
+        enabled: tgEnable.json.enabled,
+        chatId: tgEnable.json.chatId,
+      }
+    )
+
+    const tgPolling = await req('/api/telegram/bind-status', { token })
+    check(
+      '启用后绑定长轮询运行中',
+      tgPolling.status === 200 && tgPolling.json?.polling === true,
+      tgPolling.json
+    )
+
+    // 16.5 模拟用户发送 /start → mock 返回更新 → 自动绑定并自停
+    mockState.startArmed = true
+    const tgBound = await waitFor(8000, async () => {
+      const cur = await req('/api/telegram', { token })
+      return cur.json?.chatId === MOCK_CHAT_ID
+    })
+    check(
+      '收到 /start 后自动绑定 Chat ID（群组负数 ID，长轮询已打到 mock）',
+      tgBound && mockState.getUpdatesCalls > 0,
+      { getUpdatesCalls: mockState.getUpdatesCalls }
+    )
+
+    const tgPollStopped = await waitFor(3000, async () => {
+      const cur = await req('/api/telegram/bind-status', { token })
+      return cur.json?.polling === false
+    })
+    check('绑定成功后长轮询自行停止', tgPollStopped)
+
+    check(
+      '绑定后回送确认消息',
+      mockState.sent.some((m) => m.text.includes('已绑定成功')),
+      mockState.sent.map((m) => m.text)
+    )
+
+    // 16.6 登录事件 → publish → dispatchTelegram → mock 收包
+    const tgRelogin = await req('/api/auth/login', {
+      method: 'POST',
+      body: { username: USERNAME, password: PASSWORD },
+    })
+    check(
+      '重新登录成功（触发 security.user_login）',
+      tgRelogin.status === 200,
+      tgRelogin.status
+    )
+
+    const tgDispatched = await waitFor(5000, async () =>
+      mockState.sent.some(
+        (m) =>
+          m.text.includes('🔐 <b>管理员登录</b>') &&
+          m.text.includes(`管理员 ${USERNAME} 登录成功`)
+      )
+    )
+    check(
+      '登录事件经 Telegram 派发（HTML parse_mode + 分事件标题）',
+      tgDispatched && mockState.sent.every((m) => m.parseMode === 'HTML'),
+      mockState.sent.map((m) => ({
+        text: m.text.split('\n')[0],
+        parseMode: m.parseMode,
+      }))
+    )
+
+    // 16.7 测试连接（getMe + 测试消息）
+    const tgTest = await req('/api/telegram/test', {
+      method: 'POST',
+      token,
+      body: { botToken: MOCK_TOKEN, chatId: MOCK_CHAT_ID, proxyUrl: null },
+    })
+    check(
+      '测试连接成功（botUsername 与 messageSent）',
+      tgTest.status === 200 &&
+        tgTest.json?.ok === true &&
+        tgTest.json?.botUsername === `@${MOCK_BOT_USERNAME}` &&
+        tgTest.json?.messageSent === true,
+      tgTest.json
+    )
+    check(
+      '测试消息已送达 mock',
+      mockState.sent.some((m) => m.text.includes('连接测试成功')),
+      mockState.sent.length
+    )
+
+    // 16.8 清理：停用并解绑，避免残留轮询与配置
+    const tgCleanup = await req('/api/telegram', {
+      method: 'PUT',
+      token,
+      body: {
+        enabled: false,
+        botToken: '',
+        chatId: null,
+        proxyUrl: null,
+        eventKeys: ALL_TG_EVENTS,
+      },
+    })
+    check(
+      '清理：停用 Telegram 并解除绑定',
+      tgCleanup.status === 200 &&
+        tgCleanup.json?.enabled === false &&
+        tgCleanup.json?.chatId === null,
+      tgCleanup.json && {
+        enabled: tgCleanup.json.enabled,
+        chatId: tgCleanup.json.chatId,
+      }
+    )
+  }
+
+  mockServer?.close()
 
   console.log(`\n结果：${passed} 通过 / ${failed} 失败`)
   process.exit(failed === 0 ? 0 : 1)
