@@ -8,10 +8,11 @@
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
  * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
  * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）、
- * Telegram 渠道（mock Bot API：配置校验 / /start 自动绑定 / 事件派发 / 测试连接）。
+ * Telegram 渠道（mock Bot API：配置校验 / /start 自动绑定 / 事件派发 / 测试连接）、
+ * 飞书渠道（mock 开放平台 API：配置校验 / 事件派发交互卡片 / 测试连接）。
  *
- * Telegram 快乐路径需要服务端指向内嵌 mock（否则只执行离线校验并跳过）：
- *   TELEGRAM_API_BASE=http://127.0.0.1:3998 pnpm --filter server dev
+ * 快乐路径需要服务端指向内嵌 mock（否则只执行离线校验并跳过）：
+ *   TELEGRAM_API_BASE=http://127.0.0.1:3998 FEISHU_API_BASE=http://127.0.0.1:4000 pnpm --filter server dev
  * 退出码非 0 表示存在失败项。
  */
 
@@ -185,6 +186,118 @@ async function waitFor(
     if (Date.now() - started >= deadlineMs) return false
     await new Promise((r) => setTimeout(r, 100))
   }
+}
+
+// ---------- 飞书 mock 开放平台 API ----------
+
+/** mock 服务端口（固定；与 Telegram mock 3998 错开） */
+const MOCK_FS_PORT = 4000
+/** mock 识别的应用凭证（App ID 需过 isAppId 正则：cli_ + 6 位以上字母数字） */
+const MOCK_FS_APP_ID = 'cli_smoke0000000001'
+const MOCK_FS_APP_SECRET = 'smoke-mock-secret'
+/** mock 接收对象（chat_id 需过 oc_ 前缀正则） */
+const MOCK_FS_CHAT_ID = 'oc_smoke0000000001'
+const MOCK_FS_BOT_NAME = 'smoke_mock_app'
+const MOCK_FS_TOKEN = 't-smoke-mock-token'
+
+type MockFeishuMessage = {
+  receiveIdType: string
+  receiveId: string
+  msgType: string
+  card: any
+  authorization: string | null
+  at: number
+}
+
+const fsMockState = {
+  /** im/v1/messages 收包记录（断言卡片 JSON 与鉴权头） */
+  sent: [] as MockFeishuMessage[],
+  /** tenant_access_token 换取次数 */
+  tokenCalls: 0,
+  /** bot/v3/info 调用次数 */
+  botInfoCalls: 0,
+}
+
+/**
+ * 内嵌 mock 飞书开放平台 API（127.0.0.1:4000）：
+ * - POST /auth/v3/tenant_access_token/internal：凭证匹配返回 token（7200s），
+ *   否则返回 99991663（模拟飞书行为）
+ * - GET /bot/v3/info：Bearer 校验（token 不匹配返回 99991668），返回应用名
+ * - POST /im/v1/messages：记录收包（query receive_id_type + body 卡片 JSON）后成功
+ *
+ * 注意：FEISHU_API_BASE 默认值已含 /open-apis，service 侧路径不带该前缀。
+ */
+function startMockFeishu(): Promise<Server | null> {
+  return new Promise((resolve) => {
+    const server = createServer((req, res) => {
+      const chunks: Buffer[] = []
+      req.on('data', (chunk: Buffer) => chunks.push(chunk))
+      req.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8')
+        let body: Record<string, unknown>
+        try {
+          body = raw ? (JSON.parse(raw) as Record<string, unknown>) : {}
+        } catch {
+          body = {}
+        }
+        const send = (status: number, payload: unknown) => {
+          res.writeHead(status, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(payload))
+        }
+        const url = new URL(req.url ?? '/', `http://127.0.0.1:${MOCK_FS_PORT}`)
+
+        if (req.method === 'POST' && url.pathname === '/auth/v3/tenant_access_token/internal') {
+          fsMockState.tokenCalls++
+          if (
+            body.app_id !== MOCK_FS_APP_ID ||
+            body.app_secret !== MOCK_FS_APP_SECRET
+          ) {
+            return send(200, { code: 99991663, msg: 'app secret error' })
+          }
+          return send(200, {
+            code: 0,
+            msg: 'ok',
+            tenant_access_token: MOCK_FS_TOKEN,
+            expire: 7200,
+          })
+        }
+
+        if (req.method === 'GET' && url.pathname === '/bot/v3/info') {
+          fsMockState.botInfoCalls++
+          const auth = req.headers.authorization
+          if (auth !== `Bearer ${MOCK_FS_TOKEN}`) {
+            return send(200, { code: 99991668, msg: 'tenant access token is invalid' })
+          }
+          return send(200, {
+            code: 0,
+            msg: 'ok',
+            bot: { app_name: MOCK_FS_BOT_NAME, open_id: 'ou_mock_bot', activate_status: 1 },
+          })
+        }
+
+        if (req.method === 'POST' && url.pathname === '/im/v1/messages') {
+          const content = typeof body.content === 'string' ? body.content : null
+          fsMockState.sent.push({
+            receiveIdType: url.searchParams.get('receive_id_type') ?? '',
+            receiveId: String(body.receive_id ?? ''),
+            msgType: String(body.msg_type ?? ''),
+            card: content ? (JSON.parse(content) as any) : null,
+            authorization: (req.headers.authorization as string) ?? null,
+            at: Date.now(),
+          })
+          return send(200, {
+            code: 0,
+            msg: 'success',
+            data: { message_id: 'om_smoke_mock' },
+          })
+        }
+
+        return send(404, { code: 99991400, msg: `mock 未实现：${req.method} ${url.pathname}` })
+      })
+    })
+    server.on('error', () => resolve(null))
+    server.listen(MOCK_FS_PORT, '127.0.0.1', () => resolve(server))
+  })
 }
 
 async function main() {
@@ -1335,6 +1448,287 @@ async function main() {
   }
 
   mockServer?.close()
+
+  // 17. 飞书渠道：内嵌 mock 开放平台 API
+  //
+  // 离线校验（schema 拒绝）不依赖 mock 接线，始终执行；
+  // 快乐路径仅在检测到服务端指向 mock（FEISHU_API_BASE 覆盖）时执行。
+  const ALL_FS_EVENTS = ALL_TG_EVENTS
+  const fsMockServer = await startMockFeishu()
+  if (!fsMockServer) {
+    console.log('  ! mock 飞书服务启动失败（127.0.0.1:4000 被占用），跳过快乐路径')
+  }
+
+  // 17.1 归一化：先停用清空，隔离历史状态
+  const fsReset = await req('/api/feishu', {
+    method: 'PUT',
+    token,
+    body: {
+      enabled: false,
+      appId: '',
+      appSecret: '',
+      receiveId: '',
+      receiveIdType: 'chat_id',
+      proxyUrl: null,
+      eventKeys: ALL_FS_EVENTS,
+    },
+  })
+  check(
+    '飞书配置写入（停用态归一化）',
+    fsReset.status === 200 && fsReset.json?.enabled === false,
+    fsReset.json
+  )
+
+  const fsConfig = await req('/api/feishu', { token })
+  check(
+    '飞书配置读取：默认停用且附带渠道事件目录',
+    fsConfig.status === 200 &&
+      fsConfig.json?.enabled === false &&
+      Array.isArray(fsConfig.json?.eventOptions) &&
+      fsConfig.json.eventOptions.length === 5,
+    fsConfig.json && {
+      enabled: fsConfig.json.enabled,
+      eventOptions: fsConfig.json.eventOptions?.length,
+    }
+  )
+
+  // 17.2 离线校验：schema 拒绝（不触网）
+  for (const [label, body, expected] of [
+    [
+      'App ID 格式非法',
+      {
+        enabled: true,
+        appId: 'not-cli',
+        appSecret: 'x',
+        receiveId: MOCK_FS_CHAT_ID,
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+        eventKeys: ALL_FS_EVENTS,
+      },
+      'App ID',
+    ],
+    [
+      'App Secret 为空',
+      {
+        enabled: true,
+        appId: MOCK_FS_APP_ID,
+        appSecret: '',
+        receiveId: MOCK_FS_CHAT_ID,
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+        eventKeys: ALL_FS_EVENTS,
+      },
+      'App Secret',
+    ],
+    [
+      '接收对象 ID 与类型不匹配',
+      {
+        enabled: true,
+        appId: MOCK_FS_APP_ID,
+        appSecret: 'x',
+        receiveId: 'oc_wrong_prefix',
+        receiveIdType: 'open_id',
+        proxyUrl: null,
+        eventKeys: ALL_FS_EVENTS,
+      },
+      '接收对象',
+    ],
+    [
+      '代理协议不支持',
+      {
+        enabled: false,
+        appId: '',
+        appSecret: '',
+        receiveId: '',
+        receiveIdType: 'chat_id',
+        proxyUrl: 'ftp://127.0.0.1:1',
+        eventKeys: ALL_FS_EVENTS,
+      },
+      '代理地址',
+    ],
+  ] as const) {
+    const rejected = await req('/api/feishu', {
+      method: 'PUT',
+      token,
+      body,
+    })
+    check(
+      `飞书配置非法时返回 400（${label}）`,
+      rejected.status === 400 &&
+        String(rejected.json?.message ?? '').includes(expected),
+      rejected.json
+    )
+  }
+
+  // 17.3 探测服务端是否指向 mock：凭证校验 + 机器人信息
+  // （未接线时请求打到真实 API 或网络不可达，一律 502，据此跳过快乐路径）
+  let fsWired = false
+  if (fsMockServer) {
+    const probe = await req('/api/feishu/test', {
+      method: 'POST',
+      token,
+      body: {
+        appId: MOCK_FS_APP_ID,
+        appSecret: MOCK_FS_APP_SECRET,
+        receiveId: MOCK_FS_CHAT_ID,
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+      },
+    })
+    fsWired =
+      probe.status === 200 &&
+      probe.json?.ok === true &&
+      probe.json?.botName === MOCK_FS_BOT_NAME &&
+      probe.json?.messageSent === true
+  }
+  if (!fsMockServer || !fsWired) {
+    console.log(
+      '  ! 服务端未指向 mock 飞书（FEISHU_API_BASE 未覆盖），跳过快乐路径'
+    )
+  }
+
+  if (fsMockServer && fsWired) {
+    // 17.4 保存启用配置并回读
+    const fsEnable = await req('/api/feishu', {
+      method: 'PUT',
+      token,
+      body: {
+        enabled: true,
+        appId: MOCK_FS_APP_ID,
+        appSecret: MOCK_FS_APP_SECRET,
+        receiveId: MOCK_FS_CHAT_ID,
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+        eventKeys: ALL_FS_EVENTS,
+      },
+    })
+    check(
+      '启用飞书返回 200 且凭证回显',
+      fsEnable.status === 200 &&
+        fsEnable.json?.enabled === true &&
+        fsEnable.json?.appId === MOCK_FS_APP_ID &&
+        fsEnable.json?.receiveId === MOCK_FS_CHAT_ID,
+      fsEnable.json && {
+        enabled: fsEnable.json.enabled,
+        appId: fsEnable.json.appId,
+      }
+    )
+
+    // 17.5 登录事件 → publish → dispatchFeishu → mock 收到交互卡片
+    const fsRelogin = await req('/api/auth/login', {
+      method: 'POST',
+      body: { username: USERNAME, password: PASSWORD },
+    })
+    check(
+      '重新登录成功（触发 security.user_login）',
+      fsRelogin.status === 200,
+      fsRelogin.status
+    )
+
+    const fsDispatched = await waitFor(5000, async () =>
+      fsMockState.sent.some(
+        (m) =>
+          m.msgType === 'interactive' &&
+          m.receiveIdType === 'chat_id' &&
+          m.receiveId === MOCK_FS_CHAT_ID &&
+          m.card?.header?.title?.content === '管理员登录' &&
+          m.card?.elements?.[0]?.text?.content?.includes('登录成功')
+      )
+    )
+    const loginCard = fsMockState.sent.find(
+      (m) => m.card?.header?.title?.content === '管理员登录'
+    )
+    check(
+      '登录事件经飞书派发（interactive 卡片 + info 蓝色 header + lark_md 正文）',
+      fsDispatched &&
+        loginCard?.card?.header?.template === 'blue' &&
+        loginCard?.card?.elements?.[0]?.text?.tag === 'lark_md' &&
+        loginCard?.authorization === `Bearer ${MOCK_FS_TOKEN}`,
+      loginCard && {
+        template: loginCard.card?.header?.template,
+        title: loginCard.card?.header?.title?.content,
+        authorization: loginCard.authorization,
+      }
+    )
+
+    // 17.6 测试连接（token 换取 + bot info + 测试卡片）
+    const fsTest = await req('/api/feishu/test', {
+      method: 'POST',
+      token,
+      body: {
+        appId: MOCK_FS_APP_ID,
+        appSecret: MOCK_FS_APP_SECRET,
+        receiveId: MOCK_FS_CHAT_ID,
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+      },
+    })
+    check(
+      '测试连接成功（botName 与 messageSent）',
+      fsTest.status === 200 &&
+        fsTest.json?.ok === true &&
+        fsTest.json?.botName === MOCK_FS_BOT_NAME &&
+        fsTest.json?.messageSent === true,
+      fsTest.json
+    )
+    check(
+      '测试卡片已送达 mock（绿色 header + 测试文案）',
+      fsMockState.sent.some(
+        (m) =>
+          m.card?.header?.template === 'green' &&
+          String(m.card?.elements?.[0]?.text?.content ?? '').includes(
+            '连接测试成功'
+          )
+      ),
+      fsMockState.sent.length
+    )
+
+    // 17.7 错误凭证 → 502（mock 返回 99991663）
+    const fsBad = await req('/api/feishu/test', {
+      method: 'POST',
+      token,
+      body: {
+        appId: MOCK_FS_APP_ID,
+        appSecret: 'wrong-secret',
+        receiveId: MOCK_FS_CHAT_ID,
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+      },
+    })
+    check(
+      '错误凭证返回 502 且含错误码 99991663',
+      fsBad.status === 502 &&
+        String(fsBad.json?.message ?? '').includes('99991663'),
+      fsBad.json
+    )
+
+    // 17.8 清理：停用并清空凭证，避免残留配置
+    const fsCleanup = await req('/api/feishu', {
+      method: 'PUT',
+      token,
+      body: {
+        enabled: false,
+        appId: '',
+        appSecret: '',
+        receiveId: '',
+        receiveIdType: 'chat_id',
+        proxyUrl: null,
+        eventKeys: ALL_FS_EVENTS,
+      },
+    })
+    check(
+      '清理：停用飞书并清空凭证',
+      fsCleanup.status === 200 &&
+        fsCleanup.json?.enabled === false &&
+        fsCleanup.json?.appId === '',
+      fsCleanup.json && {
+        enabled: fsCleanup.json.enabled,
+        appId: fsCleanup.json.appId,
+      }
+    )
+  }
+
+  fsMockServer?.close()
 
   console.log(`\n结果：${passed} 通过 / ${failed} 失败`)
   process.exit(failed === 0 ? 0 : 1)
