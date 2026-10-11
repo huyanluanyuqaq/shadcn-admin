@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useQueryClient } from '@tanstack/react-query'
 import { type Customer, type Subscription, planTiers } from '@shared/index'
-import { CalendarIcon, Loader2 } from 'lucide-react'
+import { CalendarIcon, Loader2, Shuffle } from 'lucide-react'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -63,6 +63,7 @@ import {
   customerStatusOptions,
   emptyCustomerForm,
   parsePlanValue,
+  randomDailyCronExpr,
   resolveAutoTrafficGb,
   resolveProviderName,
   subscriptionFieldsFrom,
@@ -836,14 +837,27 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>同步周期</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder={DEFAULT_CRON}
-                            className='font-mono'
-                            autoComplete='off'
-                            {...field}
-                          />
-                        </FormControl>
+                        <div className='flex gap-2'>
+                          <FormControl>
+                            <Input
+                              placeholder={DEFAULT_CRON}
+                              className='font-mono'
+                              autoComplete='off'
+                              {...field}
+                            />
+                          </FormControl>
+                          <Button
+                            type='button'
+                            variant='outline'
+                            className='shrink-0'
+                            onClick={() =>
+                              field.onChange(randomDailyCronExpr())
+                            }
+                          >
+                            <Shuffle />
+                            每天随机时间
+                          </Button>
+                        </div>
                         <p className='text-xs text-muted-foreground'>
                           {CRON_HINT}
                         </p>

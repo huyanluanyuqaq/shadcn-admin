@@ -227,6 +227,19 @@ export function resolveAutoTrafficGb(
   return bytes === null ? '' : String(Number((bytes / GB).toFixed(2)))
 }
 
+/**
+ * 生成「每天随机时间」的 cron 表达式：`分 时 * * *`。
+ *
+ * 分钟 0-59、小时 0-23 均匀随机——把订阅同步打散到一天中的随机时刻，
+ * 避免所有订阅整点集中触发上游。数值两段恒为 croner 合法表达式
+ * （调度器对非法表达式仅记日志跳过，见 scheduler.ts startOne）。
+ */
+export function randomDailyCronExpr(): string {
+  const minute = Math.floor(Math.random() * 60)
+  const hour = Math.floor(Math.random() * 24)
+  return `${minute} ${hour} * * *`
+}
+
 /** 表单值 → 写入 API 的入参 */
 export function toCustomerInput(
   values: CustomerForm,
