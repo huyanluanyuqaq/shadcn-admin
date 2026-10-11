@@ -9,16 +9,18 @@ import {
 import { db } from '../db/index.js'
 import { reminders, webhooks } from '../db/schema.js'
 import { writeLog } from './logger.js'
+import { dispatchFeishu } from './feishu.js'
 import { dispatchTelegram } from './telegram.js'
 
 /**
  * 通知服务（设计参照 sublinkPro `services/notifications`，事件目录见
  * `shared/src/schema/notifications.ts`）。
  *
- * 三条互不阻塞的通道：
+ * 四条互不阻塞的通道：
  * - **in_app（站内）**：写入 `reminders` 表，由前端通知中心（铃铛）展示
  * - **webhook（外部）**：向启用的 webhook 异步派发，支持模板变量与自定义请求
  * - **telegram（外部）**：向配置的机器人聊天推送（见 `./telegram.ts`）
+ * - **feishu（外部）**：向配置的企业应用接收对象推送交互卡片（见 `./feishu.ts`）
  *
  * 约束（与架构 §10 同思路）：
  * - C1：`publish()` 为 fire-and-forget，绝不在数据库事务内 await 网络 IO
@@ -259,6 +261,7 @@ export function publish(eventKey: NotificationEventKey, input: PublishInput): vo
   void writeInApp(eventKey, payload)
   void dispatchWebhooks(payload)
   void dispatchTelegram(payload)
+  void dispatchFeishu(payload)
 }
 
 /**

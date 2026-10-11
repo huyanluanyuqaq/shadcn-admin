@@ -12,6 +12,7 @@ import { errorHandler } from './middleware/error.js'
 import { authMiddleware } from './middleware/auth.js'
 import { authRoutes } from './routes/auth.js'
 import { dashboardRoutes } from './routes/dashboard.js'
+import { feishuRoutes } from './routes/feishu.js'
 import { healthRoutes } from './routes/health.js'
 import { logRoutes } from './routes/logs.js'
 import { reminderRoutes } from './routes/reminders.js'
@@ -45,6 +46,7 @@ app.route('/api/logs', logRoutes)
 app.route('/api/reminders', reminderRoutes)
 app.route('/api/settings', settingRoutes)
 app.route('/api/telegram', telegramRoutes)
+app.route('/api/feishu', feishuRoutes)
 app.route('/api/webhooks', webhookRoutes)
 
 app.notFound((c) => {

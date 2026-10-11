@@ -65,6 +65,11 @@ export const config = {
    * 也可用于出口受限环境下的自建中转；生产环境无需设置。
    */
   telegramApiBase: (process.env.TELEGRAM_API_BASE ?? 'https://api.telegram.org').replace(/\/+$/, ''),
+  /**
+   * 飞书开放平台 API 基础地址（默认官方）。供冒烟测试指向内嵌 mock，
+   * 也可用于出口受限环境下的自建中转；生产环境无需设置。
+   */
+  feishuApiBase: (process.env.FEISHU_API_BASE ?? 'https://open.feishu.cn/open-apis').replace(/\/+$/, ''),
 }
 
 /**
