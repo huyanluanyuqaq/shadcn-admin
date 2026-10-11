@@ -70,6 +70,12 @@ export const config = {
    * 也可用于出口受限环境下的自建中转；生产环境无需设置。
    */
   feishuApiBase: (process.env.FEISHU_API_BASE ?? 'https://open.feishu.cn/open-apis').replace(/\/+$/, ''),
+  /** 每日备份 cron（5 段）；默认每天 03:00（TASK-015） */
+  backupCron: process.env.BACKUP_CRON?.trim() || '0 3 * * *',
+  /** 备份保留份数，超出删最旧；默认 7（TASK-015） */
+  backupKeep: Number(process.env.BACKUP_KEEP ?? 7),
+  /** 备份目录；默认 <数据库所在目录>/backups（TASK-015） */
+  backupDir: process.env.BACKUP_DIR?.trim() || undefined,
 }
 
 /**
