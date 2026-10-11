@@ -1,13 +1,13 @@
 import { eq } from 'drizzle-orm'
 import {
-  effectiveTrafficTotal,
+  effectiveCustomerTrafficTotal,
   formatTrafficBytes,
   highestTrafficThreshold,
   trafficUsagePercent,
   type TrafficThreshold,
 } from '@repo/shared'
 import { db } from '../db/index.js'
-import { customers } from '../db/schema.js'
+import { customers, plans } from '../db/schema.js'
 import { writeLog } from './logger.js'
 import { publish } from './notifications.js'
 
@@ -16,7 +16,9 @@ import { publish } from './notifications.js'
  *
  * 语义（用户需求：「达到阈值时需要发送通知提醒，通知每次取当前所在最高的阈值」）：
  * - 阈值档位 50% / 80% / 100%（shared `TRAFFIC_THRESHOLDS`）；
- * - 生效上限 = `trafficManualCap ?? trafficTotal`（手动上限优先），为空不评估；
+ * - 生效上限 = `trafficManualCap ?? 套餐月流量 ?? trafficTotal`
+ *   （`effectiveCustomerTrafficTotal`，TASK-023：手动上限最高优先级，
+ *   其次客户对应套餐的月流量，套餐未设时回落存量值）；为空不评估；
  * - **穿越式触发**：`customers.traffic_threshold_notified` 记录该客户
  *   「当前所在最高阈值」，仅当它**上升**时发一条通知（取新的最高阈值），
  *   同一阈值不重复发；用量回落后状态同步下调，再次穿越可重新通知
@@ -45,26 +47,51 @@ type Crossing = {
   total: number
 }
 
-/** 扫描全部客户，对阈值上升者发通知；返回统计（供路由 / 调度器日志） */
-export function scanTrafficThresholds(): TrafficThresholdScanResult {
-  const rows = db
+/** 阈值评估行：客户 + 关联套餐月流量（left join，无套餐为 null） */
+type TrafficRow = {
+  id: number
+  name: string
+  trafficUsed: number
+  trafficTotal: number | null
+  planTrafficLimit: number | null
+  trafficManualCap: number | null
+  notified: number
+}
+
+/**
+ * 加载全部客户的阈值评估行（TASK-023：join plans 取套餐月流量）。
+ * 扫描与仪表盘列表共用，保证「通知判定」与「卡片展示」同一口径。
+ */
+function loadTrafficRows(): TrafficRow[] {
+  return db
     .select({
       id: customers.id,
       name: customers.name,
       trafficUsed: customers.trafficUsed,
       trafficTotal: customers.trafficTotal,
+      planTrafficLimit: plans.trafficLimit,
       trafficManualCap: customers.trafficManualCap,
       notified: customers.trafficThresholdNotified,
     })
     .from(customers)
+    .leftJoin(plans, eq(customers.planId, plans.id))
     .all()
+}
+
+/** 扫描全部客户，对阈值上升者发通知；返回统计（供路由 / 调度器日志） */
+export function scanTrafficThresholds(): TrafficThresholdScanResult {
+  const rows = loadTrafficRows()
 
   const crossings: Crossing[] = []
   const stateUpdates: Array<{ id: number; level: number }> = []
   let checked = 0
 
   for (const row of rows) {
-    const total = effectiveTrafficTotal(row.trafficTotal, row.trafficManualCap)
+    const total = effectiveCustomerTrafficTotal(
+      row.trafficTotal,
+      row.planTrafficLimit,
+      row.trafficManualCap
+    )
     if (total == null || total <= 0) continue
     checked++
 
@@ -148,23 +175,19 @@ type TrafficThresholdStatus = {
  * 达到最低阈值（50%）的客户状态列表，按占比降序。
  * 只读，不写库、不发通知——仪表盘展示与通知状态解耦：
  * 卡片反映实时用量，`notified` 反映通知是否已随扫描发出。
+ *
+ * 生效上限口径同扫描（TASK-023）：手动上限 > 套餐月流量 > 存量月流量。
  */
 export function listTrafficThresholdStatuses(limit = 10): TrafficThresholdStatus[] {
-  const rows = db
-    .select({
-      id: customers.id,
-      name: customers.name,
-      trafficUsed: customers.trafficUsed,
-      trafficTotal: customers.trafficTotal,
-      trafficManualCap: customers.trafficManualCap,
-      notified: customers.trafficThresholdNotified,
-    })
-    .from(customers)
-    .all()
+  const rows = loadTrafficRows()
 
   const statuses: TrafficThresholdStatus[] = []
   for (const row of rows) {
-    const total = effectiveTrafficTotal(row.trafficTotal, row.trafficManualCap)
+    const total = effectiveCustomerTrafficTotal(
+      row.trafficTotal,
+      row.planTrafficLimit,
+      row.trafficManualCap
+    )
     if (total == null || total <= 0) continue
     const threshold = highestTrafficThreshold(row.trafficUsed, total)
     if (threshold === null) continue
