@@ -11,6 +11,11 @@ import { CustomersActionDialog } from './customers-action-dialog'
  * mock 三个 hooks 模块（emails/queries、subscriptions/api、customers/api），
  * 对话框契约聚焦在保存流：建/改订阅 → 以落到的那条订阅 id 触发同步；
  * 未落到具体订阅（未填链接）时不触发。
+ *
+ * TASK-018：全部输入均已包 FormControl（label 经 htmlFor/id 关联），
+ * 保存流用例改用 getByLabelText 定位，并新增全字段关联断言用例。
+ * 注意：vitest-browser 的 getByLabelText 默认子串匹配（'名称' 会连带
+ * 命中『订阅名称』），一律传 { exact: true }。
  */
 const {
   createCustomer,
@@ -136,12 +141,12 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
   })
 
   it('新建：填了订阅链接 → 先建订阅，再以新订阅 id 触发同步', async () => {
-    // 注意：名称/邮箱输入未包 FormControl（无 label 关联，既有结构），
-    // 按 placeholder 定位；订阅链接字段包了 FormControl 同样可按 placeholder 定位
-    const { getByPlaceholder, getByRole } = await renderDialog()
+    // TASK-018 起输入均包 FormControl，label 与输入经 id 关联，
+    // 按 label 定位（点击 label 亦可聚焦输入）
+    const { getByLabelText, getByRole } = await renderDialog()
 
-    await userEvent.type(getByPlaceholder('请输入客户名称'), '新客户')
-    await userEvent.type(getByPlaceholder('https://...'), URL)
+    await userEvent.type(getByLabelText('名称', { exact: true }), '新客户')
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
     await userEvent.click(getByRole('button', { name: '保存' }))
 
     await vi.waitFor(() => {
@@ -157,9 +162,9 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
   })
 
   it('新建：未填订阅链接 → 不建订阅也不触发同步', async () => {
-    const { getByPlaceholder, getByRole } = await renderDialog()
+    const { getByLabelText, getByRole } = await renderDialog()
 
-    await userEvent.type(getByPlaceholder('请输入客户名称'), '无链接客户')
+    await userEvent.type(getByLabelText('名称', { exact: true }), '无链接客户')
     await userEvent.click(getByRole('button', { name: '保存' }))
 
     await vi.waitFor(() => {
@@ -189,10 +194,10 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
   it('同步失败不阻断：客户已保存，同步被尝试过', async () => {
     syncSubscriptionUsage.mutateAsync.mockRejectedValue(new Error('上游超时'))
 
-    const { getByPlaceholder, getByRole } = await renderDialog()
+    const { getByLabelText, getByRole } = await renderDialog()
 
-    await userEvent.type(getByPlaceholder('请输入客户名称'), '新客户')
-    await userEvent.type(getByPlaceholder('https://...'), URL)
+    await userEvent.type(getByLabelText('名称', { exact: true }), '新客户')
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
     await userEvent.click(getByRole('button', { name: '保存' }))
 
     await vi.waitFor(() => {
@@ -200,5 +205,41 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
     })
     // 保存流未被同步失败中断（onOpenChange(false) 走到即关闭对话框）
     expect(createCustomer.mutateAsync).toHaveBeenCalledOnce()
+  })
+
+  // TASK-018：FormControl 注入 id + aria 属性前，下列输入的 label 指向
+  // 不存在的 id（getByLabelText 解析 0 元素、点击 label 不聚焦）。此处
+  // 逐个按 label 解析并断言「唯一」——elements() 会实际查询 DOM，
+  // 避免 locator 惰性求值让断言空转。
+  it('表单标签关联：所有字段均可经 label 唯一定位', async () => {
+    const { getByLabelText } = await renderDialog()
+
+    const labels = [
+      // 修复前缺失关联的 12 处（TASK-018）
+      '名称',
+      '邮箱',
+      '备注',
+      '到期时间',
+      '月流量（GB）',
+      '手动流量上限（GB）',
+      '订阅名称',
+      '同步周期',
+      '订阅流量上限（GB）',
+      'User-Agent',
+      '代理地址',
+      '自定义请求头',
+      // 既有正确包裹的字段，防回归
+      '购买时间',
+      '订阅链接',
+      '跳过证书校验',
+      '启用同步',
+    ]
+    for (const label of labels) {
+      const matched = getByLabelText(label, { exact: true }).elements()
+      expect(
+        matched.length,
+        `label「${label}」应关联唯一控件，实际 ${matched.length} 个`
+      ).toBe(1)
+    }
   })
 })
