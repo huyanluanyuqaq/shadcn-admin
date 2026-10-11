@@ -1,11 +1,13 @@
 import type { Subscription } from '@shared/index'
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_CRON } from '@/features/subscriptions/data/schema'
 import { effectiveTrafficTotal } from '../utils'
 import {
   buildSubscriptionInput,
   computeExpireAt,
   emptyCustomerForm,
   GB,
+  randomDailyCronExpr,
   resolveAutoTrafficGb,
   resolveProviderName,
   subscriptionFieldsFrom,
@@ -534,5 +536,40 @@ describe('buildSubscriptionInput', () => {
     )
     expect(input.trafficTotal).toBe(30 * GB)
     expect(input.expireAt).toBe(expire.getTime())
+  })
+})
+
+describe('randomDailyCronExpr', () => {
+  const DAILY_CRON = /^(\d{1,2}) (\d{1,2}) \* \* \*$/
+
+  it('生成「分 时 * * *」五段表达式，段值在合法范围', () => {
+    for (let i = 0; i < 300; i++) {
+      const expr = randomDailyCronExpr()
+      const matched = DAILY_CRON.exec(expr)
+      expect(matched, `非法表达式：${expr}`).not.toBeNull()
+      const minute = Number(matched![1])
+      const hour = Number(matched![2])
+      expect(minute).toBeGreaterThanOrEqual(0)
+      expect(minute).toBeLessThanOrEqual(59)
+      expect(hour).toBeGreaterThanOrEqual(0)
+      expect(hour).toBeLessThanOrEqual(23)
+      // 日/月/周三段恒为 *（每天执行）
+      expect(expr.endsWith('* * *')).toBe(true)
+    }
+  })
+
+  it('随机性：300 次采样覆盖足够多的小时/分钟组合，且不会等于默认每 6 小时表达式', () => {
+    const hours = new Set<number>()
+    const minutes = new Set<number>()
+    for (let i = 0; i < 300; i++) {
+      const expr = randomDailyCronExpr()
+      expect(expr).not.toBe(DEFAULT_CRON)
+      const [, m, h] = DAILY_CRON.exec(expr)!
+      hours.add(Number(h))
+      minutes.add(Number(m))
+    }
+    // 均匀随机的合理下界：24 个小时至少出现一半以上，60 个分钟至少 1/4
+    expect(hours.size).toBeGreaterThanOrEqual(12)
+    expect(minutes.size).toBeGreaterThanOrEqual(15)
   })
 })
