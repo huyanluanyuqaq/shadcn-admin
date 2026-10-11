@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { BatchSyncResult, SyncResult } from '@repo/shared'
 import { db } from '../db/index.js'
-import { subscriptions } from '../db/schema.js'
+import { customers, subscriptions } from '../db/schema.js'
 import { writeLog } from './logger.js'
 import { publish } from './notifications.js'
 import { fetchSubscriptionUsage } from './subscription-parser.js'
@@ -83,6 +83,16 @@ export async function syncOne(id: number): Promise<SyncResult> {
         .set({ syncStatus: 'success', lastError: null, lastRunAt: new Date() })
         .where(eq(subscriptions.id, id))
         .run()
+      // 用量回写关联客户（TASK-017）：客户行「流量使用」列读
+      // customers.traffic_used，与 subscriptions.traffic_used 语义分离，
+      // 必须显式镜像，否则保存后行内永远是 0。只镜像用量——总量/到期
+      // 由客户表单管理（套餐/手动上限语义），不覆盖。
+      if (row.customerId != null) {
+        tx.update(customers)
+          .set({ trafficUsed: used })
+          .where(eq(customers.id, row.customerId))
+          .run()
+      }
     })
 
     // 通知（C8 增量对比）：仅当用量/到期真正变化时才通知，避免每轮空转刷屏
@@ -133,6 +143,8 @@ export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
   const results: SyncResult[] = []
   const updates: Array<{ id: number; used: number; total: number | null; expireMs: number | null }> = []
   const failures: Array<{ id: number; message: string }> = []
+  /** 订阅 id → 关联客户 id（TASK-017 回写用；阶段一快照，阶段二同事务消费） */
+  const customerBySub = new Map(rows.map((r) => [r.id, r.customerId]))
 
   // —— 阶段一：并发拉取，全程不持锁、不写库 ——
   for (let i = 0; i < rows.length; i += CONCURRENCY) {
@@ -196,6 +208,17 @@ export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
         )
         .where(eq(subscriptions.id, r.id))
         .run()
+      // 用量回写关联客户（TASK-017，同 syncOne）：同步成功即镜像
+      // used = upload + download 到 customers.traffic_used；失败不回写。
+      if (r.ok) {
+        const customerId = customerBySub.get(r.id)
+        if (customerId != null) {
+          tx.update(customers)
+            .set({ trafficUsed: (r.upload ?? 0) + (r.download ?? 0) })
+            .where(eq(customers.id, customerId))
+            .run()
+        }
+      }
     }
   })
 
