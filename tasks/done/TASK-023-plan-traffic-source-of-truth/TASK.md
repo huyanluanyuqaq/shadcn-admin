@@ -114,6 +114,26 @@ API 不返回套餐流量）、订阅管理页表单（自有 trafficTotal 字�
 
 ---
 
+## Handoff 记录
+
+| # | From | To | 日期 | 摘要 |
+|---|------|----|------|------|
+| 1 | workbuddy | human | 2026-10-12 | 实现+验证+归档完成，待人类批准合并推送 main |
+| 2 | human | workbuddy | 2026-10-12 | 批准合并（「提交并推送」）→ 已 ff 合并 main 并推送 origin，分支已删 |
+
+---
+
+## 合并前检查单
+
+- [x] `pnpm test` 全绿（214/214，合并前复跑确认）
+- [x] `pnpm lint` / `pnpm format:check` 通过
+- [x] `tsc -b` / `vite build` 通过（前置 `rm -rf dist`）
+- [x] 隔离冒烟 141/141（3002 实例 + mock 三通道，未污染 3000 真实数据）
+- [x] 任务文档归档至 `tasks/done/`
+- [x] **人类批准后**：ff 合并 main + 推送 origin + 删分支（2026-10-12 完成）
+
+---
+
 ## Task Rules
 
 - 遵循 P5 最小改动：不动客户表格列、不动订阅管理页、无 DB 迁移
