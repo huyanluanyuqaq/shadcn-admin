@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { format } from 'date-fns'
 import { useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useQueryClient } from '@tanstack/react-query'
 import { type Customer, type Subscription, planTiers } from '@shared/index'
 import { CalendarIcon, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -43,10 +44,12 @@ import { useSyncEmailBinding } from '@/features/emails/queries'
 import {
   useCreateSubscription,
   useSubscriptionOptions,
+  useSyncSubscription,
   useUpdateSubscription,
 } from '@/features/subscriptions/api'
 import { CRON_HINT, DEFAULT_CRON } from '@/features/subscriptions/data/schema'
 import {
+  customerKeys,
   useCreateCustomer,
   usePlanOptions,
   useSubscriptionPreview,
@@ -143,6 +146,10 @@ export function CustomersActionDialog({
   const createSubscription = useCreateSubscription()
   const updateSubscription = useUpdateSubscription()
   const syncEmailBinding = useSyncEmailBinding()
+  // 保存后立即拉取一次订阅用量（TASK-017）：后端在同事务内把上游用量
+  // 回写 customers.traffic_used——客户行「流量使用」列的数据来源
+  const syncSubscriptionUsage = useSyncSubscription()
+  const queryClient = useQueryClient()
 
   const form = useForm<CustomerForm>({
     resolver: zodResolver(customerFormSchema),
@@ -160,7 +167,8 @@ export function CustomersActionDialog({
     updateCustomer.isPending ||
     createSubscription.isPending ||
     updateSubscription.isPending ||
-    syncEmailBinding.isPending
+    syncEmailBinding.isPending ||
+    syncSubscriptionUsage.isPending
 
   const supplierItems: Option[] = [
     { label: '不设置', value: '0' },
@@ -410,6 +418,23 @@ export function CustomersActionDialog({
           ? await updateCustomer.mutateAsync({ id: currentRow.id, input })
           : await createCustomer.mutateAsync(input)
       const syncResult = await syncSubscription(customer, values)
+      // 保存即拉取：本次落到具体订阅时立即同步一次，后端在同事务内把
+      // 上游用量回写 customers.traffic_used（客户行「流量使用」列来源）。
+      // 放在邮箱绑定同步之前——用量就绪后，后续通知/阈值扫描立即可见。
+      let usageSynced = false
+      if (syncResult.subscriptionId !== null) {
+        try {
+          await syncSubscriptionUsage.mutateAsync(syncResult.subscriptionId)
+          usageSynced = true
+          // 回写发生在同步成功后，客户列表缓存需再次失效行内才刷新
+          void queryClient.invalidateQueries({ queryKey: customerKeys.root })
+        } catch (usageError) {
+          // 客户与订阅本身已保存成功，用量拉取失败不阻断流程，仅提示
+          toast.error(
+            `客户已保存，但订阅用量拉取失败：${getErrorMessage(usageError)}`
+          )
+        }
+      }
       // 保存即同步：客户填了邮箱且本次落到具体订阅时，按「邮箱 + 供应商」
       // 把绑定关系写到邮箱管理（与订阅表单的同步同一套端点）
       if (customer.email && syncResult.subscriptionId !== null) {
@@ -432,7 +457,9 @@ export function CustomersActionDialog({
           ? `${base}，订阅关联已解除`
           : syncResult.action === 'skipped'
             ? base
-            : `${base}，订阅已同步到订阅管理`
+            : usageSynced
+              ? `${base}，订阅已同步到订阅管理，已拉取最新用量`
+              : `${base}，订阅已同步到订阅管理`
       )
       onOpenChange(false)
     } catch (error) {
@@ -457,8 +484,8 @@ export function CustomersActionDialog({
           <DialogTitle>{isEdit ? '编辑客户' : '新增客户'}</DialogTitle>
           <DialogDescription>
             {isEdit
-              ? '修改客户信息后点击保存，第三部分的订阅配置将实时同步到订阅管理，填写的邮箱将同步到邮箱管理。'
-              : '填写客户信息后点击保存，第三部分的订阅配置将实时同步到订阅管理，填写的邮箱将同步到邮箱管理。'}
+              ? '修改客户信息后点击保存，第三部分的订阅配置将实时同步到订阅管理并立即拉取一次用量，填写的邮箱将同步到邮箱管理。'
+              : '填写客户信息后点击保存，第三部分的订阅配置将实时同步到订阅管理并立即拉取一次用量，填写的邮箱将同步到邮箱管理。'}
           </DialogDescription>
         </DialogHeader>
         <div className='h-150 w-[calc(100%+0.75rem)] overflow-y-auto py-1 pe-3'>
