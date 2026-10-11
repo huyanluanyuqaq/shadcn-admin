@@ -6,6 +6,7 @@ import {
   computeExpireAt,
   emptyCustomerForm,
   GB,
+  resolveAutoTrafficGb,
   resolveProviderName,
   subscriptionFieldsFrom,
   toCustomerForm,
@@ -161,6 +162,42 @@ describe('computeExpireAt', () => {
     expect(computeExpireAt(null, 30)).toBeNull()
     expect(computeExpireAt(new Date(), null)).toBeNull()
     expect(computeExpireAt(new Date(), undefined)).toBeNull()
+  })
+})
+
+describe('resolveAutoTrafficGb', () => {
+  it('两者均无来源时返回空串（不限）', () => {
+    expect(resolveAutoTrafficGb(null, null)).toBe('')
+    expect(resolveAutoTrafficGb(undefined, undefined)).toBe('')
+    expect(resolveAutoTrafficGb(null, undefined)).toBe('')
+  })
+
+  it('仅套餐月流量时取套餐值', () => {
+    expect(resolveAutoTrafficGb(100 * GB, null)).toBe('100')
+    expect(resolveAutoTrafficGb(100 * GB, undefined)).toBe('100')
+  })
+
+  it('仅订阅信息流量时取订阅值（默认来源）', () => {
+    expect(resolveAutoTrafficGb(null, 50 * GB)).toBe('50')
+    expect(resolveAutoTrafficGb(undefined, 50 * GB)).toBe('50')
+  })
+
+  it('两者都有时套餐月流量优先（订阅链接被使用，套餐高优先级）', () => {
+    expect(resolveAutoTrafficGb(100 * GB, 50 * GB)).toBe('100')
+  })
+
+  it('0 与空值等同视为无来源', () => {
+    expect(resolveAutoTrafficGb(0, 0)).toBe('')
+    // 套餐为 0 时回落订阅信息流量
+    expect(resolveAutoTrafficGb(0, 30 * GB)).toBe('30')
+    // 订阅信息为 0 时仍取套餐流量
+    expect(resolveAutoTrafficGb(30 * GB, 0)).toBe('30')
+  })
+
+  it('GB 换算保留两位小数（与 toCustomerForm 同口径）', () => {
+    expect(resolveAutoTrafficGb(Math.round(1.5 * GB), null)).toBe('1.5')
+    expect(resolveAutoTrafficGb(Math.round(2.25 * GB), null)).toBe('2.25')
+    expect(resolveAutoTrafficGb(null, Math.round(0.5 * GB))).toBe('0.5')
   })
 })
 
