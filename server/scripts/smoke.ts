@@ -759,27 +759,57 @@ async function main() {
     { rows: thCRows.length, latest: thCRows[0]?.message }
   )
 
-  // 仪表盘 stats：trafficThresholds 含三个阈值客户（A=50% 已通知 / B=80% / C=50%）
+  // 客户 D（TASK-023）：套餐月流量优先于存量月流量——套餐 1G 的 90%
+  // （存量 trafficTotal 100G 仅 0.9%，不触发）；手动上限缺位时套餐生效
+  const thD = await req('/api/customers', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-threshold-d-${suffix}`,
+      planId: plan.json?.id,
+      trafficTotal: 100 * 1024 ** 3,
+      trafficUsed: Math.round(0.9 * 1024 ** 3),
+    },
+  })
+  check(
+    '创建阈值客户 D（套餐 1G，存量 100G，用量 0.9G）',
+    thD.status === 201,
+    thD.json
+  )
+  await req('/api/reminders/scan', { method: 'POST', token })
+  const thDRows = await thresholdRemindersOf(thD.json?.id)
+  check(
+    '客户 D 按套餐月流量计算（90%）：触发 80% 阈值',
+    thDRows.length === 1 &&
+      thDRows[0]?.message?.includes('80% 阈值') &&
+      thDRows[0]?.message?.includes('1.00 GB'),
+    { rows: thDRows.length, latest: thDRows[0]?.message }
+  )
+
+  // 仪表盘 stats：trafficThresholds 含阈值客户（A=50% 已通知 / B=80% / C=50% / D=80% 按套餐）
   const statsAfter = await req('/api/dashboard/stats', { token })
   const thItems: any[] = statsAfter.json?.trafficThresholds ?? []
   const thById = new Map(thItems.map((i) => [i.id, i]))
   check(
-    '仪表盘 stats 返回 trafficThresholds（A=50% 已通知 / B=80% / C=50%）',
+    '仪表盘 stats 返回 trafficThresholds（A=50% 已通知 / B=80% / C=50% / D=80% 按套餐）',
     statsAfter.status === 200 &&
       thById.get(thA.json?.id)?.threshold === 50 &&
       thById.get(thA.json?.id)?.notified === true &&
       thById.get(thB.json?.id)?.threshold === 80 &&
-      thById.get(thC.json?.id)?.threshold === 50,
+      thById.get(thC.json?.id)?.threshold === 50 &&
+      thById.get(thD.json?.id)?.threshold === 80 &&
+      thById.get(thD.json?.id)?.total === 1073741824,
     {
       count: thItems.length,
       a: thById.get(thA.json?.id),
       b: thById.get(thB.json?.id),
       c: thById.get(thC.json?.id),
+      d: thById.get(thD.json?.id),
     }
   )
 
   // 清理阈值客户（级联删除其站内通知），避免多次运行相互干扰
-  for (const cust of [thA, thB, thC]) {
+  for (const cust of [thA, thB, thC, thD]) {
     await req(`/api/customers/${cust.json?.id}`, { method: 'DELETE', token })
   }
 
