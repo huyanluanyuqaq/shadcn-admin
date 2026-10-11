@@ -6,6 +6,7 @@
  *   pnpm --filter server smoke      # 本脚本
  *
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
+ * 订阅同步回写客户用量（TASK-017：mock 上游单条/批量回写 + 失败不回写）、
  * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
  * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）、
  * 流量阈值（TASK-013：50/80/100 穿越式通知 / 最高阈值去重 / 回落重置 / 手动上限优先）、
@@ -298,6 +299,45 @@ function startMockFeishu(): Promise<Server | null> {
     })
     server.on('error', () => resolve(null))
     server.listen(MOCK_FS_PORT, '127.0.0.1', () => resolve(server))
+  })
+}
+
+// ---------- mock 订阅上游（TASK-017 回写验证，随机端口） ----------
+
+/** mock 上报用量（字节）：upload=1000 / download=2000 → used=3000 */
+const MOCK_UP_UPLOAD = 1000
+const MOCK_UP_DOWNLOAD = 2000
+const MOCK_UP_TOTAL = 10 * 1024 ** 3
+/** 到期（epoch 秒，上游单位） */
+const MOCK_UP_EXPIRE = 1893456000
+
+/**
+ * 内嵌 mock 订阅上游（127.0.0.1 随机端口，listen(0) 避免与
+ * Telegram 3998 / 飞书 4000 冲突）：
+ * - /ok：HEAD/GET 均返回 subscription-userinfo 头（同步引擎 HEAD 优先即命中）
+ * - /fail：404——同步失败路径（验证失败不回写客户用量）
+ */
+function startMockUpstream(): Promise<{ server: Server; port: number } | null> {
+  return new Promise((resolve) => {
+    const server = createServer((req, res) => {
+      const url = new URL(req.url ?? '/', 'http://127.0.0.1')
+      if (url.pathname === '/ok') {
+        res.writeHead(200, {
+          'Content-Type': 'application/octet-stream',
+          'subscription-userinfo': `upload=${MOCK_UP_UPLOAD}; download=${MOCK_UP_DOWNLOAD}; total=${MOCK_UP_TOTAL}; expire=${MOCK_UP_EXPIRE}`,
+        })
+        res.end('mock-subscription-content')
+        return
+      }
+      res.writeHead(404, { 'Content-Type': 'text/plain' })
+      res.end('mock: not found')
+    })
+    server.on('error', () => resolve(null))
+    server.listen(0, '127.0.0.1', () => {
+      const addr = server.address()
+      const port = typeof addr === 'object' && addr !== null ? addr.port : 0
+      resolve({ server, port })
+    })
   })
 }
 
@@ -801,6 +841,153 @@ async function main() {
     reload.status === 200 && typeof reload.json?.jobs === 'number',
     reload.json
   )
+
+  // 12.6 订阅同步回写客户用量（TASK-017）：内嵌 mock 上游，验证
+  // ① 单条同步成功后 customers.traffic_used = upload + download（同事务回写）
+  // ② 批量同步同样回写 ③ 同步失败不回写
+  const upstream = await startMockUpstream()
+  if (!upstream) {
+    check('启动 mock 订阅上游', false, 'listen 失败')
+  } else {
+    const upstreamBase = `http://127.0.0.1:${upstream.port}`
+    const expectedUsed = MOCK_UP_UPLOAD + MOCK_UP_DOWNLOAD
+
+    // —— 单条同步：订阅与关联客户都拿到 3000 ——
+    const wbCustomer = await req('/api/customers', {
+      method: 'POST',
+      token,
+      body: { name: `smoke-writeback-${suffix}` },
+    })
+    check('创建回写验证客户', wbCustomer.status === 201, wbCustomer.json)
+
+    const wbSub = await req('/api/subscriptions', {
+      method: 'POST',
+      token,
+      body: {
+        name: `smoke-writeback-sub-${suffix}`,
+        url: `${upstreamBase}/ok`,
+        customerId: wbCustomer.json?.id,
+        enabled: true,
+      },
+    })
+    check(
+      '创建指向 mock 上游的订阅',
+      wbSub.status === 201 && wbSub.json?.id,
+      wbSub.json
+    )
+
+    const wbSync = await req(`/api/subscriptions/${wbSub.json?.id}/sync`, {
+      method: 'POST',
+      token,
+    })
+    check(
+      '单条同步成功（mock 上游用量头）',
+      wbSync.status === 200 &&
+        wbSync.json?.ok === true &&
+        wbSync.json?.upload === MOCK_UP_UPLOAD &&
+        wbSync.json?.download === MOCK_UP_DOWNLOAD,
+      wbSync.json
+    )
+
+    const wbSubRead = await req(`/api/subscriptions/${wbSub.json?.id}`, {
+      token,
+    })
+    const wbCustomerRead = await req(`/api/customers/${wbCustomer.json?.id}`, {
+      token,
+    })
+    check(
+      'AC-1：同步后订阅与客户用量均为 3000（同事务回写）',
+      wbSubRead.json?.trafficUsed === expectedUsed &&
+        wbCustomerRead.json?.trafficUsed === expectedUsed,
+      {
+        subscription: wbSubRead.json?.trafficUsed,
+        customer: wbCustomerRead.json?.trafficUsed,
+      }
+    )
+
+    // —— 批量同步：同样回写 ——
+    const wbCustomer2 = await req('/api/customers', {
+      method: 'POST',
+      token,
+      body: { name: `smoke-writeback2-${suffix}` },
+    })
+    const wbSub2 = await req('/api/subscriptions', {
+      method: 'POST',
+      token,
+      body: {
+        name: `smoke-writeback-sub2-${suffix}`,
+        url: `${upstreamBase}/ok`,
+        customerId: wbCustomer2.json?.id,
+        enabled: true,
+      },
+    })
+    check(
+      '创建第二条回写验证订阅',
+      wbSub2.status === 201 && wbSub2.json?.id,
+      wbSub2.json
+    )
+
+    const wbBatch = await req('/api/subscriptions/sync', {
+      method: 'POST',
+      token,
+      body: { ids: [wbSub.json?.id, wbSub2.json?.id] },
+    })
+    check(
+      '批量同步两条全部成功',
+      wbBatch.status === 200 &&
+        wbBatch.json?.total === 2 &&
+        wbBatch.json?.succeeded === 2,
+      wbBatch.json
+    )
+
+    const wbCustomer2Read = await req(
+      `/api/customers/${wbCustomer2.json?.id}`,
+      { token }
+    )
+    check(
+      'AC-2：批量同步同样回写客户用量',
+      wbCustomer2Read.json?.trafficUsed === expectedUsed,
+      wbCustomer2Read.json?.trafficUsed
+    )
+
+    // —— 同步失败不回写（mock 返回 404）——
+    const wbFailCustomer = await req('/api/customers', {
+      method: 'POST',
+      token,
+      body: { name: `smoke-writeback-fail-${suffix}` },
+    })
+    const wbFailSub = await req('/api/subscriptions', {
+      method: 'POST',
+      token,
+      body: {
+        name: `smoke-writeback-fail-sub-${suffix}`,
+        url: `${upstreamBase}/fail`,
+        customerId: wbFailCustomer.json?.id,
+        enabled: false,
+      },
+    })
+    const wbFailSync = await req(
+      `/api/subscriptions/${wbFailSub.json?.id}/sync`,
+      { method: 'POST', token }
+    )
+    const wbFailCustomerRead = await req(
+      `/api/customers/${wbFailCustomer.json?.id}`,
+      { token }
+    )
+    check(
+      '同步失败（mock 404）不回写客户用量',
+      wbFailSync.status === 200 &&
+        wbFailSync.json?.ok === false &&
+        wbFailCustomerRead.json?.trafficUsed === 0,
+      {
+        ok: wbFailSync.json?.ok,
+        error: wbFailSync.json?.error,
+        customerUsed: wbFailCustomerRead.json?.trafficUsed,
+      }
+    )
+
+    upstream.server.close()
+  }
 
   // 12.7 归档客户：删除客户记录但保留订阅（与「删除」的级联语义区分）
   const archiveCustomer = await req('/api/customers', {
