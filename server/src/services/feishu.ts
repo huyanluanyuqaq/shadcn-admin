@@ -367,6 +367,9 @@ export async function dispatchFeishu(payload: NotificationPayload): Promise<void
  * 1. 换取 tenant_access_token + 拉取机器人信息（校验 App ID / Secret）；
  * 2. 向接收对象发送测试卡片。
  * 成功时刷新 botName 缓存与 lastTestAt，失败时记录 lastError。
+ *
+ * 注意：测试前**强制清除 token 缓存**——测试语义是验证当前表单值
+ * （可能尚未保存），若命中缓存，错误凭证也会「假成功」。
  */
 export async function testFeishuConnection(input: FeishuTestInput): Promise<FeishuTestResult> {
   const config = {
@@ -375,6 +378,7 @@ export async function testFeishuConnection(input: FeishuTestInput): Promise<Feis
     proxyUrl: input.proxyUrl ?? null,
   }
 
+  tokenCache = null
   const bot = await fetchBotInfo(config)
   if (!bot.ok) {
     writeSetting(K.lastError, bot.error ?? '凭证校验失败')
