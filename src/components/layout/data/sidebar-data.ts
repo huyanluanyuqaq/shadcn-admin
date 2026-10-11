@@ -15,6 +15,7 @@ import {
   Bell,
   Webhook,
   Send,
+  MessageSquare,
 } from 'lucide-react'
 import { type SidebarData } from '../types'
 
@@ -89,6 +90,11 @@ export const sidebarData: SidebarData = {
           title: 'Telegram 机器人',
           url: '/telegram',
           icon: Send,
+        },
+        {
+          title: '飞书机器人',
+          url: '/feishu',
+          icon: MessageSquare,
         },
         {
           title: '日志',

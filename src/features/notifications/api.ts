@@ -5,6 +5,10 @@ import {
   useQueryClient,
 } from '@tanstack/react-query'
 import type {
+  FeishuConfig,
+  FeishuStatus,
+  FeishuTestInput,
+  FeishuTestResult,
   ListResult,
   Reminder,
   TelegramConfig,
@@ -131,6 +135,44 @@ export function useTelegramBindStatusQuery(enabled: boolean) {
     queryKey: [...telegramKeys.all, 'bind-status'],
     queryFn: () => api.get<{ polling: boolean }>('/telegram/bind-status'),
     refetchInterval: enabled ? 3_000 : false,
+  })
+}
+
+// ---------- 飞书渠道 ----------
+
+export const feishuKeys = {
+  all: ['feishu'] as const,
+}
+
+/** 飞书配置 + 运行状态（单配置，无分页） */
+export function useFeishuConfigQuery() {
+  return useQuery<FeishuStatus & { eventOptions: unknown }>({
+    queryKey: feishuKeys.all,
+    queryFn: () => api.get<FeishuStatus & { eventOptions: unknown }>('/feishu'),
+    placeholderData: keepPreviousData,
+  })
+}
+
+export function useSaveFeishuConfig() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: FeishuConfig) =>
+      api.put<FeishuStatus>('/feishu', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: feishuKeys.all })
+    },
+  })
+}
+
+/** 测试连接（表单当前值，可能尚未保存；失败时服务端返回 502） */
+export function useTestFeishu() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: FeishuTestInput) =>
+      api.post<FeishuTestResult>('/feishu/test', input),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: feishuKeys.all })
+    },
   })
 }
 

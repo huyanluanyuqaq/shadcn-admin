@@ -24,6 +24,7 @@ import { Route as AuthenticatedPlansIndexRouteImport } from './routes/_authentic
 import { Route as AuthenticatedNotificationsIndexRouteImport } from './routes/_authenticated/notifications/index'
 import { Route as AuthenticatedLogsIndexRouteImport } from './routes/_authenticated/logs/index'
 import { Route as AuthenticatedHelpCenterIndexRouteImport } from './routes/_authenticated/help-center/index'
+import { Route as AuthenticatedFeishuIndexRouteImport } from './routes/_authenticated/feishu/index'
 import { Route as AuthenticatedEmailsIndexRouteImport } from './routes/_authenticated/emails/index'
 import { Route as AuthenticatedCustomersIndexRouteImport } from './routes/_authenticated/customers/index'
 import { Route as AuthenticatedErrorsErrorRouteImport } from './routes/_authenticated/errors/$error'
@@ -107,6 +108,12 @@ const AuthenticatedHelpCenterIndexRoute =
     path: '/help-center/',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedFeishuIndexRoute =
+  AuthenticatedFeishuIndexRouteImport.update({
+    id: '/feishu/',
+    path: '/feishu/',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedEmailsIndexRoute =
   AuthenticatedEmailsIndexRouteImport.update({
     id: '/emails/',
@@ -137,6 +144,7 @@ export interface FileRoutesByFullPath {
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/customers/': typeof AuthenticatedCustomersIndexRoute
   '/emails/': typeof AuthenticatedEmailsIndexRoute
+  '/feishu/': typeof AuthenticatedFeishuIndexRoute
   '/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/logs/': typeof AuthenticatedLogsIndexRoute
   '/notifications/': typeof AuthenticatedNotificationsIndexRoute
@@ -156,6 +164,7 @@ export interface FileRoutesByTo {
   '/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/customers': typeof AuthenticatedCustomersIndexRoute
   '/emails': typeof AuthenticatedEmailsIndexRoute
+  '/feishu': typeof AuthenticatedFeishuIndexRoute
   '/help-center': typeof AuthenticatedHelpCenterIndexRoute
   '/logs': typeof AuthenticatedLogsIndexRoute
   '/notifications': typeof AuthenticatedNotificationsIndexRoute
@@ -177,6 +186,7 @@ export interface FileRoutesById {
   '/_authenticated/errors/$error': typeof AuthenticatedErrorsErrorRoute
   '/_authenticated/customers/': typeof AuthenticatedCustomersIndexRoute
   '/_authenticated/emails/': typeof AuthenticatedEmailsIndexRoute
+  '/_authenticated/feishu/': typeof AuthenticatedFeishuIndexRoute
   '/_authenticated/help-center/': typeof AuthenticatedHelpCenterIndexRoute
   '/_authenticated/logs/': typeof AuthenticatedLogsIndexRoute
   '/_authenticated/notifications/': typeof AuthenticatedNotificationsIndexRoute
@@ -198,6 +208,7 @@ export interface FileRouteTypes {
     | '/errors/$error'
     | '/customers/'
     | '/emails/'
+    | '/feishu/'
     | '/help-center/'
     | '/logs/'
     | '/notifications/'
@@ -217,6 +228,7 @@ export interface FileRouteTypes {
     | '/errors/$error'
     | '/customers'
     | '/emails'
+    | '/feishu'
     | '/help-center'
     | '/logs'
     | '/notifications'
@@ -237,6 +249,7 @@ export interface FileRouteTypes {
     | '/_authenticated/errors/$error'
     | '/_authenticated/customers/'
     | '/_authenticated/emails/'
+    | '/_authenticated/feishu/'
     | '/_authenticated/help-center/'
     | '/_authenticated/logs/'
     | '/_authenticated/notifications/'
@@ -363,6 +376,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedHelpCenterIndexRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/feishu/': {
+      id: '/_authenticated/feishu/'
+      path: '/feishu'
+      fullPath: '/feishu/'
+      preLoaderRoute: typeof AuthenticatedFeishuIndexRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/emails/': {
       id: '/_authenticated/emails/'
       path: '/emails'
@@ -392,6 +412,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedErrorsErrorRoute: typeof AuthenticatedErrorsErrorRoute
   AuthenticatedCustomersIndexRoute: typeof AuthenticatedCustomersIndexRoute
   AuthenticatedEmailsIndexRoute: typeof AuthenticatedEmailsIndexRoute
+  AuthenticatedFeishuIndexRoute: typeof AuthenticatedFeishuIndexRoute
   AuthenticatedHelpCenterIndexRoute: typeof AuthenticatedHelpCenterIndexRoute
   AuthenticatedLogsIndexRoute: typeof AuthenticatedLogsIndexRoute
   AuthenticatedNotificationsIndexRoute: typeof AuthenticatedNotificationsIndexRoute
@@ -406,6 +427,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedErrorsErrorRoute: AuthenticatedErrorsErrorRoute,
   AuthenticatedCustomersIndexRoute: AuthenticatedCustomersIndexRoute,
   AuthenticatedEmailsIndexRoute: AuthenticatedEmailsIndexRoute,
+  AuthenticatedFeishuIndexRoute: AuthenticatedFeishuIndexRoute,
   AuthenticatedHelpCenterIndexRoute: AuthenticatedHelpCenterIndexRoute,
   AuthenticatedLogsIndexRoute: AuthenticatedLogsIndexRoute,
   AuthenticatedNotificationsIndexRoute: AuthenticatedNotificationsIndexRoute,
