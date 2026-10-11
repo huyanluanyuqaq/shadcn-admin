@@ -1,5 +1,5 @@
-# Logs
-logs
+# Logs（仅限根目录；勿用裸 `logs`，会误伤 src/features/logs/ 与 src/routes/_authenticated/logs/）
+/logs
 *.log
 npm-debug.log*
 yarn-debug.log*
