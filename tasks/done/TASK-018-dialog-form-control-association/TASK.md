@@ -155,17 +155,18 @@ TASK-017 归档时记录的遗留问题：客户表单对话框（`customers-act
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 1 | workbuddy | human | 2026-10-11 | 实现+验证+归档完成，待人类批准合并推送 main |
+| 2 | human | workbuddy | 2026-10-11 | 批准合并（「提交」）→ 已 ff 合并 main 并推送 origin，分支已删 |
 
 ---
 
 ## 合并前检查单
 
-- [x] `pnpm test` 全绿（192/192）
+- [x] `pnpm test` 全绿（192/192，合并前复跑确认）
 - [x] `pnpm lint` / `pnpm format:check` 通过
 - [x] `tsc -b` / `vite build` 通过
 - [x] 隔离冒烟 133/133（3002 实例，未污染 3000 真实数据）
 - [x] 任务文档归档至 `tasks/done/`
-- [ ] **人类批准后**：ff 合并 main + 推送 origin + 删分支
+- [x] **人类批准后**：ff 合并 main + 推送 origin + 删分支（2026-10-11 完成）
 
 ---
 
