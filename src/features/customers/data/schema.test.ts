@@ -574,7 +574,7 @@ describe('formatTrafficTotalGb（TASK-022）', () => {
     expect(formatTrafficTotalGb(undefined)).toBe('')
   })
 
-  it('0 → "0"（与 resolveAutoTrafficGb 的 0 口径一致，不当成无来源）', () => {
+  it('0 → "0"（订阅侧 0 字节是真实值，不当成无来源）', () => {
     expect(formatTrafficTotalGb(0)).toBe('0')
   })
 
