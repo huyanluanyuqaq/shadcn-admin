@@ -31,5 +31,9 @@ services:
       SYNC_CONCURRENCY: ${SYNC_CONCURRENCY:-5}
       # 设为 false 可关闭内置定时调度（例如改由外部触发）
       ENABLE_SCHEDULER: ${ENABLE_SCHEDULER:-true}
+      # 每日数据库备份 cron（5 段，默认每天 03:00，TASK-015）
+      BACKUP_CRON: ${BACKUP_CRON:-0 3 * * *}
+      # 备份保留份数（默认 7，超出删最旧，TASK-015）
+      BACKUP_KEEP: ${BACKUP_KEEP:-7}
       TZ: ${TZ:-Asia/Shanghai}
     restart: unless-stopped

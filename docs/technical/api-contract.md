@@ -275,6 +275,27 @@ HEAD 优先回退 GET · 10s 超时 · 并发上限 5 · jitter 0–10 分钟 ·
 
 ---
 
+## 系统备份（TASK-015）
+
+全部端点位于 authMiddleware 之后（需登录）；备份文件即完整数据库快照，
+下载与删除都必须鉴权。文件名一律经服务端白名单校验（防路径穿越）。
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/backups` | → `{ items: BackupFile[], policy: { keep: number, cron: string } }`，items 按创建时间新→旧 |
+| POST | `/api/backups` | 立即执行一次备份（VACUUM INTO），201 → `BackupFile`；失败 500 |
+| GET | `/api/backups/:filename/download` | 下载附件（`application/vnd.sqlite3` + `Content-Disposition: attachment`）；文件名不合法或不存在 404 |
+| DELETE | `/api/backups/:filename` | 删除备份；不存在 404 |
+
+`BackupFile`：`{ filename: string, size: number, createdAt: number }`（shared `backupFileSchema`）。
+`filename` 恒为 `app-YYYYMMDD-HHmmss-sss.db`（白名单正则 `^app-\d{8}-\d{6}-\d{3}\.db$`）。
+`policy.cron` 为 env `BACKUP_CRON`（默认 `0 3 * * *`），`policy.keep` 为 env `BACKUP_KEEP`（默认 7）。
+
+备份位置默认 `<数据库所在目录>/backups/`（env `BACKUP_DIR` 可覆盖）；
+每日自动备份与保留策略见架构 §12.8，恢复步骤见 `docs/operations/backup-restore.md`。
+
+---
+
 ## 健康检查
 
 `GET /api/health` → `{ status: 'ok', database: string, time: string }`（无需鉴权）
