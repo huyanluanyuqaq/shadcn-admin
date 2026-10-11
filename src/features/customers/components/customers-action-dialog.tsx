@@ -503,11 +503,13 @@ export function CustomersActionDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>名称</FormLabel>
-                      <Input
-                        placeholder='请输入客户名称'
-                        autoComplete='off'
-                        {...field}
-                      />
+                      <FormControl>
+                        <Input
+                          placeholder='请输入客户名称'
+                          autoComplete='off'
+                          {...field}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -518,11 +520,13 @@ export function CustomersActionDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>邮箱</FormLabel>
-                      <Input
-                        placeholder='可留空'
-                        autoComplete='off'
-                        {...field}
-                      />
+                      <FormControl>
+                        <Input
+                          placeholder='可留空'
+                          autoComplete='off'
+                          {...field}
+                        />
+                      </FormControl>
                       <p className='text-xs text-muted-foreground'>
                         保存后按「邮箱 + 供应商」同步到邮箱管理
                       </p>
@@ -588,14 +592,16 @@ export function CustomersActionDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>备注</FormLabel>
-                      <Textarea
-                        placeholder='可选'
-                        value={field.value ?? ''}
-                        onChange={field.onChange}
-                        onBlur={field.onBlur}
-                        name={field.name}
-                        ref={field.ref}
-                      />
+                      <FormControl>
+                        <Textarea
+                          placeholder='可选'
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          onBlur={field.onBlur}
+                          name={field.name}
+                          ref={field.ref}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -655,11 +661,13 @@ export function CustomersActionDialog({
                       <FormLabel>到期时间</FormLabel>
                       {autoExpireAt ? (
                         <>
-                          <Input
-                            readOnly
-                            value={format(autoExpireAt, 'yyyy-MM-dd')}
-                            className='bg-muted'
-                          />
+                          <FormControl>
+                            <Input
+                              readOnly
+                              value={format(autoExpireAt, 'yyyy-MM-dd')}
+                              className='bg-muted'
+                            />
+                          </FormControl>
                           <p className='text-xs text-muted-foreground'>
                             购买时间 + {selectedTier?.label}（
                             {selectedTier?.days} 天）自动计算
@@ -707,11 +715,13 @@ export function CustomersActionDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>月流量（GB）</FormLabel>
-                      <Input
-                        placeholder='留空表示不限'
-                        inputMode='decimal'
-                        {...field}
-                      />
+                      <FormControl>
+                        <Input
+                          placeholder='留空表示不限'
+                          inputMode='decimal'
+                          {...field}
+                        />
+                      </FormControl>
                       <p className='text-xs text-muted-foreground'>
                         未填写时自动填充：套餐月流量（订阅链接使用时优先）→
                         订阅信息流量
@@ -726,11 +736,13 @@ export function CustomersActionDialog({
                   render={({ field }) => (
                     <FormItem>
                       <FormLabel>手动流量上限（GB）</FormLabel>
-                      <Input
-                        placeholder='留空表示不设置；设置后优先级最高'
-                        inputMode='decimal'
-                        {...field}
-                      />
+                      <FormControl>
+                        <Input
+                          placeholder='留空表示不设置；设置后优先级最高'
+                          inputMode='decimal'
+                          {...field}
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
@@ -803,15 +815,17 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>订阅名称</FormLabel>
-                        <Input
-                          placeholder={
-                            providerName
-                              ? `可留空，默认取「${providerName}」`
-                              : '可留空，默认取客户名称'
-                          }
-                          autoComplete='off'
-                          {...field}
-                        />
+                        <FormControl>
+                          <Input
+                            placeholder={
+                              providerName
+                                ? `可留空，默认取「${providerName}」`
+                                : '可留空，默认取客户名称'
+                            }
+                            autoComplete='off'
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -822,12 +836,14 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>同步周期</FormLabel>
-                        <Input
-                          placeholder={DEFAULT_CRON}
-                          className='font-mono'
-                          autoComplete='off'
-                          {...field}
-                        />
+                        <FormControl>
+                          <Input
+                            placeholder={DEFAULT_CRON}
+                            className='font-mono'
+                            autoComplete='off'
+                            {...field}
+                          />
+                        </FormControl>
                         <p className='text-xs text-muted-foreground'>
                           {CRON_HINT}
                         </p>
@@ -841,11 +857,13 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>订阅流量上限（GB）</FormLabel>
-                        <Input
-                          placeholder='留空表示不限'
-                          inputMode='decimal'
-                          {...field}
-                        />
+                        <FormControl>
+                          <Input
+                            placeholder='留空表示不限'
+                            inputMode='decimal'
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -856,12 +874,14 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>User-Agent</FormLabel>
-                        <Input
-                          placeholder='可留空'
-                          className='font-mono'
-                          autoComplete='off'
-                          {...field}
-                        />
+                        <FormControl>
+                          <Input
+                            placeholder='可留空'
+                            className='font-mono'
+                            autoComplete='off'
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -872,11 +892,13 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>代理地址</FormLabel>
-                        <Input
-                          placeholder='例如 http://127.0.0.1:7890，可留空'
-                          autoComplete='off'
-                          {...field}
-                        />
+                        <FormControl>
+                          <Input
+                            placeholder='例如 http://127.0.0.1:7890，可留空'
+                            autoComplete='off'
+                            {...field}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
@@ -887,15 +909,17 @@ export function CustomersActionDialog({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>自定义请求头</FormLabel>
-                        <Textarea
-                          placeholder='JSON 字符串，例如 {"Authorization":"Bearer xxx"}'
-                          className='font-mono text-xs'
-                          value={field.value ?? ''}
-                          onChange={field.onChange}
-                          onBlur={field.onBlur}
-                          name={field.name}
-                          ref={field.ref}
-                        />
+                        <FormControl>
+                          <Textarea
+                            placeholder='JSON 字符串，例如 {"Authorization":"Bearer xxx"}'
+                            className='font-mono text-xs'
+                            value={field.value ?? ''}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            name={field.name}
+                            ref={field.ref}
+                          />
+                        </FormControl>
                         <FormMessage />
                       </FormItem>
                     )}
