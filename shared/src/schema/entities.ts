@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { customerStatusSchema, emailBindingStatusSchema, planStatusSchema, syncStatusSchema } from './enums.js'
+import { trafficThresholdSchema } from './traffic.js'
 
 /**
  * 领域实体的 zod schema 与类型。
@@ -319,6 +320,27 @@ export const dashboardStatsSchema = z.object({
       name: z.string(),
       expireAt: z.number().int().nullable(),
       daysLeft: z.number().int().nullable(),
+    }),
+  ),
+  /**
+   * 达到流量阈值的客户（TASK-013，占比 >= 50%），按占比降序，最多 10 条。
+   * `notified` 表示当前所在阈值是否已发出过通知（穿越式触发，见
+   * `customers.traffic_threshold_notified`）。
+   */
+  trafficThresholds: z.array(
+    z.object({
+      id: idSchema,
+      name: z.string(),
+      /** 已用流量（字节） */
+      used: z.number().int(),
+      /** 生效流量上限（字节，手动上限优先） */
+      total: z.number().int(),
+      /** 使用率（0–100 取整） */
+      percent: z.number(),
+      /** 当前所在最高阈值 */
+      threshold: trafficThresholdSchema,
+      /** 该阈值是否已通知 */
+      notified: z.boolean(),
     }),
   ),
 })

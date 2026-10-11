@@ -34,6 +34,7 @@ export const notificationEventKeySchema = z.enum([
   'subscription.sync_failed',
   'customer.expire_soon',
   'customer.traffic_exhausted',
+  'customer.traffic_threshold',
   'security.user_login',
 ])
 export type NotificationEventKey = z.infer<typeof notificationEventKeySchema>
@@ -59,7 +60,7 @@ export type NotificationEventDefinition = z.infer<typeof notificationEventDefini
  *
  * 事件与本项目业务域对应：
  * - 订阅同步类：同步引擎（ADR-003）成功 / 失败
- * - 客户提醒类：到期扫描（reminders/scan）即将到期 / 流量用尽
+ * - 客户提醒类：到期扫描（reminders/scan）即将到期 / 流量用尽 / 流量阈值（50/80/100）
  * - 安全审计类：管理员登录
  */
 export const notificationEventCatalog: NotificationEventDefinition[] = [
@@ -100,6 +101,17 @@ export const notificationEventCatalog: NotificationEventDefinition[] = [
     category: 'customer',
     categoryName: '客户提醒',
     severity: 'error',
+    channels: ['webhook', 'in_app', 'telegram', 'feishu'],
+    defaultEnabled: true,
+  },
+  {
+    key: 'customer.traffic_threshold',
+    name: '客户流量阈值提醒',
+    description:
+      '客户流量用量达到 50% / 80% / 100% 阈值时触发（TASK-013）；穿越式触发，每次通知取当前所在的最高阈值。',
+    category: 'customer',
+    categoryName: '客户提醒',
+    severity: 'warning',
     channels: ['webhook', 'in_app', 'telegram', 'feishu'],
     defaultEnabled: true,
   },
