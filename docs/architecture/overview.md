@@ -369,6 +369,29 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 - 持续写 QPS 达数千量级，或长事务与高频写长期共存 → 考虑迁移
 - 单容器 + 批量事务 → SQLite 余量充足（500 订阅 / 6 小时同步 ≈ 0.02 写 QPS，余量三个数量级）
 
+### 10.7 客户保存触发同步与用量回写（TASK-017）
+
+客户列表行「流量使用」列读 `customers.traffic_used`，而同步引擎维护的是
+`subscriptions.traffic_used`——**两份数据**。TASK-017 补齐两条链路：
+
+1. **保存即拉取**：客户表单保存后，`syncSubscription` 落到具体订阅
+   （创建或更新）时，前端以该订阅 id 调用 `POST /subscriptions/:id/sync`
+   触发一次同步（放在邮箱绑定同步之前）。同步失败仅 toast 软提示、不阻断
+   保存——客户与订阅本身已落库。
+2. **同事务回写**：`syncOne` / `syncMany` 的阶段二事务内，订阅同步成功且
+   有关联客户（`subscriptions.customer_id`）时，把
+   `used = (upload ?? 0) + (download ?? 0)` 写入 `customers.traffic_used`；
+   **同步失败不回写**。
+
+| 口径 | 说明 |
+|------|------|
+| 只镜像用量 | `customers.traffic_total` 是月流量上限（套餐/表单管理，TASK-016 三级优先级语义）、`expire_at` 同为表单管理字段，均**不覆盖** |
+| 成功即写 | 不回写受 C8 增量对比约束——即使订阅侧无变化，客户侧也可能是旧值（如新建时写 0），每次成功同步都镜像 |
+| 写入口仅两处 | 同步引擎（本条）+ 表单保存（`toCustomerInput` 透传原值）；无其他写点 |
+
+> 触发同步与回写共同满足「保存客户后行内即有真实用量」；仅修前者，客户行
+> 仍显示 0（无数据来源）；仅修后者，要等定时任务（cron）才更新。
+
 ---
 
 ## 11. 风险
