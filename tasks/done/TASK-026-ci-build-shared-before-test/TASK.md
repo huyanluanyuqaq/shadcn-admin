@@ -10,7 +10,7 @@
 Task ID: TASK-026
 Title: 修复 CI：pnpm test 前构建 @repo/shared
 Workflow: bugfix
-Status: REVIEW
+Status: DONE
 Priority: P0
 Owner: workbuddy
 Owner Since: 2026-10-13
@@ -81,3 +81,11 @@ CI `install-lint-build` job 恢复绿色：`pnpm test` 步骤不再因 `@repo/sh
 ## Known Issues
 
 - 无。
+
+## Merge Record
+
+- 修复提交 `cef4a8c`（fix(ci)），任务档案 `29761ca`（docs(task)），
+  均经 fast-forward 合入 main 并推送。
+- CI 验证：run 38322541274 **success**（2m53s；修复前 38277694007 failure 6m11s）。
+- Docker 构建（38322541379）不受影响（TASK-025 时已 successful）。
+- 教训已归档至 `docs/operations/known-pitfalls.md` §12。

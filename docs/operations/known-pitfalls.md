@@ -1,6 +1,6 @@
 # 已知坑点与规避方式
 
-> 维护者：Architect · 更新：2026-10-09
+> 维护者：Architect · 更新：2026-10-13
 > 本文记录本项目**实际踩过**的坑，以及已经落到代码/配置里的规避方式。
 > 新增坑点请追加条目，不要删除历史条目（删除会让后来者重复踩坑）。
 
@@ -212,3 +212,37 @@ Error: ERR_PNPM_IGNORED_BUILDS
 
 **排查提示：** 本地复现不了时，用 `npx pnpm@<CI版本> install` 在临时目录复现，
 比在真实项目里改配置安全（不会破坏既有 `node_modules`）。
+
+---
+
+## 12. CI 的 `pnpm test` 前必须构建 shared（TASK-026，2026-10-13）
+
+**现象：** CI `install-lint-build` 在 `Run tests` 步骤 exit 1，
+`lint` / `format:check` / `Install browsers` 均通过。日志两类信号：
+
+```
+(!) Failed to run dependency scan. Skipping dependency pre-bundling.
+    @repo/shared (imported by server/src/services/notification-format.ts)
+Invalid hook call. Hooks can only be called inside of the body of a
+function component. ... You might have more than one copy of React
+```
+
+**根因链：** 根 vitest 的默认扫描范围覆盖 `server/`。TASK-025 首次引入
+`server/src/services/notification-format.test.ts`，其导入链经 node_modules
+链接解析 `@repo/shared` → `shared/dist`（package.json exports 指向编译产物），
+而 **CI 从未执行 `pnpm build:shared`**（本地有 dist 故不复现）。dist 缺失 →
+Vite 依赖扫描失败 → 跳过预打包 → 浏览器测试中 React 出现多副本 →
+**与 server 毫无关系的组件测试也批量挂掉**（confirm-dialog 9/9、
+config-drawer 15/15、search-provider 7/8 等）。
+
+**规避（已于 2026-10-13 落地）：** `ci.yml` 在 `Install dependencies` 之后、
+`Run tests` 之前新增 `pnpm build:shared` 步骤。
+
+**排查提示：**
+
+- 看到 `Invalid hook call` + `Skipping dependency pre-bundling` 同时出现，
+  先查依赖扫描失败的原始 import，不要怀疑组件代码。
+- 判别「本地有、CI 无」类差异的通用方法：把可疑产物（如 `shared/dist`）
+  临时移走后本地复跑；本坑即以此确定性复现（移走 dist → build:shared →
+  受影响测试 27/27 恢复）。
+- 新增 `server/` 下测试文件前，确认 CI 链已满足其解析前提（build:shared）。
