@@ -33,6 +33,13 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # @repo/shared 的入口指向 dist/（package.json exports）。server/ 下的测试
+      # （notification-format.test.ts 等）经 node_modules 链接解析到该包，
+      # dist 缺失时 Vite 依赖扫描失败 → 跳过预打包 → 浏览器测试爆发
+      # Invalid hook call（React 多副本）。与本地约定一致：先 build:shared。
+      - name: Build shared package
+        run: pnpm build:shared
+
       - name: Lint the code
         run: pnpm lint
 
