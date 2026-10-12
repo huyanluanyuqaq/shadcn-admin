@@ -112,6 +112,7 @@ URL、方法完全一致，唯一差别是 dispatcher——而该差异足以让
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 1 | workbuddy | human | 2026-10-12 | 实现+验证+归档完成，待人类批准合并推送 main |
+| 2 | human | workbuddy | 2026-10-12 | 批准合并（「提交」）→ 合并前复跑 pnpm test 214/214 → ff 合并 main（c9af017..6b701fa）并推送 origin，分支已删 |
 
 ---
 
@@ -139,12 +140,12 @@ URL、方法完全一致，唯一差别是 dispatcher——而该差异足以让
 
 ## 合并前检查单
 
-- [x] `pnpm test` 全绿（214/214）
+- [x] `pnpm test` 全绿（214/214，合并前复跑确认）
 - [x] `pnpm lint` / `pnpm format:check` 通过
 - [x] `pnpm --filter server typecheck` 通过
 - [x] 隔离冒烟通过（3002 实例 + mock 三通道，未污染 3000 真实数据）
 - [x] 任务文档归档至 `tasks/done/`
-- [ ] **人类批准后**：ff 合并 main + 推送 origin + 删分支
+- [x] **人类批准后**：ff 合并 main + 推送 origin + 删分支（2026-10-12 完成）
 
 ---
 
