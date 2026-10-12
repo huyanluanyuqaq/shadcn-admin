@@ -2248,6 +2248,171 @@ async function main() {
     )
   }
 
+  // 17.9 通知内容富格式（TASK-025）：订阅同步事件经 Telegram / 飞书派发。
+  // 16.8 / 17.8 已分别清理两渠道配置——此处重开 Telegram mock（飞书 mock
+  // 仍监听中）并重新启用，用 mock 上游触发一次真实同步，断言富格式正文。
+  {
+    const tgMock2 = await startMockTelegram()
+    const upstream2 = await startMockUpstream()
+    if (!tgMock2 || !upstream2 || !fsMockServer) {
+      console.log('  ! mock 重开失败（端口被占用），跳过富格式断言')
+    } else {
+      // 启用两渠道（全事件订阅；Chat ID 直接给定，不走 /start 绑定）
+      const richTgEnable = await req('/api/telegram', {
+        method: 'PUT',
+        token,
+        body: {
+          enabled: true,
+          botToken: MOCK_TOKEN,
+          chatId: MOCK_CHAT_ID,
+          proxyUrl: null,
+          eventKeys: ALL_TG_EVENTS,
+        },
+      })
+      check(
+        '富格式验证：启用 Telegram（直接给定 Chat ID）',
+        richTgEnable.status === 200 && richTgEnable.json?.enabled === true,
+        richTgEnable.json
+      )
+      const richFsEnable = await req('/api/feishu', {
+        method: 'PUT',
+        token,
+        body: {
+          enabled: true,
+          appId: MOCK_FS_APP_ID,
+          appSecret: MOCK_FS_APP_SECRET,
+          receiveId: MOCK_FS_CHAT_ID,
+          receiveIdType: 'chat_id',
+          proxyUrl: null,
+          eventKeys: ALL_FS_EVENTS,
+        },
+      })
+      check(
+        '富格式验证：启用飞书',
+        richFsEnable.status === 200 && richFsEnable.json?.enabled === true,
+        richFsEnable.json
+      )
+
+      // 创建指向 mock 上游的订阅 → 单条同步 → 触发 subscription.sync_succeeded
+      const richSub = await req('/api/subscriptions', {
+        method: 'POST',
+        token,
+        body: {
+          name: `smoke-notify-${suffix}`,
+          url: `http://127.0.0.1:${upstream2.port}/ok`,
+          enabled: true,
+        },
+      })
+      check(
+        '富格式验证：创建指向 mock 上游的订阅',
+        richSub.status === 201 && typeof richSub.json?.id === 'number',
+        richSub.json
+      )
+
+      const richSync = await req(`/api/subscriptions/${richSub.json?.id}/sync`, {
+        method: 'POST',
+        token,
+      })
+      check(
+        '富格式验证：单条同步成功（触发同步成功通知）',
+        richSync.status === 200 && richSync.json?.ok === true,
+        richSync.json
+      )
+
+      // Telegram：标题头 + 订阅行 + 状态摘要 + 📊 用量信息四行
+      const richTg = await waitFor(5000, async () =>
+        mockState.sent.some(
+          (m) =>
+            m.text.includes(`订阅: smoke-notify-${suffix}`) &&
+            m.text.includes('同步完成，耗时') &&
+            m.text.includes('📊 用量信息') &&
+            m.text.includes('⬆️ 上传') &&
+            m.text.includes('⬇️ 下载') &&
+            m.text.includes('📦 总量') &&
+            m.text.includes('⏳ 过期')
+        )
+      )
+      const richTgMsg = mockState.sent.find((m) =>
+        m.text.includes(`订阅: smoke-notify-${suffix}`)
+      )
+      check(
+        '订阅同步成功经 Telegram 派发富格式正文（TASK-025）',
+        richTg &&
+          richTgMsg?.parseMode === 'HTML' &&
+          richTgMsg?.text.startsWith('✅ <b>订阅同步成功</b>'),
+        richTgMsg && {
+          firstLine: richTgMsg.text.split('\n')[0],
+          parseMode: richTgMsg.parseMode,
+        }
+      )
+
+      // 飞书：卡片 header 标题 + lark_md 正文同口径
+      const richFs = await waitFor(5000, async () =>
+        fsMockState.sent.some((m) => {
+          const content = String(m.card?.elements?.[0]?.text?.content ?? '')
+          return (
+            m.msgType === 'interactive' &&
+            m.card?.header?.title?.content === '订阅同步成功' &&
+            m.card?.header?.template === 'green' &&
+            content.includes(`订阅: smoke-notify-${suffix}`) &&
+            content.includes('📊 用量信息') &&
+            content.includes('⬆️ 上传') &&
+            content.includes('⬇️ 下载') &&
+            content.includes('📦 总量') &&
+            content.includes('⏳ 过期')
+          )
+        })
+      )
+      const richFsCard = fsMockState.sent.find((m) =>
+        String(m.card?.elements?.[0]?.text?.content ?? '').includes(
+          `订阅: smoke-notify-${suffix}`
+        )
+      )
+      check(
+        '订阅同步成功经飞书派发富格式卡片（TASK-025）',
+        richFs &&
+          richFsCard?.card?.header?.template === 'green' &&
+          richFsCard?.card?.elements?.[0]?.text?.tag === 'lark_md',
+        richFsCard && {
+          template: richFsCard.card?.header?.template,
+          tag: richFsCard.card?.elements?.[0]?.text?.tag,
+        }
+      )
+
+      // 清理：删除订阅 + 停用两渠道 + 关闭重开的 mock
+      await req(`/api/subscriptions/${richSub.json?.id}`, {
+        method: 'DELETE',
+        token,
+      })
+      await req('/api/telegram', {
+        method: 'PUT',
+        token,
+        body: {
+          enabled: false,
+          botToken: '',
+          chatId: null,
+          proxyUrl: null,
+          eventKeys: ALL_TG_EVENTS,
+        },
+      })
+      await req('/api/feishu', {
+        method: 'PUT',
+        token,
+        body: {
+          enabled: false,
+          appId: '',
+          appSecret: '',
+          receiveId: '',
+          receiveIdType: 'chat_id',
+          proxyUrl: null,
+          eventKeys: ALL_FS_EVENTS,
+        },
+      })
+      tgMock2.close()
+      upstream2.server.close()
+    }
+  }
+
   // 18. 系统备份（TASK-015）
   {
     // 18.1 立即备份（VACUUM INTO 在线一致性导出）
