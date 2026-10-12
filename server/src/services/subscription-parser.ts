@@ -7,6 +7,8 @@ import { Agent, ProxyAgent, fetch as undiciFetch } from 'undici'
  * - 用量与到期来自 HTTP 响应头 `subscription-userinfo`，**不需要 mihomo**
  * - **HEAD 优先**，非 2xx 或头部缺失时回退 GET（约束 C7）——只取响应头可省下数十 KB 正文流量
  * - 单次请求 10s 超时（约束 C5）
+ * - Agent/ProxyAgent 按 `(proxyUrl, skipTlsVerify)` 缓存复用（TASK-024）——连接池 +
+ *   TLS 会话复用，且保证同一订阅的请求行为不因 dispatcher 构造方式漂移
  */
 
 export interface SubUsage {
@@ -74,16 +76,43 @@ function buildHeaders(opts: FetchOptions): Record<string, string> {
   return headers
 }
 
+/**
+ * dispatcher 缓存（TASK-024）：按 `(proxyUrl, skipTlsVerify)` 键复用
+ * Agent/ProxyAgent，恢复连接池与 TLS 会话复用。
+ *
+ * 原实现每次请求都新建 Agent，两个后果：
+ * 1. 数百订阅规模下每次同步都是全新 TCP+TLS 握手，纯属浪费；
+ * 2. 实测（2026-10-12 生产排查）：部分 Cloudflare 上游对「全新连接、
+ *    无 TLS 会话复用」的请求不返回 `subscription-userinfo` 头，而池化的
+ *    全局 dispatcher 正常返回——同一订阅的请求行为不应因 dispatcher
+ *    构造方式漂移。
+ *
+ * 现实中 `(proxyUrl, skipTlsVerify)` 组合只有寥寥数个，缓存有界。
+ */
+const dispatcherCache = new Map<string, Agent | ProxyAgent>()
+
 function buildDispatcher(opts: FetchOptions): Agent | ProxyAgent | undefined {
   const tls = { rejectUnauthorized: !opts.skipTlsVerify }
   if (opts.proxyUrl) {
+    const key = `proxy|${opts.proxyUrl}|${opts.skipTlsVerify ? 'insecure' : 'secure'}`
+    const cached = dispatcherCache.get(key)
+    if (cached) return cached
     try {
-      return new ProxyAgent({ uri: opts.proxyUrl, requestTls: tls, proxyTls: tls } as never)
+      const agent = new ProxyAgent({ uri: opts.proxyUrl, requestTls: tls, proxyTls: tls } as never)
+      dispatcherCache.set(key, agent)
+      return agent
     } catch {
       return undefined
     }
   }
-  if (opts.skipTlsVerify) return new Agent({ connect: tls })
+  if (opts.skipTlsVerify) {
+    const key = 'agent|insecure'
+    const cached = dispatcherCache.get(key)
+    if (cached) return cached
+    const agent = new Agent({ connect: tls })
+    dispatcherCache.set(key, agent)
+    return agent
+  }
   return undefined
 }
 
