@@ -7,6 +7,7 @@
  *
  * 覆盖：健康检查、鉴权、6 个资源 CRUD、校验失败、仪表盘、日志、提醒扫描、订阅同步、
  * 订阅同步回写客户用量（TASK-017：mock 上游单条/批量回写 + 失败不回写）、
+ * 缺头失败错误诊断信息（TASK-024：mock 200 无用量头 → 错误带状态码/content-type/URL）、
  * 订阅写入后自动热重载调度器（TASK-021：CRUD 写后 reload，jobs 增减 /
  * 非法 cron 跳过 / 停用不注册 / 删除恢复基线）、
  * 供应商自定义排序、订阅 email 字段与邮箱绑定同步（sync upsert / 陈旧清理 / 供应商筛选）、
@@ -318,6 +319,8 @@ const MOCK_UP_EXPIRE = 1893456000
  * Telegram 3998 / 飞书 4000 冲突）：
  * - /ok：HEAD/GET 均返回 subscription-userinfo 头（同步引擎 HEAD 优先即命中）
  * - /fail：404——同步失败路径（验证失败不回写客户用量）
+ * - /nouserinfo：200 + text/html 但不返回用量头——缺头失败路径
+ *   （TASK-024：验证错误信息带状态码 / content-type / URL 诊断现场）
  */
 function startMockUpstream(): Promise<{ server: Server; port: number } | null> {
   return new Promise((resolve) => {
@@ -329,6 +332,12 @@ function startMockUpstream(): Promise<{ server: Server; port: number } | null> {
           'subscription-userinfo': `upload=${MOCK_UP_UPLOAD}; download=${MOCK_UP_DOWNLOAD}; total=${MOCK_UP_TOTAL}; expire=${MOCK_UP_EXPIRE}`,
         })
         res.end('mock-subscription-content')
+        return
+      }
+      if (url.pathname === '/nouserinfo') {
+        // 模拟「有响应但无用量头」：如 token 失效后的 HTML 门户页
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=UTF-8' })
+        res.end('<html><body>portal</body></html>')
         return
       }
       res.writeHead(404, { 'Content-Type': 'text/plain' })
@@ -1016,6 +1025,41 @@ async function main() {
         error: wbFailSync.json?.error,
         customerUsed: wbFailCustomerRead.json?.trafficUsed,
       }
+    )
+
+    // —— 缺头失败：错误信息带诊断现场（TASK-024）——
+    // mock 200 + text/html 但无用量头：HEAD 与 GET 回退后均解析不到，
+    // 错误必须带上 HTTP 状态码 / content-type / URL，否则「真缺头」与
+    // 「拿到 HTML 门户页」在日志里完全无法区分。
+    const wbNoInfoCustomer = await req('/api/customers', {
+      method: 'POST',
+      token,
+      body: { name: `smoke-writeback-nouserinfo-${suffix}` },
+    })
+    const wbNoInfoSub = await req('/api/subscriptions', {
+      method: 'POST',
+      token,
+      body: {
+        name: `smoke-writeback-nouserinfo-sub-${suffix}`,
+        url: `${upstreamBase}/nouserinfo`,
+        customerId: wbNoInfoCustomer.json?.id,
+        enabled: false,
+      },
+    })
+    const wbNoInfoSync = await req(
+      `/api/subscriptions/${wbNoInfoSub.json?.id}/sync`,
+      { method: 'POST', token }
+    )
+    const wbNoInfoError = wbNoInfoSync.json?.error ?? ''
+    check(
+      '缺头失败错误带 HTTP 状态码、content-type 与 URL（TASK-024 诊断信息）',
+      wbNoInfoSync.status === 200 &&
+        wbNoInfoSync.json?.ok === false &&
+        wbNoInfoError.includes('subscription-userinfo') &&
+        wbNoInfoError.includes('HTTP 200') &&
+        wbNoInfoError.includes('text/html') &&
+        wbNoInfoError.includes('/nouserinfo'),
+      { error: wbNoInfoError }
     )
 
     upstream.server.close()

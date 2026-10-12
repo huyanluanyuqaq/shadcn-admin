@@ -344,6 +344,14 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 > 注：`better-sqlite3` 的 `db.transaction()` 回调**必须是同步函数**，
 > 该 API 约束天然保证了 C1，实现时应依赖它而非绕过它。
 
+> **dispatcher 复用与缺头诊断（TASK-024）**：拉取使用的 undici
+> `Agent`/`ProxyAgent` 按 `(proxyUrl, skipTlsVerify)` **缓存复用**——每次
+> 请求新建不仅浪费 TCP+TLS 握手，且实测（2026-10-12 生产排查）部分
+> Cloudflare 上游对「全新连接、无 TLS 会话复用」的请求不返回
+> `subscription-userinfo` 头，而池化的全局 dispatcher 正常返回。缺头错误
+> 信息固定带 `HTTP <status>, content-type: <ct>, url: <final-url>` 三段
+> 诊断现场，用于区分「上游真不支持」与「拿到 HTML 门户页/错误页」。
+
 ### 10.5 mihomo 的定位（重要）
 
 订阅信息解析**不需要 mihomo**。Clash/Mihomo 订阅的用量与到期信息通过 HTTP 响应头
