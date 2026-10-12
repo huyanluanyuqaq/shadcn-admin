@@ -497,7 +497,7 @@ C8（增量对比）同时是通知的防刷屏机制——无变化不写库、
 | 存储 | settings 表 KV（键前缀 `telegram.`，sublinkPro 同思路）；单配置（一个机器人 + 一个目标聊天），非多条记录 |
 | Token 校验 | `getMe`（保存前可经「测试连接」预校验），成功后缓存 botUsername |
 | Chat ID 绑定 | 启用后向机器人发送 `/start`，服务端 getUpdates 长轮询（单次挂起 30s、offset 推进）绑定**首个**发送者；群组 ID 为负数故按字符串处理；**绑定后即停**，不常驻连接 |
-| 消息格式 | HTML parse_mode（仅转义 `& < >`，比 sublinkPro 的 Markdown 转义稳健、兼容 CJK）；分事件标题（✅ 同步成功 / ❌ 同步失败 / ⏰ 即将到期 / 🚫 流量用尽 / 🔐 管理员登录 + 加粗） |
+| 消息格式 | HTML parse_mode（仅转义 `& < >`，比 sublinkPro 的 Markdown 转义稳健、兼容 CJK）；**标题头 + 富格式正文**（TASK-025，见 §12.6.1）：分事件标题（✅ 同步成功 / ❌ 同步失败 / ⏰ 即将到期 / 🚫 流量用尽 / 🔐 管理员登录 + 加粗），正文为结构化分区 |
 | 代理 | undici `ProxyAgent`（http/https/socks5），与订阅同步同语义；国内服务器访问 api.telegram.org 所需 |
 | 出网基址 | `config.telegramApiBase`（env `TELEGRAM_API_BASE`，默认官方地址）；冒烟测试指向内嵌 mock，出口受限环境可自建中转 |
 
@@ -519,7 +519,7 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 | 凭证校验 | `tenant_access_token/internal` 换取（保存前可经「测试连接」预校验）→ `bot/v3/info` 拉取应用名并缓存为 botName |
 | token 缓存 | 模块级 `{ token, expiresAt }`；临期不足 5min 自动续期；换取失败不落缓存；错误码 99991668（token 失效，常见于凭证更换后旧缓存命中）时清缓存并重试一次 |
 | 接收对象 | 五类型（`chat_id`=群 / `open_id`=用户 / `user_id` / `union_id` / `email`），按类型校验前缀（`oc_` / `ou_` / `on_` / 邮箱格式 / user_id 无前缀）；**手动填写**（不做群选择器，见 Non-Scope） |
-| 消息格式 | 交互卡片（`msg_type=interactive`，content 为卡片 JSON 序列化字符串）；`header.template` 按 severity 着色（success→green / error→red / warning→orange / info→blue），正文 lark_md，note 附事件名与时间 |
+| 消息格式 | 交互卡片（`msg_type=interactive`，content 为卡片 JSON 序列化字符串）；`header.template` 按 severity 着色（success→green / error→red / warning→orange / info→blue），正文 lark_md 承载富格式排版（TASK-025，见 §12.6.1），note 附事件名与时间 |
 | 代理 | undici `ProxyAgent`（http/https/socks5），与订阅同步 / Telegram 同语义 |
 | 出网基址 | `config.feishuApiBase`（env `FEISHU_API_BASE`，默认 `https://open.feishu.cn/open-apis`，**已含 `/open-apis`**，service 侧路径不再重复该前缀）；冒烟测试指向内嵌 mock |
 
@@ -530,6 +530,29 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 测试连接（`POST /api/feishu/test`）验证的是**当前表单值**（可能尚未保存），
 因此测试前**强制清除 token 缓存**重新换取——否则缓存命中会让错误凭证
 「假成功」（TASK-012 冒烟实测发现并修复）。
+
+#### 12.6.1 通知富格式正文（TASK-025，Telegram 与飞书共用）
+
+外部渠道（Telegram / 飞书）早期只有「标题 + 一句话」，信息量不足。TASK-025
+按用户提供的订阅更新样例做**分事件富格式排版**，纯函数模块
+`server/src/services/notification-format.ts`（两渠道共用，不碰 DB / 网络）：
+
+```
+✅ 订阅同步成功                      ← 标题头（Telegram 加粗 / 飞书 header）
+订阅: 宝可梦-MOXIMOXI-94              ← 对象行
+✅订阅【宝可梦-MOXIMOXI-94】同步完成，耗时 0.1 秒   ← 状态摘要行
+📊 用量信息                          ← 分区头
+⬆️ 上传: 0 B / ⬇️ 下载: 0 B / 📦 总量: 60.00 GB / ⏳ 过期: 2026-10-29 13:17:29
+```
+
+| 维度 | 决策 |
+|------|------|
+| 排版归属 | 渠道层（telegram.ts / feishu.ts）调用共享排版模块；**in_app 与 webhook 文案不变**（仍为 `title` + `message`） |
+| 数据来源 | `payload.data`（触发点填充，字段约定见模块头注释）：单条同步带 `name/upload/download/trafficTotal/expireAt(epoch ms)/elapsedMs`；批量以 `batch: true` 判别，另带 `total/succeeded/changed/failed/failures[]`；客户事件带 `name` + 用量/到期字段 |
+| 节点统计 | **不纳入**——本项目只拉取 `subscription-userinfo` 头（用量/到期），不解析节点列表；样例中的节点数以「耗时 + 用量信息」替代 |
+| 格式化口径 | 字节用 shared `formatTrafficBytes`（0→`0 B`，空→`-`）；时间本地时区 `YYYY-MM-DD HH:mm:ss`；耗时秒（<10s 一位小数） |
+| 降级 | 关键字段缺失（如老载荷无 name）或 `data` 为空 → 回落 `payload.message`，不产生半截消息 |
+| 转义 | 排版模块产出裸文本；Telegram 侧在 `formatTelegramMessage` 统一 HTML 转义（用户内容不得破坏 parse_mode） |
 
 ### 12.7 流量阈值提醒（TASK-013）
 
