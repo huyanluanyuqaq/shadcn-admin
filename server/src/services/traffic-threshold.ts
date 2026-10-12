@@ -133,6 +133,7 @@ export function scanTrafficThresholds(): TrafficThresholdScanResult {
       message: `客户「${c.name}」流量用量达到 ${c.threshold}% 阈值（已用 ${formatTrafficBytes(c.used)} / ${formatTrafficBytes(c.total)}，${c.percent}%）`,
       data: {
         customerId: c.id,
+        name: c.name,
         threshold: c.threshold,
         percent: c.percent,
         used: c.used,

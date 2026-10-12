@@ -15,6 +15,7 @@ import { db } from '../db/index.js'
 import { settings } from '../db/schema.js'
 import { config } from '../env.js'
 import { writeLog } from './logger.js'
+import { formatNotificationBody, formatNotificationTime } from './notification-format.js'
 
 /**
  * 飞书通知渠道（企业自建应用，参照飞书开放平台 im/v1/messages）。
@@ -61,12 +62,6 @@ const K = {
 
 function errMessage(err: unknown): string {
   return err instanceof Error ? err.message : String(err)
-}
-
-function formatTime(ts: number): string {
-  const d = new Date(ts)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 // ---------- settings KV ----------
@@ -284,20 +279,21 @@ function buildCard(template: string, title: string, message: string, note?: stri
 }
 
 /**
- * 按事件格式化飞书交互卡片。
+ * 按事件格式化飞书交互卡片（TASK-025 富格式）。
  * 卡片 JSON 需序列化为字符串后放入 im/v1/messages 的 content 字段
  * （msg_type=interactive）。
  *
- * 与 Telegram 的差异：卡片头部已承载标题与 severity 着色，
- * 无需按事件分支排版（payload.event 即事件 key，随 note 下发）。
+ * 与 Telegram 的差异：卡片头部已承载标题与 severity 着色，正文直接用
+ * `./notification-format.ts` 的富格式排版（lark_md 兼容 emoji 与多行文本），
+ * note 附事件名与本地时间。
  */
 export function formatFeishuCard(payload: NotificationPayload): FeishuCard {
   const template = SEVERITY_TEMPLATE[payload.severity] ?? 'blue'
   return buildCard(
     template,
     payload.title,
-    payload.message,
-    `${payload.eventName} · ${formatTime(payload.time)}`
+    formatNotificationBody(payload.event, payload),
+    `${payload.eventName} · ${formatNotificationTime(payload.time)}`
   )
 }
 

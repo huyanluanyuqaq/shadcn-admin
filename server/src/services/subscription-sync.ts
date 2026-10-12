@@ -62,6 +62,8 @@ export async function syncOne(id: number): Promise<SyncResult> {
   }
 
   inFlight.add(id)
+  const startedAt = Date.now()
+  const name = row.name?.trim() || row.url
   try {
     const { usage, changed: isChanged } = await fetchOne(row)
     const used = (usage.upload ?? 0) + (usage.download ?? 0)
@@ -95,12 +97,23 @@ export async function syncOne(id: number): Promise<SyncResult> {
       }
     })
 
-    // 通知（C8 增量对比）：仅当用量/到期真正变化时才通知，避免每轮空转刷屏
+    // 通知（C8 增量对比）：仅当用量/到期真正变化时才通知，避免每轮空转刷屏。
+    // data 携带富格式排版所需的结构化字段（TASK-025，字段约定见
+    // ./notification-format.ts 头部注释）：expireAt 为 epoch ms。
     if (isChanged) {
       publish('subscription.sync_succeeded', {
         title: '订阅同步成功',
-        message: `订阅「${row.name?.trim() || row.url}」用量/到期信息已更新`,
-        data: { subscriptionId: id, url: row.url },
+        message: `订阅「${name}」用量/到期信息已更新`,
+        data: {
+          subscriptionId: id,
+          url: row.url,
+          name,
+          upload: usage.upload,
+          download: usage.download,
+          trafficTotal: usage.total,
+          expireAt: expireMs,
+          elapsedMs: Date.now() - startedAt,
+        },
       })
     }
 
@@ -123,8 +136,14 @@ export async function syncOne(id: number): Promise<SyncResult> {
     void writeLog('error', 'subscription-sync', `订阅 #${id} 同步失败：${message}`, { url: row.url })
     publish('subscription.sync_failed', {
       title: '订阅同步失败',
-      message: `订阅「${row.name?.trim() || row.url}」同步失败：${message}`,
-      data: { subscriptionId: id, url: row.url },
+      message: `订阅「${name}」同步失败：${message}`,
+      data: {
+        subscriptionId: id,
+        url: row.url,
+        name,
+        error: message,
+        elapsedMs: Date.now() - startedAt,
+      },
     })
     return { id, ok: false, changed: false, upload: null, download: null, total: null, expire: null, error: message }
   } finally {
@@ -143,8 +162,11 @@ export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
   const results: SyncResult[] = []
   const updates: Array<{ id: number; used: number; total: number | null; expireMs: number | null }> = []
   const failures: Array<{ id: number; message: string }> = []
+  /** 订阅 id → 展示名（name 优先，缺失回落 url；失败明细与通知共用） */
+  const nameBySub = new Map(rows.map((r) => [r.id, r.name?.trim() || r.url]))
   /** 订阅 id → 关联客户 id（TASK-017 回写用；阶段一快照，阶段二同事务消费） */
   const customerBySub = new Map(rows.map((r) => [r.id, r.customerId]))
+  const startedAt = Date.now()
 
   // —— 阶段一：并发拉取，全程不持锁、不写库 ——
   for (let i = 0; i < rows.length; i += CONCURRENCY) {
@@ -230,14 +252,45 @@ export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
     publish('subscription.sync_failed', {
       title: '订阅同步失败',
       message: `批量同步完成：${failures.length}/${rows.length} 条失败`,
-      data: { total: rows.length, failed: failures.length, failures: failures.slice(0, 10) },
+      data: {
+        batch: true,
+        total: rows.length,
+        failed: failures.length,
+        elapsedMs: Date.now() - startedAt,
+        failures: failures
+          .slice(0, 10)
+          .map((f) => ({ id: f.id, name: nameBySub.get(f.id) ?? `#${f.id}`, message: f.message })),
+      },
     })
   } else if (updates.length > 0) {
     void writeLog('info', 'subscription-sync', `批量同步完成：${rows.length} 条全部成功，变化 ${updates.length} 条`)
+    // 用量汇总（TASK-025 富格式）：对全部成功订阅求和，到期取最早
+    const succeeded = results.filter((r) => r.ok)
+    let upload = 0
+    let download = 0
+    let trafficTotal: number | null = null
+    let expireAt: number | null = null
+    for (const r of succeeded) {
+      upload += r.upload ?? 0
+      download += r.download ?? 0
+      if (r.total != null) trafficTotal = (trafficTotal ?? 0) + r.total
+      const expireMs = r.expire != null ? r.expire * 1000 : null
+      if (expireMs != null && (expireAt == null || expireMs < expireAt)) expireAt = expireMs
+    }
     publish('subscription.sync_succeeded', {
       title: '订阅同步成功',
       message: `批量同步完成：${rows.length} 条成功，${updates.length} 条信息更新`,
-      data: { total: rows.length, changed: updates.length },
+      data: {
+        batch: true,
+        total: rows.length,
+        succeeded: succeeded.length,
+        changed: updates.length,
+        elapsedMs: Date.now() - startedAt,
+        upload,
+        download,
+        trafficTotal,
+        expireAt,
+      },
     })
   }
 

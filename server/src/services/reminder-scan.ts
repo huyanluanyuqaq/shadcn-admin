@@ -70,7 +70,7 @@ export function runReminderScan(windowDays: number = DEFAULT_SCAN_WINDOW_DAYS): 
     publish('customer.expire_soon', {
       title: '客户即将到期',
       message: `客户「${cust.name}」将于 ${new Date(at).toLocaleDateString('zh-CN')} 到期（剩余 ${daysLeft} 天）`,
-      data: { customerId: cust.id, expireAt: at, daysLeft },
+      data: { customerId: cust.id, name: cust.name, expireAt: at, daysLeft },
     })
   }
   for (const cust of overTraffic) {
@@ -78,7 +78,7 @@ export function runReminderScan(windowDays: number = DEFAULT_SCAN_WINDOW_DAYS): 
     publish('customer.traffic_exhausted', {
       title: '客户流量用尽',
       message: `客户「${cust.name}」流量已用尽`,
-      data: { customerId: cust.id },
+      data: { customerId: cust.id, name: cust.name, used: cust.trafficUsed, total: cust.trafficTotal },
     })
   }
 

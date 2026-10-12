@@ -13,6 +13,7 @@ import { db } from '../db/index.js'
 import { settings } from '../db/schema.js'
 import { config } from '../env.js'
 import { writeLog } from './logger.js'
+import { formatNotificationBody } from './notification-format.js'
 
 /**
  * Telegram 通知渠道（设计参照 sublinkPro `services/telegram`）。
@@ -194,28 +195,28 @@ function escapeHtml(value: string): string {
 }
 
 /**
- * 按事件格式化 Telegram 消息（参照 sublinkPro notify.go 的分事件排版）。
- * 使用 HTML parse_mode：标题加粗、正文转义，兼容 CJK 与用户内容中的特殊字符。
+ * 事件 → 标题头（emoji + HTML 加粗）。目录外事件回落通用铃铛标题。
+ * 与正文的分工：标题头承载「这是什么事件」，正文（notification-format）
+ * 承载结构化明细——两者拼接成完整消息（TASK-025）。
+ */
+const EVENT_HEADERS: Record<NotificationEventKey, string> = {
+  'subscription.sync_succeeded': '✅ <b>订阅同步成功</b>',
+  'subscription.sync_failed': '❌ <b>订阅同步失败</b>',
+  'customer.expire_soon': '⏰ <b>客户即将到期</b>',
+  'customer.traffic_exhausted': '🚫 <b>客户流量用尽</b>',
+  'customer.traffic_threshold': '📊 <b>客户流量阈值提醒</b>',
+  'security.user_login': '🔐 <b>管理员登录</b>',
+}
+
+/**
+ * 按事件格式化 Telegram 消息（TASK-025 富格式，参照订阅更新样例）：
+ * `标题头 + 富格式正文`。正文由 `./notification-format.ts` 统一排版
+ * （emoji 分区 / 标签:值 / 用量信息四行），此处负责 HTML 转义——
+ * 用户内容（订阅名、错误信息）不得破坏 parse_mode=HTML。
  */
 export function formatTelegramMessage(eventKey: NotificationEventKey, payload: NotificationPayload): string {
-  const title = escapeHtml(payload.title)
-  const message = escapeHtml(payload.message)
-  switch (eventKey) {
-    case 'subscription.sync_succeeded':
-      return `✅ <b>订阅同步成功</b>\n\n${title}\n${message}`
-    case 'subscription.sync_failed':
-      return `❌ <b>订阅同步失败</b>\n\n${title}\n${message}`
-    case 'customer.expire_soon':
-      return `⏰ <b>客户即将到期</b>\n\n${title}\n${message}`
-    case 'customer.traffic_exhausted':
-      return `🚫 <b>客户流量用尽</b>\n\n${title}\n${message}`
-    case 'customer.traffic_threshold':
-      return `📊 <b>客户流量阈值提醒</b>\n\n${title}\n${message}`
-    case 'security.user_login':
-      return `🔐 <b>管理员登录</b>\n\n${title}\n${message}`
-    default:
-      return `🔔 <b>${title}</b>\n\n${message}`
-  }
+  const header = EVENT_HEADERS[eventKey] ?? `🔔 <b>${escapeHtml(payload.title)}</b>`
+  return `${header}\n\n${escapeHtml(formatNotificationBody(eventKey, payload))}`
 }
 
 /** 发送消息到指定聊天（parse_mode=HTML） */
