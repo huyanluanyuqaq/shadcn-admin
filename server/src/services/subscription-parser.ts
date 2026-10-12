@@ -150,7 +150,13 @@ export async function fetchSubscriptionUsage(opts: FetchOptions): Promise<SubUsa
     throw new Error(`上游返回 HTTP ${res.status}`)
   }
   if (!usage) {
-    throw new Error('响应缺少 subscription-userinfo 头')
+    // 诊断信息（TASK-024）：「缺头」既可能是上游真不支持，也可能是拿到了
+    // HTML 门户页/错误页（token 失效、被边缘挑战）——不带状态码与
+    // content-type 时二者表现完全相同，无法区分。res.url 为重定向后的最终 URL。
+    const contentType = res.headers.get('content-type') ?? '未知'
+    throw new Error(
+      `响应缺少 subscription-userinfo 头（HTTP ${res.status}, content-type: ${contentType}, url: ${res.url}）`
+    )
   }
   return usage
 }
