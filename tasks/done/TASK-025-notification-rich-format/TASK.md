@@ -181,9 +181,11 @@ Non-Scope (files):
 ## Current State
 
 > 2026-10-13 00:02 任务创建，进入实现。
-> 2026-10-13 01:30 全部完成：排版模块 + 两渠道接入 + 触发点 data 充实 + 单测 18 例 +
+> 2026-10-13 00:20 全部完成：排版模块 + 两渠道接入 + 触发点 data 充实 + 单测 18 例 +
 > 冒烟新增 17.9 富格式断言（148/148）+ 三件套与前端 232 例全绿 + 架构文档 §12.6.1。
-> 待归档 done/ 并提交。
+> 归档 done/，分支 `feat/TASK-025-notification-rich-format` 3 提交。
+> 2026-10-13 00:29 人类批准（「提交并推送」）→ 合并前复跑 pnpm test 232/232 →
+> ff 合并 main（292df5d..db69057）并推送 origin，删分支。
 
 ---
 
@@ -214,9 +216,10 @@ Non-Scope (files):
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | developer | reviewer | 2026-10-13 | 实现+测试+文档完成，全绿待复核；节点统计未纳入（无数据源），用量汇总口径已注明 |
+| 002 | human | workbuddy | 2026-10-13 | 批准合并（「提交并推送」）→ 合并前复跑 pnpm test 232/232 → ff 合并 main（292df5d..db69057）并推送 origin，分支已删 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** Reviewer 按 AC-1~AC-6 复核；PASS 后提交合并（本任务已随合并归档 done/）
+**Next Action：** 无（已合并推送，任务终结）
 
 ---
 
