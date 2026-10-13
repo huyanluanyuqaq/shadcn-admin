@@ -41,12 +41,15 @@ export function getSubscriptionsColumns({
         className: cn('inset-s-0 z-10 rounded-tl-[inherit] max-md:sticky'),
       },
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label='选择该行'
-          className='translate-y-0.5'
-        />
+        // 行可点击（选中 + 展开），勾选框需阻止冒泡，避免点击时连带展开
+        <div onClick={(event) => event.stopPropagation()}>
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label='选择该行'
+            className='translate-y-0.5'
+          />
+        </div>
       ),
       enableSorting: false,
       enableHiding: false,
@@ -56,6 +59,7 @@ export function getSubscriptionsColumns({
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title='名称' />
       ),
+      // 名称列不隔离点击：这是最自然的展开触发点，与客户管理页保持一致
       cell: ({ row }) => (
         <LongText className='max-w-32 ps-3'>
           {row.original.name ?? (
@@ -77,9 +81,12 @@ export function getSubscriptionsColumns({
         <DataTableColumnHeader column={column} title='订阅地址' />
       ),
       cell: ({ row }) => (
-        <LongText className='max-w-48 font-mono text-xs'>
-          {row.original.url}
-        </LongText>
+        // 同上：地址单元格的 Tooltip/Popover 触发不应连带展开整行
+        <div onClick={(event) => event.stopPropagation()}>
+          <LongText className='max-w-48 font-mono text-xs'>
+            {row.original.url}
+          </LongText>
+        </div>
       ),
       enableHiding: false,
     },
@@ -198,7 +205,15 @@ export function getSubscriptionsColumns({
     },
     {
       id: 'actions',
-      cell: DataTableRowActions,
+      cell: (props) => (
+        // 行操作菜单经 portal 渲染，事件仍沿 React 树冒泡，需在此截断
+        <div
+          onClick={(event) => event.stopPropagation()}
+          className='flex justify-end'
+        >
+          <DataTableRowActions {...props} />
+        </div>
+      ),
     },
   ]
 }

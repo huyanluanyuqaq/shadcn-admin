@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   type ColumnFiltersState,
   type OnChangeFn,
   type PaginationState,
+  type Row,
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
@@ -12,6 +13,7 @@ import {
   getFacetedUniqueValues,
   useReactTable,
 } from '@tanstack/react-table'
+import type { Subscription } from '@shared/index'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -36,6 +38,7 @@ import { enabledOptions, syncStatusOptions } from '../data/schema'
 import { useDebouncedValue } from '../hooks'
 import { getErrorMessage } from '../utils'
 import { DataTableBulkActions } from './data-table-bulk-actions'
+import { SubscriptionDetailPanel } from './subscription-detail-panel'
 import { getSubscriptionsColumns } from './subscriptions-columns'
 
 function readArrayFilter(
@@ -56,6 +59,8 @@ export function SubscriptionsTable() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  /** 当前展开的行 id；单值天然保证同时只展开一行 */
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const keyword = useDebouncedValue(globalFilter)
 
@@ -76,17 +81,23 @@ export function SubscriptionsTable() {
   const customers = useCustomerOptions()
   const pools = usePoolOptions()
 
+  const customerNameById = useMemo(
+    () =>
+      new Map(
+        (customers.data?.items ?? []).map((item) => [item.id, item.name])
+      ),
+    [customers.data]
+  )
+
   const columns = useMemo(
     () =>
       getSubscriptionsColumns({
-        customerNameById: new Map(
-          (customers.data?.items ?? []).map((item) => [item.id, item.name])
-        ),
+        customerNameById,
         poolNameById: new Map(
           (pools.data?.items ?? []).map((item) => [item.id, item.name])
         ),
       }),
-    [customers.data, pools.data]
+    [customerNameById, pools.data]
   )
 
   const filterOptions = useMemo(
@@ -158,6 +169,12 @@ export function SubscriptionsTable() {
   })
 
   const columnCount = table.getVisibleLeafColumns().length
+
+  /** 点击行：选中该订阅并切换其延伸面板（再次点击同一行则收起） */
+  function toggleRow(row: Row<Subscription>) {
+    setRowSelection({ [row.id]: true })
+    setExpandedId((prev) => (prev === row.id ? null : row.id))
+  }
 
   return (
     <div
@@ -274,29 +291,81 @@ export function SubscriptionsTable() {
                 )
               )
             ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className='group/row'
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
+              table.getRowModel().rows.map((row) => {
+                const isExpanded = expandedId === row.id
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() && 'selected'}
+                      onClick={() => toggleRow(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          toggleRow(row)
+                        }
+                      }}
+                      tabIndex={0}
                       className={cn(
-                        'bg-background group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted',
-                        cell.column.columnDef.meta?.className,
-                        cell.column.columnDef.meta?.tdClassName
+                        'group/row cursor-pointer',
+                        isExpanded && 'border-b-0'
                       )}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'bg-background group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted',
+                            cell.column.columnDef.meta?.className,
+                            cell.column.columnDef.meta?.tdClassName
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {/* 延伸面板：常驻 DOM 以便进出场都能过渡；行高由 grid 行 0fr↔1fr 驱动 */}
+                    <TableRow
+                      data-state={isExpanded ? 'expanded' : 'collapsed'}
+                      className={cn(isExpanded ? 'border-b' : 'border-b-0')}
+                    >
+                      <TableCell
+                        colSpan={columnCount}
+                        className='p-0 whitespace-normal'
+                      >
+                        <div
+                          className={cn(
+                            'grid transition-all duration-300 ease-out',
+                            isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'overflow-hidden transition-opacity duration-200',
+                              isExpanded ? 'opacity-100' : 'opacity-0'
+                            )}
+                          >
+                            <SubscriptionDetailPanel
+                              subscription={row.original}
+                              customerName={
+                                row.original.customerId == null
+                                  ? undefined
+                                  : customerNameById.get(
+                                      row.original.customerId
+                                    )
+                              }
+                              customersPending={customers.isPending}
+                              customersError={customers.isError}
+                            />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell
