@@ -321,6 +321,9 @@ const MOCK_UP_EXPIRE = 1893456000
  * - /fail：404——同步失败路径（验证失败不回写客户用量）
  * - /nouserinfo：200 + text/html 但不返回用量头——缺头失败路径
  *   （TASK-024：验证错误信息带状态码 / content-type / URL 诊断现场）
+ * - /403：HEAD/GET 均返回 403 + 响应体——上游主动拒绝路径
+ *   （TASK-027：验证错误信息带状态码 / 方法 / URL / content-type /
+ *   响应体片段，可区分源站拒绝与代理拒绝）
  */
 function startMockUpstream(): Promise<{ server: Server; port: number } | null> {
   return new Promise((resolve) => {
@@ -338,6 +341,12 @@ function startMockUpstream(): Promise<{ server: Server; port: number } | null> {
         // 模拟「有响应但无用量头」：如 token 失效后的 HTML 门户页
         res.writeHead(200, { 'Content-Type': 'text/html; charset=UTF-8' })
         res.end('<html><body>portal</body></html>')
+        return
+      }
+      if (url.pathname === '/403') {
+        // 模拟上游主动拒绝：WAF 拦截 / token 失效 / IP 封禁 / 代理拒绝
+        res.writeHead(403, { 'Content-Type': 'text/plain' })
+        res.end(req.method === 'HEAD' ? undefined : 'mock: blocked by WAF')
         return
       }
       res.writeHead(404, { 'Content-Type': 'text/plain' })
@@ -1060,6 +1069,43 @@ async function main() {
         wbNoInfoError.includes('text/html') &&
         wbNoInfoError.includes('/nouserinfo'),
       { error: wbNoInfoError }
+    )
+
+    // —— 403 失败：错误信息带完整诊断现场（TASK-027）——
+    // mock 403 + text/plain + 响应体：HEAD 与 GET 回退后均被拒，
+    // 错误必须带状态码 / 方法 / URL / content-type / 响应体——
+    // 否则「源站拒绝（token 失效 / WAF / 封 IP）」与「代理拒绝」
+    // 在日志里无法区分（2026-10-13「良心」订阅 403 事故的教训）。
+    const wb403Customer = await req('/api/customers', {
+      method: 'POST',
+      token,
+      body: { name: `smoke-writeback-403-${suffix}` },
+    })
+    const wb403Sub = await req('/api/subscriptions', {
+      method: 'POST',
+      token,
+      body: {
+        name: `smoke-writeback-403-sub-${suffix}`,
+        url: `${upstreamBase}/403`,
+        customerId: wb403Customer.json?.id,
+        enabled: false,
+      },
+    })
+    const wb403Sync = await req(`/api/subscriptions/${wb403Sub.json?.id}/sync`, {
+      method: 'POST',
+      token,
+    })
+    const wb403Error = wb403Sync.json?.error ?? ''
+    check(
+      '403 失败错误带状态码、方法、URL、content-type 与响应体（TASK-027 诊断信息）',
+      wb403Sync.status === 200 &&
+        wb403Sync.json?.ok === false &&
+        wb403Error.includes('上游返回 HTTP 403') &&
+        wb403Error.includes('GET ') &&
+        wb403Error.includes('/403') &&
+        wb403Error.includes('text/plain') &&
+        wb403Error.includes('mock: blocked by WAF'),
+      { error: wb403Error }
     )
 
     upstream.server.close()

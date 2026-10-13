@@ -1,4 +1,11 @@
 import { Agent, ProxyAgent, fetch as undiciFetch } from 'undici'
+import {
+  bodySnippet,
+  httpStatusErrorMessage,
+  networkErrorMessage,
+  proxyNote,
+  timeoutErrorMessage,
+} from './subscription-errors.js'
 
 /**
  * 订阅用量解析（ADR-003 / 架构 §10）。
@@ -120,34 +127,51 @@ export async function fetchSubscriptionUsage(opts: FetchOptions): Promise<SubUsa
   const dispatcher = buildDispatcher(opts)
   const headers = buildHeaders(opts)
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT
+  const proxy = proxyNote(opts.proxyUrl)
 
-  const request = async (method: 'HEAD' | 'GET') =>
-    undiciFetch(opts.url, {
-      method,
-      headers,
-      redirect: 'follow',
-      signal: AbortSignal.timeout(timeoutMs),
-      ...(dispatcher ? { dispatcher } : {}),
-    } as never)
-
-  // 先 HEAD：只取响应头
-  let res = await request('HEAD')
-  let usage = parseUserInfo(res.headers.get('subscription-userinfo'))
-
-  // 回退 GET：部分上游对 HEAD 不返回用量头
-  if (!usage) {
-    if (!res.ok) {
-      // 上游明确拒绝 HEAD，直接换 GET
-      res = await request('GET')
-      usage = parseUserInfo(res.headers.get('subscription-userinfo'))
-    } else {
-      res = await request('GET')
-      usage = parseUserInfo(res.headers.get('subscription-userinfo'))
+  const request = async (method: 'HEAD' | 'GET') => {
+    try {
+      return await undiciFetch(opts.url, {
+        method,
+        headers,
+        redirect: 'follow',
+        signal: AbortSignal.timeout(timeoutMs),
+        ...(dispatcher ? { dispatcher } : {}),
+      } as never)
+    } catch (err) {
+      // 诊断增强（TASK-027，构建器见 ./subscription-errors.ts）：
+      // 超时/网络失败的原生消息不带 URL/方法，多订阅环境下无法定位。
+      // 原错误挂 cause 保留现场。
+      const message = err instanceof Error ? err.message : String(err)
+      if (err instanceof Error && (err.name === 'TimeoutError' || message.includes('aborted due to timeout'))) {
+        throw new Error(timeoutErrorMessage({ timeoutMs, method, url: opts.url, proxy }), { cause: err })
+      }
+      throw new Error(networkErrorMessage({ method, url: opts.url, proxy, message }), { cause: err })
     }
   }
 
+  // 先 HEAD：只取响应头
+  let method: 'HEAD' | 'GET' = 'HEAD'
+  let res = await request('HEAD')
+  let usage = parseUserInfo(res.headers.get('subscription-userinfo'))
+
+  // 回退 GET：部分上游对 HEAD 不返回用量头（或明确拒绝 HEAD）
+  if (!usage) {
+    method = 'GET'
+    res = await request('GET')
+    usage = parseUserInfo(res.headers.get('subscription-userinfo'))
+  }
+
   if (!res.ok) {
-    throw new Error(`上游返回 HTTP ${res.status}`)
+    // 诊断信息（TASK-024 为先例，TASK-027 扩展到状态码错误）：
+    // 403 等状态码既可能是源站拒绝（token 失效 / WAF 拦截 / IP 封禁），
+    // 也可能是代理拒绝——不带最终 URL、content-type 与响应体时二者
+    // 无法区分。res.url 为重定向后的最终 URL；响应体仅 GET 有意义。
+    const contentType = res.headers.get('content-type') ?? '未知'
+    const body = method === 'GET' ? bodySnippet(await res.text().catch(() => '')) : ''
+    throw new Error(
+      httpStatusErrorMessage({ status: res.status, method, finalUrl: res.url, proxy, contentType, body })
+    )
   }
   if (!usage) {
     // 诊断信息（TASK-024）：「缺头」既可能是上游真不支持，也可能是拿到了
