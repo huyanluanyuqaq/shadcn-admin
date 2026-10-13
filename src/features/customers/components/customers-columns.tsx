@@ -42,12 +42,15 @@ export function getCustomersColumns({
         className: cn('inset-s-0 z-10 rounded-tl-[inherit] max-md:sticky'),
       },
       cell: ({ row }) => (
-        <Checkbox
-          checked={row.getIsSelected()}
-          onCheckedChange={(value) => row.toggleSelected(!!value)}
-          aria-label='选择该行'
-          className='translate-y-0.5'
-        />
+        // 行可点击（选中 + 展开），勾选框需阻止冒泡，避免点击时连带展开
+        <div onClick={(event) => event.stopPropagation()}>
+          <Checkbox
+            checked={row.getIsSelected()}
+            onCheckedChange={(value) => row.toggleSelected(!!value)}
+            aria-label='选择该行'
+            className='translate-y-0.5'
+          />
+        </div>
       ),
       enableSorting: false,
       enableHiding: false,
@@ -207,7 +210,15 @@ export function getCustomersColumns({
     },
     {
       id: 'actions',
-      cell: DataTableRowActions,
+      cell: (props) => (
+        // 行操作菜单经 portal 渲染，事件仍沿 React 树冒泡，需在此截断
+        <div
+          onClick={(event) => event.stopPropagation()}
+          className='flex justify-end'
+        >
+          <DataTableRowActions {...props} />
+        </div>
+      ),
     },
   ]
 }

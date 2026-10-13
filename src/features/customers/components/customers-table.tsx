@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   type ColumnFiltersState,
   type OnChangeFn,
   type PaginationState,
+  type Row,
   type RowSelectionState,
   type SortingState,
   type VisibilityState,
@@ -12,6 +13,7 @@ import {
   getFacetedUniqueValues,
   useReactTable,
 } from '@tanstack/react-table'
+import type { Customer } from '@shared/index'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
@@ -35,6 +37,7 @@ import {
 import { customerStatusOptions } from '../data/schema'
 import { useDebouncedValue } from '../hooks'
 import { getErrorMessage } from '../utils'
+import { CustomerDetailPanel } from './customer-detail-panel'
 import { getCustomersColumns } from './customers-columns'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 
@@ -56,6 +59,8 @@ export function CustomersTable() {
   const [globalFilter, setGlobalFilter] = useState('')
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({})
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  // 同时只展开一行：存的是行 id（= 客户 id，见 getRowId）
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const keyword = useDebouncedValue(globalFilter)
 
@@ -155,6 +160,12 @@ export function CustomersTable() {
   })
 
   const columnCount = table.getVisibleLeafColumns().length
+
+  /** 点击行：选中该客户并切换其延伸面板（再次点击同一行则收起） */
+  function toggleRow(row: Row<Customer>) {
+    setRowSelection({ [row.id]: true })
+    setExpandedId((prev) => (prev === row.id ? null : row.id))
+  }
 
   return (
     <div
@@ -266,29 +277,70 @@ export function CustomersTable() {
                 )
               )
             ) : table.getRowModel().rows.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && 'selected'}
-                  className='group/row'
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell
-                      key={cell.id}
+              table.getRowModel().rows.map((row) => {
+                const isExpanded = expandedId === row.id
+                return (
+                  <Fragment key={row.id}>
+                    <TableRow
+                      data-state={row.getIsSelected() && 'selected'}
+                      onClick={() => toggleRow(row)}
+                      onKeyDown={(event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          toggleRow(row)
+                        }
+                      }}
+                      tabIndex={0}
                       className={cn(
-                        'bg-background group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted',
-                        cell.column.columnDef.meta?.className,
-                        cell.column.columnDef.meta?.tdClassName
+                        'group/row cursor-pointer',
+                        isExpanded && 'border-b-0'
                       )}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
-                      )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className={cn(
+                            'bg-background group-hover/row:bg-muted group-data-[state=selected]/row:bg-muted',
+                            cell.column.columnDef.meta?.className,
+                            cell.column.columnDef.meta?.tdClassName
+                          )}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                    {/* 延伸面板：常驻 DOM 以便进出场都能过渡；行高由 grid 行 0fr↔1fr 驱动 */}
+                    <TableRow
+                      data-state={isExpanded ? 'expanded' : 'collapsed'}
+                      className={cn(isExpanded ? 'border-b' : 'border-b-0')}
+                    >
+                      <TableCell
+                        colSpan={columnCount}
+                        className='p-0 whitespace-normal'
+                      >
+                        <div
+                          className={cn(
+                            'grid transition-all duration-300 ease-out',
+                            isExpanded ? 'grid-rows-[1fr]' : 'grid-rows-[0fr]'
+                          )}
+                        >
+                          <div
+                            className={cn(
+                              'overflow-hidden transition-opacity duration-200',
+                              isExpanded ? 'opacity-100' : 'opacity-0'
+                            )}
+                          >
+                            <CustomerDetailPanel customer={row.original} />
+                          </div>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </Fragment>
+                )
+              })
             ) : (
               <TableRow>
                 <TableCell
