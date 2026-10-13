@@ -10,7 +10,7 @@
 Task ID: TASK-027
 Title: 订阅同步错误诊断增强（HTTP 状态码 / 超时带上下文）
 Workflow: bugfix
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: workbuddy
 Owner Since: 2026-10-13
@@ -106,3 +106,10 @@ URL / 方法 / 超时值。对齐 TASK-024 为「缺头」错误建立的诊断�
 clash.meta 可配、accept/accept-encoding 标准头、自定义头透传、
 redirect follow），探针证实全部为标准请求；git 历史确认无回归。
 仓库侧的真实缺陷是诊断缺口（本 Task 已修复）。
+
+## Merge Record
+
+- 修复提交 `d874e63`（fix(server)），任务档案 `ca27121`（docs(task)），
+  均经 fast-forward 合入 main 并推送。
+- CI 验证：run 38332716262 **success**。
+- Docker 构建（38332716267）随推送执行。

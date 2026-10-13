@@ -246,3 +246,46 @@ config-drawer 15/15、search-provider 7/8 等）。
   临时移走后本地复跑；本坑即以此确定性复现（移走 dist → build:shared →
   受影响测试 27/27 恢复）。
 - 新增 `server/` 下测试文件前，确认 CI 链已满足其解析前提（build:shared）。
+
+---
+
+## 13. 订阅同步 403/timeout：如何判定上游原因还是仓库问题（TASK-027，2026-10-13）
+
+**现象：** 部署实例订阅同步失败，错误先从
+`The operation was aborted due to timeout` 变为 `上游返回 HTTP 403`。
+
+**判定方法（已实证，结论 = 上游主动拒绝，仓库无直接责任）：**
+
+1. **固化仓库真实请求形态**：用探针脚本（tsx + 本地 HTTP 服务器 +
+   真实 `fetchSubscriptionUsage`）记录实际发出的方法与请求头。实测：
+   HTTP/1.1、HEAD 优先 + GET 回退、UA 默认 `clash.meta`（订阅可配）、
+   `accept: */*`、`accept-encoding: gzip, deflate`、自定义头透传、
+   `redirect: follow`——全部为标准请求，无畸形。
+2. **核对 git 历史**：`git log --follow` 确认请求构造自初始提交起未变，
+   排除「某次改动引入回归」。
+3. **结论**：403 是上游（或其 WAF / 代理）的主动拒绝。常见上游原因：
+   IP 封禁（此前的超时/重试模式可能触发）、UA 过滤、TLS 指纹（JA3）
+   过滤、订阅 token 失效、代理拒绝（配了 proxyUrl 时）。
+
+**仓库侧真实缺陷 = 诊断缺口（已修复，TASK-027）：** 原错误消息
+`上游返回 HTTP 403` 不带 URL/方法/响应体，上述原因无法区分。现消息形如：
+
+```
+上游返回 HTTP 403（GET https://最终URL，content-type: text/plain，响应体: Sorry, you have been blocked）
+```
+
+配代理时附 `，经代理 <proxyUrl>`；超时消息形如
+`请求超时（10000ms，HEAD <url>）`。响应体折叠空白并截断 200 字符。
+
+**排查提示：**
+
+- 403 响应体通常直接写明原因（Cloudflare "blocked" / 登录页 / token
+  失效文案）——先看响应体，再看是否 `经代理`。
+- 用户侧快速验证（在部署机执行，替换 URL）：
+  `curl -sS -o /dev/null -D - -A 'clash.meta' '<订阅URL>'` 看状态码与
+  响应头；再换浏览器 UA 对比——若浏览器 UA 通而 clash.meta 被拒，
+  即上游 UA 过滤，把订阅的 UA 改成浏览器 UA 即可。
+- **浏览器模式 vitest 无法 mock 被预打包的 undici**（vitest 已知限制：
+  mock 不拦截 optimized deps，真实 undici 又无法在浏览器加载）。
+  涉及 undici 的模块，消息级验证抽成纯函数模块（subscription-errors.ts），
+  流程级验证走 smoke.ts（node + 真实 undici + 本地 mock 上游）。
