@@ -10,13 +10,13 @@
 Task ID: TASK-028
 Title: 渠道通知消息增加客户名称归属行
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: workbuddy
 Owner Since: 2026-10-13
 Assigned Role: developer
 Created: 2026-10-13T08:29:34Z
-Updated: 2026-10-13T08:29:34Z
+Updated: 2026-10-13T09:03:54Z
 Branch: feat/TASK-028-notification-customer-name
 Requires Human Approval: false
 ```
@@ -123,7 +123,7 @@ File Scope:
   - server/src/services/subscription-sync.ts        # 修改：loadSyncRows join + publish data
   - server/scripts/smoke.ts                         # 修改：17.9 追加归属行断言
   - docs/architecture/overview.md                   # 修改：§12.6.1
-  - tasks/review/TASK-028-notification-customer-name/**
+  - tasks/done/TASK-028-notification-customer-name/**
 Non-Scope (files):
   - shared/**                # 无 schema 变更
   - src/**                   # 前端无改动
@@ -157,7 +157,8 @@ Non-Scope (files):
 > 2026-10-13 08:29 任务创建并实现完成：formatter 归属行 + sync join 查询 + 单测 6 例 +
 > smoke 断言 + 架构文档。
 > 2026-10-13 08:29 三件套全绿（typecheck / lint / format:check），`pnpm test` 251/251 通过。
-> 待 Review 后移入 done/。
+> 2026-10-13 09:03 提交并推送：分支 `feat/TASK-028-notification-customer-name` 提交
+> `7361e3d`，已推送 origin，PR 链接见 GitHub 侧提示。任务移入 done/。
 
 ---
 
@@ -183,10 +184,10 @@ Non-Scope (files):
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
-| 001 | developer | reviewer | 2026-10-13 | 实现+测试+文档完成，全绿待复核 |
+| 001 | developer | system | 2026-10-13 | 实现+测试+文档完成，三件套与全量测试全绿 |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** Review 通过后移入 tasks/done/，创建分支 feat/TASK-028-notification-customer-name 提交推送
+**最新 Handoff：** `handoffs/HANDOFF-001-developer-to-system.md`
+**Next Action：** 隔离环境跑 `pnpm smoke` 验证 17.9 归属行端到端断言（需 mock 上游 + Telegram/飞书 API 覆盖）；其余已闭环。
 
 ---
 

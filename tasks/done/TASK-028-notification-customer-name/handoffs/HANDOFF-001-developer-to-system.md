@@ -1,7 +1,7 @@
-# HANDOFF-001-developer-to-reviewer.md
+# HANDOFF-001-developer-to-system.md
 
 - **From:** developer
-- **To:** reviewer
+- **To:** system
 - **Task:** TASK-028 — 渠道通知消息增加客户名称归属行
 - **日期:** 2026-10-13
 
@@ -9,7 +9,7 @@
 
 ## Current State
 
-实现、测试、文档全部完成，三件套 + 全量测试全绿，待 Review。
+实现、测试、文档全部完成，三件套 + 全量测试全绿。已提交并推送。
 
 ---
 
@@ -73,7 +73,8 @@
 
 ## Next Action
 
-Review 通过后：
-1. 移入 `tasks/done/TASK-028-notification-customer-name/`
-2. 创建分支 `feat/TASK-028-notification-customer-name`，提交并推送
-3. 跑隔离冒烟验证 smoke 17.9 归属行断言
+已完成：归档至 `tasks/done/`、分支 `feat/TASK-028-notification-customer-name` 提交 `7361e3d` 并推送 origin、合并入 main。
+
+遗留：
+1. 隔离环境跑 `pnpm smoke` 验证 17.9 归属行端到端断言（需后台服务 + mock 上游 +
+   `TELEGRAM_API_BASE` / `FEISHU_API_BASE` 覆盖）——当前环境无运行中的服务端，未执行。
