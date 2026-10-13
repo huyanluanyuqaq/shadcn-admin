@@ -10,7 +10,7 @@
 Task ID: TASK-030
 Title: 订阅表格行点击展开延伸面板
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: workbuddy
 Owner Since: 2026-10-13
@@ -108,12 +108,9 @@ Reused (not modified, TASK-029 产物):
 
 ---
 
-## Next Action
+## Merge Record
 
-Review 通过后：
-1. 移入 `tasks/done/TASK-030-subscription-row-expand-panel/`
-2. 创建分支 `feat/TASK-030-subscription-row-expand-panel`，提交并推送
-3. fast-forward 合入 main，补 Merge Record（CI / Docker run id）
-
-> 前置依赖：TASK-029（客户管理面板）已交付并合入 main（`5280a18`），
-> 其面板外壳与 `src/lib/clipboard.ts` 为本任务复用项。
+- 功能提交 `492e159`（feat(web)），任务档案见下一条 docs(task) 提交，
+  经 fast-forward 合入 main 并推送。
+- CI 验证：run **38411606617 success**（install-lint-build 全绿）。
+- Docker 构建：run **38411606735 success**。

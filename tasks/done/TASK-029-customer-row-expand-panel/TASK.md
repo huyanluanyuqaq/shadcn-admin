@@ -162,7 +162,13 @@ Non-Scope (files):
 
 ---
 
-## Known Issues
+## Merge Record
+
+- 功能提交 `5280a18`（feat(web)），任务档案 `17850e4`（docs(task)），
+  经 fast-forward 合入 main 并推送。
+- CI 验证：run **38411305558 success**。
+- Docker 构建 run 38411306368 被后续推送触发的同组构建取消（并发策略），
+  最终以 TASK-030 的 run 38411606735 覆盖验证同一份 main。
 
 - `data-state` 在未选中行上会被 React 渲染为字符串 `"false"`（因
   `row.getIsSelected() && 'selected'` 的短路求值），与面板行的
