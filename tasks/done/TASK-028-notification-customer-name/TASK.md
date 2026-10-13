@@ -157,8 +157,14 @@ Non-Scope (files):
 > 2026-10-13 08:29 任务创建并实现完成：formatter 归属行 + sync join 查询 + 单测 6 例 +
 > smoke 断言 + 架构文档。
 > 2026-10-13 08:29 三件套全绿（typecheck / lint / format:check），`pnpm test` 251/251 通过。
-> 2026-10-13 09:03 提交并推送：分支 `feat/TASK-028-notification-customer-name` 提交
-> `7361e3d`，已推送 origin，PR 链接见 GitHub 侧提示。任务移入 done/。
+> 2026-10-13 09:32 fast-forward 合入 main（`108231a`）并推送；CI run 38377043005 success。
+
+## Merge Record
+
+- 功能提交 `7361e3d`（feat(server)），任务档案 `108231a`（docs(task)），
+  经 fast-forward 合入 main 并推送。
+- CI 验证：run **38377043005 success**（install-lint-build 全绿）。
+- Docker 构建（run 38377042676）随推送执行并成功。
 
 ---
 
