@@ -65,6 +65,7 @@ describe('subscription.sync_succeeded（单条）', () => {
     expect(body).toBe(
       [
         '订阅: 宝可梦-MOXIMOXI-94',
+        '该订阅暂未使用',
         '✅订阅【宝可梦-MOXIMOXI-94】同步完成，耗时 0.3 秒',
         '📊 用量信息',
         '⬆️ 上传: 0 B',
@@ -99,6 +100,70 @@ describe('subscription.sync_succeeded（单条）', () => {
       makePayload('subscription.sync_succeeded', { subscriptionId: 7, url: 'https://a.b/sub' })
     )
     expect(body).toBe('回落消息')
+  })
+
+  it('已绑定客户时显示客户名称', () => {
+    const body = formatNotificationBody(
+      'subscription.sync_succeeded',
+      makePayload('subscription.sync_succeeded', {
+        name: '绑定客户的订阅',
+        customerName: '张三',
+        email: 'zhang@example.com',
+      })
+    )
+    expect(body).toContain('客户: 张三')
+    // 有客户名时不再显示邮箱
+    expect(body).not.toContain('邮箱: zhang@example.com')
+  })
+
+  it('未绑定客户但留了邮箱时显示邮箱', () => {
+    const body = formatNotificationBody(
+      'subscription.sync_succeeded',
+      makePayload('subscription.sync_succeeded', {
+        name: '仅留邮箱的订阅',
+        email: 'a@example.com',
+      })
+    )
+    expect(body).toContain('邮箱: a@example.com')
+    expect(body).not.toContain('客户:')
+  })
+
+  it('既无客户也无邮箱时提示暂未使用', () => {
+    const body = formatNotificationBody(
+      'subscription.sync_succeeded',
+      makePayload('subscription.sync_succeeded', {
+        name: '裸订阅',
+        customerName: null,
+        email: '',
+      })
+    )
+    expect(body).toContain('该订阅暂未使用')
+    expect(body).not.toContain('客户:')
+    expect(body).not.toContain('邮箱:')
+  })
+
+  it('客户名为空字符串时走邮箱分支', () => {
+    const body = formatNotificationBody(
+      'subscription.sync_succeeded',
+      makePayload('subscription.sync_succeeded', {
+        name: '客户名为空',
+        customerName: '',
+        email: 'b@example.com',
+      })
+    )
+    expect(body).toContain('邮箱: b@example.com')
+  })
+
+  it('邮箱仅含空白字符时走暂无归属分支', () => {
+    const body = formatNotificationBody(
+      'subscription.sync_succeeded',
+      makePayload('subscription.sync_succeeded', {
+        name: '邮箱仅空白',
+        customerName: '',
+        email: '  ',
+      })
+    )
+    expect(body).toContain('该订阅暂未使用')
   })
 })
 
@@ -142,15 +207,17 @@ describe('subscription.sync_failed', () => {
         { severity: 'error' }
       )
     )
-    expect(body).toBe(['订阅: 坏订阅', '❌订阅【坏订阅】同步失败', '⚠️ 错误: 请求失败：timeout'].join('\n'))
+    expect(body).toBe(
+      ['订阅: 坏订阅', '该订阅暂未使用', '❌订阅【坏订阅】同步失败', '⚠️ 错误: 请求失败：timeout'].join('\n')
+    )
   })
 
   it('单条失败无 error 字段时不输出错误行', () => {
     const body = formatNotificationBody(
       'subscription.sync_failed',
-      makePayload('subscription.sync_failed', { name: '坏订阅' })
+      makePayload('subscription.sync_failed', { name: '坏订阅', customerName: '李四' })
     )
-    expect(body).toBe(['订阅: 坏订阅', '❌订阅【坏订阅】同步失败'].join('\n'))
+    expect(body).toBe(['订阅: 坏订阅', '客户: 李四', '❌订阅【坏订阅】同步失败'].join('\n'))
   })
 
   it('批量失败：计数行 + 前 3 条明细（超出截断）', () => {

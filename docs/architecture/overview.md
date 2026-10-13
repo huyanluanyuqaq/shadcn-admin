@@ -540,6 +540,7 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 ```
 ✅ 订阅同步成功                      ← 标题头（Telegram 加粗 / 飞书 header）
 订阅: 宝可梦-MOXIMOXI-94              ← 对象行
+客户: 张三                            ← 归属行（TASK-028）
 ✅订阅【宝可梦-MOXIMOXI-94】同步完成，耗时 0.1 秒   ← 状态摘要行
 📊 用量信息                          ← 分区头
 ⬆️ 上传: 0 B / ⬇️ 下载: 0 B / 📦 总量: 60.00 GB / ⏳ 过期: 2026-10-29 13:17:29
@@ -553,6 +554,7 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 | 格式化口径 | 字节用 shared `formatTrafficBytes`（0→`0 B`，空→`-`）；时间本地时区 `YYYY-MM-DD HH:mm:ss`；耗时秒（<10s 一位小数） |
 | 降级 | 关键字段缺失（如老载荷无 name）或 `data` 为空 → 回落 `payload.message`，不产生半截消息 |
 | 转义 | 排版模块产出裸文本；Telegram 侧在 `formatTelegramMessage` 统一 HTML 转义（用户内容不得破坏 parse_mode） |
+| 归属行 | TASK-028 新增：位于对象行之后、状态摘要行之前。优先级为**已绑定客户 → 客户名称**（`customers.name`，由 `subscriptions.customer_id` 列 join 取得）→ **未绑定客户但留了邮箱 → 邮箱**（`subscriptions.email`）→ **二者皆无 → `该订阅暂未使用`**。读 `data.customerName` / `data.email`；两字段均由 `services/subscription-sync.ts` 一次性 join 查询填充，避免 N+1 |
 
 ### 12.7 流量阈值提醒（TASK-013）
 

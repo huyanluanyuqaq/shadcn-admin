@@ -20,10 +20,10 @@ import {
  * ⏳ 过期: 2026-10-29 13:17:29
  * ```
  *
- * 结构固化为四段：**事件标题头**（由各渠道自行渲染）→ **对象行**（`订阅: xxx`）
- * → **状态摘要行**（✅/❌ + 【名称】+ 关键数字）→ **📊 用量信息分区**
- * （⬆️/⬇️/📦/⏳ 四行）。本项目不解析节点列表（无节点统计数据），
- * 节点数字段以「耗时 + 用量/到期」替代。
+ * 结构固化为五段：**事件标题头**（由各渠道自行渲染）→ **对象行**（`订阅: xxx`）
+ * → **归属行**（`客户: xxx` / `邮箱: xxx` / `该订阅暂未使用`）→ **状态摘要行**
+ * （✅/❌ + 【名称】+ 关键数字）→ **📊 用量信息分区**（⬆️/⬇️/📦/⏳ 四行）。
+ * 本项目不解析节点列表（无节点统计数据），节点数字段以「耗时 + 用量/到期」替代。
  *
  * 约束：
  * - 纯函数：不碰 DB / 网络 / 时钟（时间一律来自 payload.time 或 data）
@@ -32,7 +32,13 @@ import {
  *   `formatTelegramMessage`，本模块只产出裸文本）
  */
 
-/** data 载荷字段约定（各触发点 publish 时填充，详见 TASK-025） */
+/**
+ * data 载荷字段约定（各触发点 publish 时填充，详见 TASK-025）。
+ *
+ * TASK-028 新增归属字段：`customerName`（客户名称，`subscriptions.customer_id` join
+ * `customers.name`）与 `email`（`subscriptions.email`）。二者由 `syncOne`/`syncMany`
+ * 经单次 join 查询一次性填充，formatter 按优先级渲染归属行。
+ */
 type NotificationData = Record<string, unknown> | null | undefined
 
 // ---------- 基础格式化 ----------
@@ -102,6 +108,22 @@ function usageSection(
   ].join('\n')
 }
 
+// ---------- 归属行 ----------
+
+/**
+ * 订阅的客户/邮箱归属行。
+ *
+ * 优先级：已绑定客户 → 客户名称；未绑定客户但留了邮箱 → 邮箱；二者皆无 →
+ * 提示该订阅暂未使用（避免客户侧看到一条「不知道是谁的订阅」的通知）。
+ */
+function customerLine(data: NotificationData): string {
+  const customerName = readStr(data, 'customerName')
+  if (customerName) return `客户: ${customerName}`
+  const email = readStr(data, 'email')
+  if (email) return `邮箱: ${email}`
+  return '该订阅暂未使用'
+}
+
 // ---------- 分事件排版 ----------
 
 /** 单条订阅同步成功（syncOne，仅用量/到期变化时触发） */
@@ -114,6 +136,7 @@ function formatSingleSyncSuccess(data: NotificationData, fallback: string): stri
   const expireAt = readNum(data, 'expireAt')
   return [
     `订阅: ${name}`,
+    customerLine(data),
     `✅订阅【${name}】同步完成，耗时 ${formatDuration(readNum(data, 'elapsedMs'))}`,
     usageSection(upload, download, trafficTotal, expireAt),
   ].join('\n')
@@ -141,7 +164,12 @@ function formatSingleSyncFailure(data: NotificationData, fallback: string): stri
   const name = readStr(data, 'name')
   if (!name) return fallback
   const error = readStr(data, 'error')
-  return [`订阅: ${name}`, `❌订阅【${name}】同步失败`, error ? `⚠️ 错误: ${error}` : '']
+  return [
+    `订阅: ${name}`,
+    customerLine(data),
+    `❌订阅【${name}】同步失败`,
+    error ? `⚠️ 错误: ${error}` : '',
+  ]
     .filter(Boolean)
     .join('\n')
 }

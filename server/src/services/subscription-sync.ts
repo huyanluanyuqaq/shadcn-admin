@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm'
+import { eq, inArray } from 'drizzle-orm'
 import type { BatchSyncResult, SyncResult } from '@repo/shared'
 import { db } from '../db/index.js'
 import { customers, subscriptions } from '../db/schema.js'
@@ -27,9 +27,62 @@ function clampConcurrency(v: number): number {
 /** 单飞锁（C6）：同一订阅未跑完不得重入 */
 const inFlight = new Set<number>()
 
-type Row = typeof subscriptions.$inferSelect
+/** 订阅行 + 归属客户（name/email），同步与通知共用 */
+type SyncRow = {
+  id: number
+  customerId: number | null
+  customerName: string | null
+  email: string | null
+  name: string | null
+  url: string
+  trafficUsed: number
+  trafficTotal: number | null
+  expireAt: Date | null
+  userAgent: string | null
+  headers: string | null
+  skipTlsVerify: boolean
+  proxyUrl: string | null
+  enabled: boolean
+}
 
-function changed(row: Row, usage: Awaited<ReturnType<typeof fetchSubscriptionUsage>>): boolean {
+/**
+ * 单条订阅行（含归属客户），带归属信息的 join 只读查询，避免 N+1。
+ *
+ * 结果集就是即将并发拉取的订阅本身，不是 N+1；in-flight 条目在内存中剔除，
+ * 避免被批量同步的内存筛选重复选中。
+ */
+function loadSyncRows(ids?: number[]): SyncRow[] {
+  const rows = buildSyncQuery(ids).all()
+  return rows.filter((r) => !inFlight.has(r.id))
+}
+
+function buildSyncQuery(ids?: number[]) {
+  const query = db
+    .select({
+      id: subscriptions.id,
+      customerId: subscriptions.customerId,
+      customerName: customers.name,
+      email: subscriptions.email,
+      name: subscriptions.name,
+      url: subscriptions.url,
+      trafficUsed: subscriptions.trafficUsed,
+      trafficTotal: subscriptions.trafficTotal,
+      expireAt: subscriptions.expireAt,
+      userAgent: subscriptions.userAgent,
+      headers: subscriptions.headers,
+      skipTlsVerify: subscriptions.skipTlsVerify,
+      proxyUrl: subscriptions.proxyUrl,
+      enabled: subscriptions.enabled,
+    })
+    .from(subscriptions)
+    .leftJoin(customers, eq(subscriptions.customerId, customers.id))
+  if (ids && ids.length > 0) {
+    return query.where(inArray(subscriptions.id, ids))
+  }
+  return query.where(eq(subscriptions.enabled, true))
+}
+
+function changed(row: SyncRow, usage: Awaited<ReturnType<typeof fetchSubscriptionUsage>>): boolean {
   const used = (usage.upload ?? 0) + (usage.download ?? 0)
   const total = usage.total ?? null
   const expire = usage.expire ? usage.expire * 1000 : null
@@ -40,7 +93,7 @@ function changed(row: Row, usage: Awaited<ReturnType<typeof fetchSubscriptionUsa
   return false
 }
 
-async function fetchOne(row: Row): Promise<{ usage: Awaited<ReturnType<typeof fetchSubscriptionUsage>>; changed: boolean }> {
+async function fetchOne(row: SyncRow): Promise<{ usage: Awaited<ReturnType<typeof fetchSubscriptionUsage>>; changed: boolean }> {
   const usage = await fetchSubscriptionUsage({
     url: row.url,
     userAgent: row.userAgent,
@@ -51,19 +104,30 @@ async function fetchOne(row: Row): Promise<{ usage: Awaited<ReturnType<typeof fe
   return { usage, changed: changed(row, usage) }
 }
 
+/** 展示名（name 优先，缺失回落 url） */
+function displayName(row: SyncRow): string {
+  return row.name?.trim() || row.url
+}
+
+/** 通知 data 的归属字段（TASK-028） */
+function ownershipData(row: SyncRow): { customerName: string | null; email: string | null } {
+  return { customerName: row.customerName, email: row.email }
+}
+
 /** 同步单条订阅 */
 export async function syncOne(id: number): Promise<SyncResult> {
   if (inFlight.has(id)) {
     return { id, ok: false, changed: false, upload: null, download: null, total: null, expire: null, error: '同步进行中，已跳过（单飞锁）' }
   }
-  const row = db.select().from(subscriptions).where(eq(subscriptions.id, id)).get()
+  const rows = loadSyncRows([id])
+  const row = rows[0]
   if (!row) {
     return { id, ok: false, changed: false, upload: null, download: null, total: null, expire: null, error: '订阅不存在' }
   }
 
   inFlight.add(id)
   const startedAt = Date.now()
-  const name = row.name?.trim() || row.url
+  const name = displayName(row)
   try {
     const { usage, changed: isChanged } = await fetchOne(row)
     const used = (usage.upload ?? 0) + (usage.download ?? 0)
@@ -100,6 +164,7 @@ export async function syncOne(id: number): Promise<SyncResult> {
     // 通知（C8 增量对比）：仅当用量/到期真正变化时才通知，避免每轮空转刷屏。
     // data 携带富格式排版所需的结构化字段（TASK-025，字段约定见
     // ./notification-format.ts 头部注释）：expireAt 为 epoch ms。
+    // 归属信息供 formatter 渲染客户行（TASK-028）。
     if (isChanged) {
       publish('subscription.sync_succeeded', {
         title: '订阅同步成功',
@@ -113,6 +178,7 @@ export async function syncOne(id: number): Promise<SyncResult> {
           trafficTotal: usage.total,
           expireAt: expireMs,
           elapsedMs: Date.now() - startedAt,
+          ...ownershipData(row),
         },
       })
     }
@@ -143,6 +209,7 @@ export async function syncOne(id: number): Promise<SyncResult> {
         name,
         error: message,
         elapsedMs: Date.now() - startedAt,
+        ...ownershipData(row),
       },
     })
     return { id, ok: false, changed: false, upload: null, download: null, total: null, expire: null, error: message }
@@ -153,18 +220,14 @@ export async function syncOne(id: number): Promise<SyncResult> {
 
 /** 批量同步：并发拉取 → 内存聚合 → 单事务写入 */
 export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
-  const rows = (
-    ids && ids.length > 0
-      ? db.select().from(subscriptions).all().filter((r) => ids.includes(r.id))
-      : db.select().from(subscriptions).where(eq(subscriptions.enabled, true)).all()
-  ).filter((r) => !inFlight.has(r.id))
+  const rows = loadSyncRows(ids)
 
   const results: SyncResult[] = []
   const updates: Array<{ id: number; used: number; total: number | null; expireMs: number | null }> = []
   const failures: Array<{ id: number; message: string }> = []
   /** 订阅 id → 展示名（name 优先，缺失回落 url；失败明细与通知共用） */
-  const nameBySub = new Map(rows.map((r) => [r.id, r.name?.trim() || r.url]))
-  /** 订阅 id → 关联客户 id（TASK-017 回写用；阶段一快照，阶段二同事务消费） */
+  const nameBySub = new Map(rows.map((r) => [r.id, displayName(r)]))
+  /** 订阅 id → 归属客户 id（TASK-017 回写用；阶段二同事务消费） */
   const customerBySub = new Map(rows.map((r) => [r.id, r.customerId]))
   const startedAt = Date.now()
 

@@ -14,7 +14,8 @@
  * 通知（Webhook CRUD / 启停 / 测试发送、站内通知已读）、
  * 流量阈值（TASK-013：50/80/100 穿越式通知 / 最高阈值去重 / 回落重置 / 手动上限优先）、
  * Telegram 渠道（mock Bot API：配置校验 / /start 自动绑定 / 事件派发 / 测试连接）、
- * 飞书渠道（mock 开放平台 API：配置校验 / 事件派发交互卡片 / 测试连接）。
+ * 飞书渠道（mock 开放平台 API：配置校验 / 事件派发交互卡片 / 测试连接），
+ * 通知归属行（TASK-028：已绑定客户→客户名、仅留邮箱→邮箱、否则该订阅暂未使用）。
  *
  * 快乐路径需要服务端指向内嵌 mock（否则只执行离线校验并跳过）：
  *   TELEGRAM_API_BASE=http://127.0.0.1:3998 FEISHU_API_BASE=http://127.0.0.1:4000 pnpm --filter server dev
@@ -2391,6 +2392,11 @@ async function main() {
           parseMode: richTgMsg.parseMode,
         }
       )
+      check(
+        '未绑定客户的订阅同步成功通知提示暂未使用（TASK-028）',
+        richTgMsg?.text.includes('该订阅暂未使用'),
+        richTgMsg && { text: richTgMsg.text }
+      )
 
       // 飞书：卡片 header 标题 + lark_md 正文同口径
       const richFs = await waitFor(5000, async () =>
@@ -2425,8 +2431,93 @@ async function main() {
         }
       )
 
+      // 17.9.1 已绑定客户的订阅：通知里显示客户名称（TASK-028）
+      const richCustomer = await req('/api/customers', {
+        method: 'POST',
+        token,
+        body: {
+          name: `smoke-customer2-${suffix}`,
+          email: `smoke2${suffix}@example.com`,
+          poolId: pool.json?.id,
+          planId: plan.json?.id,
+          planTier: 'monthly',
+          expireAt: Date.now() + 3 * 86400000,
+          purchasedAt: Date.now() - 86400000,
+          trafficTotal: 50 * 1024 ** 3,
+          trafficManualCap: 20 * 1024 ** 3,
+          subscriptionUrl: 'https://example.com/sub',
+          subscriptionExpireAt: Date.now() + 30 * 86400000,
+        },
+      })
+      check(
+        '富格式验证：创建第二个客户（用于绑定订阅）',
+        richCustomer.status === 201 && typeof richCustomer.json?.id === 'number',
+        richCustomer.json
+      )
+
+      const richSub2 = await req('/api/subscriptions', {
+        method: 'POST',
+        token,
+        body: {
+          name: `smoke-notify2-${suffix}`,
+          url: `http://127.0.0.1:${upstream2.port}/ok`,
+          customerId: richCustomer.json?.id,
+          poolId: pool.json?.id,
+          cronExpr: '0 */6 * * *',
+          userAgent: 'clash.meta',
+          headers: '{"Authorization":"Bearer x"}',
+          skipTlsVerify: false,
+          proxyUrl: null,
+          enabled: true,
+          trafficTotal: 30 * 1024 ** 3,
+          expireAt: Date.now() + 30 * 86400000,
+        },
+      })
+      check(
+        '富格式验证：创建已绑定客户的订阅',
+        richSub2.status === 201 && typeof richSub2.json?.id === 'number',
+        richSub2.json
+      )
+
+      const richSync2 = await req(`/api/subscriptions/${richSub2.json?.id}/sync`, {
+        method: 'POST',
+        token,
+      })
+      check(
+        '富格式验证：单条同步成功（已绑定客户）',
+        richSync2.status === 200 && richSync2.json?.ok === true,
+        richSync2.json
+      )
+
+      const richTg2 = await waitFor(5000, async () =>
+        mockState.sent.some(
+          (m) =>
+            m.text.includes(`订阅: smoke-notify2-${suffix}`) &&
+            m.text.includes(`客户: smoke-customer2-${suffix}`) &&
+            m.text.includes('同步完成，耗时')
+        )
+      )
+      const richTgMsg2 = mockState.sent.find((m) =>
+        m.text.includes(`订阅: smoke-notify2-${suffix}`)
+      )
+      check(
+        '已绑定客户的订阅同步成功通知显示客户名称（TASK-028）',
+        richTg2 &&
+          richTgMsg2?.text.includes(`客户: smoke-customer2-${suffix}`) &&
+          !richTgMsg2?.text.includes('该订阅暂未使用'),
+        richTgMsg2 && { text: richTgMsg2.text }
+      )
+
       // 清理：删除订阅 + 停用两渠道 + 关闭重开的 mock
       await req(`/api/subscriptions/${richSub.json?.id}`, {
+        method: 'DELETE',
+        token,
+      })
+      await req(`/api/subscriptions/${richSub2.json?.id}`, {
+        method: 'DELETE',
+        token,
+      })
+      await req(`/api/customers/${richCustomer.json?.id}`, {
         method: 'DELETE',
         token,
       })
