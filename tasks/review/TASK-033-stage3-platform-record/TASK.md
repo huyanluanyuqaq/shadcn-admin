@@ -5,7 +5,7 @@
 | 字段 | 值 |
 | ---- | -- |
 | Task ID | `TASK-033` |
-| Status | `ACTIVE` |
+| Status | `REVIEW` |
 | Priority | P1（阻塞后续所有任务的闭环方式判定） |
 | Assigned Role | implementer（执行位） |
 | Created | 2026-10-15 |
@@ -54,7 +54,7 @@
 - `.github/workflows/stale.yml`
 - `docs/git-workflow.md`（**R9 追加**：§1 的「平台未强制」提示已被证伪）
 - `.github/PULL_REQUEST_TEMPLATE.md`（**R9 追加**：结尾提示句引用 §5 且已被证伪）
-- `tasks/active/TASK-033-stage3-platform-record/**`（本任务档案）
+- `tasks/review/TASK-033-stage3-platform-record/**`（本任务档案 —— 状态转 `REVIEW` 时随档案移动，见 D5）
 
 **明确排除：**
 
@@ -100,6 +100,26 @@
 - **代价与披露**：这是一次**范围扩张**。已在此处、`handoffs/` 与提交信息中显式披露，
   并新增 **R9** 记录其来源为审查发现 —— **不掩饰为原计划**。
 
+### D5 · 终局声明**之后**的追加（post-terminal amendment）
+
+第 2 轮复审判「可合并」**之后**，发生了两件**必须落档**的事实，故追加一次提交
+（**不属于**该轮「收尾提交」声明的范围，特此显式声明）：
+
+1. **用户验收**：2026-10-15 用户目视确认交付请求模板在网页端**正确预填**
+   → 写入 `Known Issues` 2 与 `Verification`。
+   **若不落档，`main` 上将留下一条新的不实陈述** —— 而这正是本任务（R9）要消除的缺陷类别。
+2. **状态转移**：`Status: ACTIVE` → `REVIEW`，档案 `tasks/active/` → `tasks/review/`
+   （**两步同时做**，符合状态机约定）。理由：合并时该任务已**审查完毕、待归档**，
+   与 TASK-031 合并时的状态一致（当时它在 `tasks/review/` 且 `Status = REVIEW`）。
+   这同时使 `File Scope` 的档案路径随之更新。
+
+**代价与披露：** 这构成一次**新的改动**，故需要**第 3 轮复审**
+（针对三点：「状态 ↔ 目录自洽」「用户验收记录是否准确」「是否越出更新后的 `File Scope`」），
+**不能裹在已有的 PASS 里消费**。
+
+> **D13 关联：** 本追加之所以存在，正是因为「合并后回写」无法在合并**之前**的分支内完成 ——
+> 即设计方案 §17.3 所述张力的又一次具体表现。
+
 ## Current State
 
 - 分支：`chore/TASK-033-stage3-record`（自 `main` = `e3231e7` 派生）
@@ -116,13 +136,17 @@
 - **独立审查（第 2 轮，终局）**：同上文件 §7 —— 结论「**可合并**」（阻断项全部关闭；新增 3 项非阻断观察 N1–N3，**登记不迭代**）
 - **机器验证**：`scripts/audit-repo.py` → `PASS=6 FAIL=0 WARN=0`；
   `shared/scripts/audit_framework.py` → `PASS=13 FAIL=0 WARN=0`
+- **用户验收（2026-10-15）**：交付请求模板在 GitHub 网页的渲染 —— 由用户目视确认**已正确预填**
+  （阶段 2 遗留的**唯一**验收项就此闭环；见 Known Issues 2）
 - **未由本轮改动覆盖**：`pnpm lint` / `format:check` / `test` / `build`（理由见 Known Issues 7）
 
 ## Known Issues
 
 1. **V5 在本 PR 合并前无法自称成立** —— 本 PR 就是它的阳性对照，结论只能在合并时得出。
-2. **「PR 模板在 GitHub 网页渲染正常」仍未人工确认**（阶段 2 遗留的唯一验收项）。
-   本任务提供一个顺路办法：由用户在「新建交付请求」页面目视确认模板是否预填，**无需提交**。
+2. ~~**「PR 模板在 GitHub 网页渲染正常」仍未人工确认**（阶段 2 遗留的唯一验收项）~~ →
+   **已确认关闭（2026-10-15，用户目视）**：用户打开
+   `compare/main...chore/TASK-033-stage3-record?expand=1` 后确认**模板已正确预填**，且**未提交**任何交付请求。
+   **阶段 2 遗留的唯一验收项就此闭环。**（来源与记录见 `handoffs/2026-10-15-review.md` §8.2）
 3. **`stale.yml` 的 `-1` 语义未在本仓库实跑验证** —— 该工作流早已不会自动运行，
    且本项目不使用 Issue，故**刻意不做一次真实运行**（会真的给 Issue 打标签/关闭）。
    依据是 `actions/stale` 的既有约定，属**未实测**，如实登记。
