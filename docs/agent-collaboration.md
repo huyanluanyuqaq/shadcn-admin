@@ -72,8 +72,13 @@
 | 9 整改与复审 | 执行位 → 主控位 | 同分支追加提交 → 复审 | 阻断项关闭且**经复核**，而非仅标记已解决 |
 | 10 合并与归档 | 主控位 | 按 `git-workflow.md` §4 合并、回写 `TASK.md` | Merge Record 含 PR 号与 CI run id |
 
-> **关于 Issue：** 本仓库 **Issues 关闭**，任务状态以 `TASK.md` 为准。
-> Issue 不参与状态与审查；将来若启用，也只作为可选索引。
+> **关于 Issue：** 本仓库 **Issues 已启用**（`has_issues=true`，2026-10-14 实测），
+> 但它**不参与状态与审查**，任务状态一律以 `tasks/**/TASK.md` 为准；Issue 至多作为只读索引。
+>
+> **本决策不依赖 Issues 的开关状态。** 无论启用与否，都保持「文件为唯一事实来源」，
+> 理由是**避免双写**、以及仓库被单独 clone 后任务状态仍然完整——而不是「Issues 不可用」。
+> 阶段 1 调研读到的该值为 `false`（原始输出见设计方案附录），说明**平台事实会漂移**：
+> 引用 [`operations/github-capability.md`](operations/github-capability.md) §8 前须重新实测。
 
 ---
 

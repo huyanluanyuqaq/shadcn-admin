@@ -48,8 +48,10 @@ Thank you for considering contributing to **shadcn-admin**! Every contribution i
 > used for a self-hosted subscription-management build. Work here is tracked in this repository,
 > not upstream.**
 
-- **Issues are disabled in this repository.** Do not rely on the upstream issue tracker or
-  Discussions; they belong to the upstream project and are not monitored here.
+- **Do not use Issues as the task tracker.** Issues are enabled in this repository, but they are
+  **not** the source of truth for scope, acceptance criteria or status — task files under
+  `tasks/**/TASK.md` are. Do not rely on the upstream issue tracker or Discussions either; they
+  belong to the upstream project and are not monitored here.
 - **Bug Fixes / Features:** describe the reproduction steps and the expected result in the
   pull request itself. Work is tracked as task files under `tasks/**/TASK.md`, which are the
   source of truth for scope, acceptance criteria and status.

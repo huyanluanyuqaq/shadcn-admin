@@ -11,7 +11,7 @@
 
 - **任务 ID：** `TASK-<NNN>`
 - **提交引用：** 每个提交的 footer 已包含 `Refs: TASK-<NNN>`
-- **关联 Issue：** 不适用（本仓库 Issues 关闭；任务状态以 `tasks/**/TASK.md` 为准）
+- **关联 Issue：** 可选（本仓库 Issues **已启用**，但**不参与状态与审查**；任务状态以 `tasks/**/TASK.md` 为准）
 
 ---
 
