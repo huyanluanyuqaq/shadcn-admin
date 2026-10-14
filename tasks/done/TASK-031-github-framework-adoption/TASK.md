@@ -122,7 +122,9 @@ Reused (not modified):
 > 审查全文见 `handoffs/2026-10-14-review.md`。
 > 2026-10-14 08:42（UTC）**合并完成**：PR #1 以 **rebase-merge** 合入 `main`，
 > `main` 由 `05bf884` 前进到 `da93f4b`（rebase 重写 SHA，原分支 tip `03d9f02` 的等价提交已落 `main`）。
-> **状态 → `DONE`，档案移入 `tasks/done/`。**
+> **状态变更与归档（`Status` → `DONE`、档案移入 `tasks/done/`）随回写提交 PR #2 生效** ——
+> 在 PR #1 合并后的 `main`（`da93f4b`）上，本任务**仍是 `REVIEW` 且仍在 `tasks/review/`**
+> （见下方「合并后核验」的核对命令）。
 > 合并后的实测结果见 `Merge Record`：**`docker.yml` 未触发**（发布解耦生效）、
 > `main` 上 `push` 触发的 CI 两作业全绿；**平台门禁仍未生效**（`protection` = 404）。
 > 合并后回写（本提交）按 `rules/github.md` §4 走**独立交付请求**，而非直推 `main`
@@ -166,9 +168,10 @@ Reused (not modified):
 5. **`stale.yml` 未处置**：定时任务可能关闭长期不活跃的 PR（阈值 120 天）。
 6. **上游遗留资产未清理**：`ISSUE_TEMPLATE/`、`CODE_OF_CONDUCT.md`、`FUNDING.yml`、`netlify.toml`
    仍为上游内容（D11：保留并在 `AGENTS.md` §14 标注不适用）。
-7. **`AGENTS.md` §13.2 的过时断言未修正**：「纯前端，无持久层」自 TASK-001 起已不成立。
-   本次**不动**（不在阶段 2 文件清单内，且需先核实真实状态，避免用另一句未经验证的话替换）。
-   建议另立小任务；对应框架 §13.4「否定性断言复核」清单。
+7. **`AGENTS.md` §13.2 的断言疑似过时，「是否成立」本任务不作判定**：原文称「纯前端，无持久层」，
+   而仓库存在 `server/` 目录，故**有可能不成立**；但本任务**未独立核实**，故**不作结论**。
+   本次**不动**（不在阶段 2 文件清单内，且避免用另一句未经验证的话替换）。
+   已另立 **`TASK-032` 核实并修正**；对应框架 §13.4「否定性断言复核」清单。
 8. **`docs/operations/known-pitfalls.md` 等历史文档未纳入审计链接检查范围**（避免历史死链造成噪声）。
 9. **平台事实漂移（本 PR 内已处置，但仍需确认）**：`has_issues` 已由阶段 1 记录的 `false`
    变为 `true`（同批读取的 `has_projects` / `has_wiki` 未变 → 属设置被改动，非当初读错）。
