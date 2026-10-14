@@ -32,8 +32,11 @@ docs/TASK-031-github-framework-adoption
 - **禁止直接向 `main` 推送**；一律通过交付请求（PR）合并进入。
 - 工作分支**必须从最新的 `main` 派生**，且**必须推送到远端**（防止只在本地而丢失）。
 
-> ⚠️ **当前平台未强制"禁止直推 `main`"**（分支保护未配置）。
-> 详见 [`agent-collaboration.md`](./agent-collaboration.md) §6。
+> ✅ **自 2026-10-14 起，「禁止直推 `main`」已由平台强制** —— 仓库已配置经典分支保护
+> （要求合并前必须经过 PR、必需检查 `install-lint-build` + `audit`、不允许绕过）。
+> 已实测：以**仓库所有者身份**直推 `main` 亦被 `GH006` 拒绝。
+> 逐字段配置与实测证据见 [`operations/github-capability.md`](./operations/github-capability.md) §2 / §4，
+> 与本仓库 [`agent-collaboration.md`](./agent-collaboration.md) §6 的落差表一致。
 
 ---
 
