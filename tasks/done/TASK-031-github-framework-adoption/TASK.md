@@ -235,7 +235,9 @@ Reused (not modified):
 **合并后核验（2026-10-14 08:44Z）：**
 
 - `main` HEAD = `da93f4b`；变更已落 `main`（`.github/dependabot.yml`、`scripts/audit-repo.py`、
-  `docs/operations/github-capability.md`、`tasks/done/TASK-031-github-framework-adoption/handoffs/2026-10-14-review.md` 等）
+  `docs/operations/github-capability.md`、`tasks/review/TASK-031-github-framework-adoption/handoffs/2026-10-14-review.md` 等）
+  —— 注意：审查记录在 `main`（`da93f4b`）上位于 **`tasks/review/`**；
+  本任务档案**随本 PR（#2）**才移入 `tasks/done/`（`git ls-tree -r da93f4b | grep "tasks/done/TASK-031"` → 空）
 - `main` 上 `push` 触发 CI run `38537067337` ✅ 两作业全绿
 - `main` 上**无** Docker 运行 → 解耦实证
 - `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection` 仍返回 **404 Branch not protected**
