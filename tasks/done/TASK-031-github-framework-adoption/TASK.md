@@ -68,6 +68,7 @@ Owned (created):
   - docs/git-workflow.md
   - docs/operations/github-capability.md
   - tasks/**/TASK-031-github-framework-adoption/**   （本任务档案；随状态机在 active/ → review/ → done/ 间移动）
+  - tasks/backlog/TASK-032-fix-stale-assertions/**   （协议 §9「遗留问题已有独立记录」授权新建）
 
 Owned (modified):
   - .github/workflows/ci.yml
@@ -111,7 +112,9 @@ Reused (not modified):
 > 下一步：提交追加修正 → 创建 PR → 观察 CI → 主控审查。
 > 2026-10-14 07:56（UTC）**PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1) 已创建**（草稿态），
 > CI 随即以 `pull_request` 事件触发，**两作业全绿**（run `38531690034`）→
-> 阶段 2 最后一项验收「PR 上 CI 如期触发」**完成**（见 `handoffs/2026-10-14-ci-verification.md`）。
+> 阶段 2 最后一项验收「PR 上 CI 如期触发」**完成**
+> （**后另发现**阶段 2 还有一项验收「PR 模板在 GitHub 网页渲染正常」**未人工确认**，
+> 见 `Known Issues` 第 15 项 —— 二者不矛盾：本任务自身的验收标准 R1–R10 已全部满足）。（见 `handoffs/2026-10-14-ci-verification.md`）。
 > 2026-10-14 08:28（UTC）**协议阶段 8 独立审查完成**。审查者为一个**独立上下文的新实例**
 > （`dual-agent-model.md` §5.1 的 I2 补救手段：实现者不得验收自己的变更）。结论 **需要整改**：
 > 2 项阻断（均为留痕类，非内容/代码缺陷），R1–R10 全部 PASS、修改范围零越界。
