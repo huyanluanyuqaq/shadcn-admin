@@ -9,6 +9,10 @@ on:
     branches:
       - main
 
+# 最小权限：本工作流只读仓库内容，不写任何平台资源（P-06）。
+permissions:
+  contents: read
+
 jobs:
   install-lint-build:
     runs-on: ubuntu-latest
@@ -17,10 +21,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 与本地开发环境对齐（本机为 Node 22）。版本不一致会让本地通过、
+      # CI 失败（或反之），削弱检查的可信度。
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install pnpm
         # 必须锁定版本：pnpm 12 起不再读取 package.json 的 `pnpm` 字段，
@@ -57,3 +63,19 @@ jobs:
 
       - name: Build the project
         run: pnpm build
+
+  # 仓库级框架一致性审计：只读、无网络、结果确定（scripts/audit-repo.py）。
+  # 检查交付请求模板字段、工作流触发与最小权限、占位符与明文密钥、
+  # 协作文档引用与链接、以及声明的必需检查名与作业名是否一致。
+  audit:
+    name: audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # ubuntu-latest 自带 python3；脚本只用标准库，无需 setup-python。
+      - name: Run repo framework audit
+        run: python3 scripts/audit-repo.py
