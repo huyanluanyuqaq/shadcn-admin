@@ -15,13 +15,13 @@
 Task ID: TASK-031
 Title: 在 shadcn-admin 落地双 Agent GitHub 协作框架（阶段 2）
 Workflow: chore
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: workbuddy
 Owner Since: 2026-10-14
 Assigned Role: developer
 Created: 2026-10-14T07:00:00Z
-Updated: 2026-10-14T07:52:54Z
+Updated: 2026-10-14T08:30:00Z
 Branch: chore/TASK-031-github-framework-adoption
 Requires Human Approval: false
 Platform Config Required: true   # 阶段 3（分支保护 / 必需检查）由用户在网页端完成
@@ -67,7 +67,7 @@ Owned (created):
   - docs/agent-collaboration.md
   - docs/git-workflow.md
   - docs/operations/github-capability.md
-  - tasks/active/TASK-031-github-framework-adoption/**
+  - tasks/**/TASK-031-github-framework-adoption/**   （本任务档案；随状态机在 active/ → review/ → done/ 间移动）
 
 Owned (modified):
   - .github/workflows/ci.yml
@@ -112,6 +112,11 @@ Reused (not modified):
 > 2026-10-14 07:56（UTC）**PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1) 已创建**（草稿态），
 > CI 随即以 `pull_request` 事件触发，**两作业全绿**（run `38531690034`）→
 > 阶段 2 最后一项验收「PR 上 CI 如期触发」**完成**（见 `handoffs/2026-10-14-ci-verification.md`）。
+> 2026-10-14 08:28（UTC）**协议阶段 8 独立审查完成**。审查者为一个**独立上下文的新实例**
+> （`dual-agent-model.md` §5.1 的 I2 补救手段：实现者不得验收自己的变更）。结论 **需要整改**：
+> 2 项阻断（均为留痕类，非内容/代码缺陷），R1–R10 全部 PASS、修改范围零越界。
+> 两项阻断已在本提交内关闭 → Status `ACTIVE` → `REVIEW`，档案移入 `tasks/review/`。
+> 审查全文见 `handoffs/2026-10-14-review.md`。
 
 ---
 
@@ -125,7 +130,9 @@ Reused (not modified):
 | `pnpm build` | **通过**（✓ built in 30.14s，exit 0） |
 | `python scripts/audit-repo.py` | **PASS=6 FAIL=0 WARN=0**（含 4 项受控负向测试，均已按预期失败） |
 | YAML 可解析（4 个文件） | **通过**（PyYAML 6.0.3） |
-| PR 上 CI（`install-lint-build` + `audit`） | **通过**：run `38531690034`（`pull_request` 事件），两作业全绿（1m16s / 5s）。原始输出见 `handoffs/2026-10-14-ci-verification.md` |
+| PR 上 CI（`install-lint-build` + `audit`） | **通过**：run `38531690034`（`pull_request` opened），两作业全绿（1m16s / 5s）。原始输出见 `handoffs/2026-10-14-ci-verification.md` |
+| PR 上 CI（tip `d67dcf1`，`synchronize`） | **通过**：run `38532099210`，两作业全绿（1m24s / 5s）。补记层 1（此前只出现在 PR 评论，属层 2 未回写） |
+| 独立审查（协议 §5 / §10 N1） | **已完成**：审查实例 `agent-2bed4676-7adc-424a-aaf0-5924f8b2983f`（**独立上下文**，非实现者）。首轮结论 = **需要整改**（2 项留痕类阻断，均已关闭），另有复审记录。**完整结论以 `handoffs/2026-10-14-review.md` §9 为准，本行不另作判定**（逐条 R1–R10 PASS/FAIL 见同文件 §3） |
 | 平台门禁是否生效（V1/V2/V4/V5） | **未实测**：分支保护尚未配置（阶段 3，用户操作）。V3 已实测为「是」 |
 
 > ⚠️ **CI 全绿 ≠ 门禁成立。** 分支保护未配置前，这两个作业只是「运行了的检查」，
@@ -156,12 +163,46 @@ Reused (not modified):
    分支上 4 处「Issues 关闭」的断言已改正，能力记录新增 §8 漂移记录。
    **需主控确认：** D2 的理由已改写为「避免双写 + 独立 clone 后状态完整」，不再引用
    「Issues 不可用」——请确认该理由足以**独立**支撑 D2，否则 D2 需重新裁决。
+10. **提交 `5b2e00c` 的信息含已失效表述（已登记，不重写历史）** —— 独立审查的阻断项 B2。
+    该提交信息以「本仓库 Issues 已关闭」作为修改理由，而实测 `has_issues=true`。
+    因**不改写已推送历史**（重写会销毁「原断言 → 发现漂移 → 改正」的证据链，见 Design Decisions 末条），
+    予以保留并在此**显式登记**：**以仓库内文档的现述为准**，该提交信息中的此句不再成立。
+    复核命令：`git log main..HEAD --format='%h%n%B---' | grep -B2 "Issues 已关闭"`。
+11. **测试计数口径**：handoff 的「25 文件 / 303 例」是 **vitest 运行器口径**；源文件独立计数为 **24**。
+    差 1 **应为** `shared/dist/schema/traffic.test.js`（`shared/src/schema/traffic.test.ts` 的**编译副本**）
+    被一并纳入 —— **推断依据**：`vite.config.ts` 的 `test` 段无自定义 `include` / `exclude`，
+    vitest 默认仅排除 `node_modules` 与 `.git`。**运行器逐例输出无法在本环境复现**（浏览器模式依赖注册失败）。
+    后续引用须注明口径，避免被误判为夸大。
+12. **审计脚本 F4（明文密钥检查）不覆盖 `handoffs/`**：扫描范围为框架文档 + 工作流 + 脚本自身；
+    任务档案（含粘贴的原始输出）不在扫描内。本次无真值，属**覆盖面提示**。
+13. **审查独立性的残余限制**：审查实例与实现实例**上下文独立**（满足 `dual-agent-model.md` §5.1 的补救手段），
+    但**同模型、同平台凭据**。单一平台身份下平台审计无法区分两个协作位 —— 结构性限制，本任务无法消除。
 
 ---
 
 ## Merge Record
 
-- 待合并后回填：提交范围、PR 号、CI run id、Docker run（本次**预期不触发** docker 发布）。
+**合并前须满足的四项（协议 §6 / §9）：**
+
+| 条件 | 状态 |
+|------|------|
+| 审查通过 | **通过**（协议 §5 / §9）—— 首轮 = 需要整改 → 2 项留痕类阻断关闭 → **复审 3 轮后 PASS**（由同一独立实例续审）。**结论的唯一来源：** `handoffs/2026-10-14-review.md` §9.3 |
+| 必需检查通过 | **通过**（run `38531690034` / `38532099210`，两作业全绿） |
+| 分支保护条件满足 | **未配置** → 该条**不构成平台门禁**，仅为制度约定（`docs/operations/github-capability.md` §2/§5） |
+| 必要的授权 | **用户在本轮明确选择「合并 PR #1」**；远端分支删除**未获授权**，故合并时**不删除**工作分支 |
+
+| 项 | 值 |
+|----|----|
+| 交付载体 | PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1)（本仓库**首个 PR**） |
+| 合并策略 | **rebase-merge**（`rules/github.md` §6，显式覆盖 `git.md` §5 的 squash 默认） |
+| 提交范围 | `main`（`05bf884`）→ 分支 tip，**11 个提交**（其中**最后 1 个**为本审查留痕提交；此前 tip 为 `d67dcf1`，即审查时点）。核对：`git log --oneline main..HEAD \| wc -l` |
+| CI · `pull_request` opened | run `38531690034`：`install-lint-build` 1m16s ✅ ／ `audit` 5s ✅ |
+| CI · `pull_request` synchronize（`d67dcf1`） | run `38532099210`：`install-lint-build` 1m24s ✅ ／ `audit` 5s ✅ |
+| CI · 审查留痕提交 | **待回填**（合并后归档提交内补） |
+| 发布影响 | **预期不发布镜像**：新 `docker.yml` 为 tag-only；合并后 `main` 上即为该版本，`push main` 不再触发镜像构建 |
+| 分支删除 | **未执行**（`rules/github.md` §6 要求合并后删除工作分支；远端分支删除属破坏性操作，用户未授权 → 记录为待授权项） |
+
+**合并后回填（归档提交内）：** `main` HEAD、`push main` 触发的 CI run、Docker 运行是否出现（预期「无」）。
 
 ---
 
