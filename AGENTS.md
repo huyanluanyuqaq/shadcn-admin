@@ -371,6 +371,10 @@ Task 规则（TASK.md 的 Task Rules 节）
 - **默认合并策略：`rebase-merge`**（保持 `main` 线性 + 保留可追溯的提交粒度）。
 - 本条**覆盖**上层通用 Git 规范中「优先 squash」的默认值，理由见 `docs/git-workflow.md` §4。
 - 合并后删除工作分支，并回写 `tasks/**/TASK.md` 的 `Merge Record`。
+  **★ 回写路径（D13 裁决 · 选项 C）：** 回写**并入下一个任务的交付请求**，**不单独开「回写专用」交付请求**。
+  因此在下一个任务出现之前，最近完成的任务**保持 `Status = REVIEW`、留在 `tasks/review/`**，
+  并须在其 `TASK.md` 诚实标注「归档回写待下一个任务补记」。
+  规范来源：`.agents/rules/github.md` §2 / §6（`.agents/**` **不在本仓库内**，独立 clone 后不可读）。
 
 ### 14.3 发布与合并解耦（重要）
 
