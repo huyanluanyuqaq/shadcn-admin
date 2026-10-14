@@ -1,9 +1,14 @@
 # ---------------------------------------------------------------------------
 # 自动构建并推送 Docker 镜像到 DockerHub
 #
-# 触发条件：
-#   - push 到 main 分支后自动执行（含本工作流自身的首次推送）
+# 触发条件（**tag-only**）：
+#   - 推送 Git tag（形如 v1.2.3）后执行
 #   - 也可在 GitHub Actions 页面手动触发（workflow_dispatch）
+#
+#   ⚠️ 本工作流**不再**由 push 到 main 触发。
+#   原因：合并（merge）与「对外发布镜像」必须解耦——否则任何一次普通合并
+#   都会立刻产生对外可见的镜像版本，使「合并」这一动作带上不可撤销的发布后果。
+#   发布改为显式的打 tag 动作，属需要授权的高风险操作。
 #
 # 前置配置（在仓库 Settings → Secrets and variables → Actions 中添加）：
 #   DOCKERHUB_USERNAME  : 你的 DockerHub 用户名
@@ -11,13 +16,10 @@
 #                         在 DockerHub → Account Settings → Security → Access Tokens 生成）
 #
 # 推送后的镜像：
-#   - push 到 main 分支：
-#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:latest
-#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:<短commit-sha>
 #   - 推送 Git tag（形如 v1.2.3）：
 #       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:v1.2.3
-#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:v1.2
-#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:v1
+#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:latest      ← 每次发布都更新
+#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:<短commit-sha>
 #
 # 多架构：同时构建 linux/amd64 与 linux/arm64（Apple Silicon / ARM 服务器可直接用）。
 #
@@ -29,15 +31,14 @@ name: Build and Push Docker Image
 
 on:
   push:
-    branches: ["main"]
-    # 打版本 tag（vX.Y.Z）时发布带版本号的镜像
+    # 仅版本 tag 触发；不再跟随 main 分支
     tags: ["v*"]
   workflow_dispatch:
 
 permissions:
   contents: read
 
-# 避免同一分支/同一 tag 的多次推送产生重叠构建
+# 避免同一 tag 的多次推送产生重叠构建
 concurrency:
   group: docker-${{ github.ref }}
   cancel-in-progress: true
@@ -67,13 +68,14 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/subscription-admin
           tags: |
-            # 每次成功构建都打 latest（无条件，稳定可预测，便于 docker pull :latest）
+            # 发布时同步更新 latest（触发已改为 tag-only，因此 latest 只在打版本 tag 时前进，
+            # 不再随 main 分支的每次合并变化）。
             type=raw,value=latest
             # 提交短 SHA，便于追溯
             type=sha,format=short
             # 打 Git tag（vX.Y.Z）时发布精确版本号镜像，不再额外生成 v1 / v1.0 浮动标签。
             # 注意：metadata-action 的 enable 表达式不支持 is_tag，
-            # 而 type=semver 本身只在 ref 是 semver tag 时产出标签（分支推送不会触发），故无需 enable 限制。
+            # 而 type=semver 本身只在 ref 是 semver tag 时产出标签，故无需 enable 限制。
             type=semver,pattern=v{{version}}
 
       - name: Build and push（多架构）
