@@ -242,7 +242,10 @@ docker compose up -d --build
 | **架构文档（后端与容器化方案）** | `docs/architecture/overview.md` |
 | 技术文档 | `docs/technical/` |
 | 架构决策记录 | `docs/decisions/` |
-| 运维文档 | `docs/operations/`（含 `agent-constraints.md`） |
+| 运维文档 | `docs/operations/`（含 `agent-constraints.md`、`github-capability.md`） |
+| **Agent 协作流程** | `docs/agent-collaboration.md` |
+| **Git 工作流** | `docs/git-workflow.md` |
+| **GitHub 平台能力记录** | `docs/operations/github-capability.md` |
 | 任务 | `tasks/` |
 
 **写文档前请先读：** `.agents/rules/documentation.md`（Workspace 模式）或本文件 §12（Standalone 模式）。
@@ -347,6 +350,67 @@ Task 规则（TASK.md 的 Task Rules 节）
 7. **shared 是编译产物消费**：后端以包 `@repo/shared` 引入其 `dist/`，
    因此**改动 shared 后必须先 `pnpm build:shared`**，否则后端 typecheck 用的是旧产物。
    前端则通过 Vite alias `@shared` 直接引入源码，无需构建。
+
+## 14. GitHub Collaboration（GitHub 协作）
+
+> **本仓库启用 GitHub 协作规则。** 本节的声明是**本项目的权威口径**，
+> 与 `docs/operations/github-capability.md`、`docs/agent-collaboration.md` 必须保持一致。
+
+### 14.1 必需检查（分支保护应选定这些作业名）
+
+| 检查名 | 来源工作流 | 类别 | 是否必需 |
+| --- | --- | --- | --- |
+| `install-lint-build` | `.github/workflows/ci.yml` | 静态 / 格式 / 测试 / 构建 | 是 |
+| `audit` | `.github/workflows/ci.yml` | 仓库级框架一致性审计 | 是 |
+
+作业名**必须与工作流文件中的名称完全一致**，否则必需检查会永远处于「待处理」状态。
+`scripts/audit-repo.py` 会在 CI 中校验本节与工作流实际作业名是否一致。
+
+### 14.2 合并策略
+
+- **默认合并策略：`rebase-merge`**（保持 `main` 线性 + 保留可追溯的提交粒度）。
+- 本条**覆盖**上层通用 Git 规范中「优先 squash」的默认值，理由见 `docs/git-workflow.md` §4。
+- 合并后删除工作分支，并回写 `tasks/**/TASK.md` 的 `Merge Record`。
+
+### 14.3 发布与合并解耦（重要）
+
+`.github/workflows/docker.yml` 已改为 **仅由版本 tag（`v*`）触发**。
+**普通合并不会发布镜像**；发布是需要单独授权的显式动作。
+副作用：`:latest` 标签只在打版本 tag 时前进，不再随 `main` 分支变化。
+
+### 14.4 平台门禁现状（务必如实理解）
+
+> **截至 2026-10-14，本仓库尚未配置任何分支保护或规则集。**
+
+因此：
+
+- 「禁止直推 `main`」「合并前必须通过必需检查」**当前是纯文档约定，平台不强制**；
+- 「实现者 ≠ 批准者」在单一平台身份下**无平台强制**（靠换会话审查 + `Known Issues` 披露）；
+- 上述约定在配置分支保护后转为强制，配置步骤与实测项见
+  `docs/operations/github-capability.md` §2 / §4 / §7。
+
+**禁止**把「计划配置」写成「已配置」，**禁止**声称平台已强制某项实际未被强制的约定。
+
+### 14.5 交付请求模板与审计脚本
+
+- 交付请求模板：`.github/PULL_REQUEST_TEMPLATE.md`（字段来源见 `docs/agent-collaboration.md` §5，**不得双写**）。
+- 仓库级框架审计：`scripts/audit-repo.py`（只读、无网络、可在本地直接运行）。
+- 依赖更新：`.github/dependabot.yml`（npm / github-actions / docker）。
+- **不设** `.github/CODEOWNERS`：单一平台身份且必需批准数为 0 时它不具备强制力。
+
+### 14.6 上游遗留资产（保留但**不适用**本仓库）
+
+本仓库是 `satnaing/shadcn-admin` 的 fork。以下文件为上游内容，**与本项目的协作制度无关**，
+保留以避免制造无意义的差异：
+
+`ISSUE_TEMPLATE/`（指向上游 Discussions）、`CODE_OF_CONDUCT.md`、`FUNDING.yml`、`netlify.toml`。
+
+`stale.yml` 属**待处置**项：其定时任务可能关闭长期不活跃的 PR（阈值 120 天），
+处置决定记录在 `docs/operations/github-capability.md` §7。
+
+> **下列条目属于受保护约定，本文件不得削弱：**
+> ① 禁止直接推送 `main`；② 由实现者批准自己提交的交付物；③ 伪造或绕过检查；
+> ④ 未经授权合并、发布或执行破坏性操作。
 
 ---
 
