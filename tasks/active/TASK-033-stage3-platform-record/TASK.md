@@ -42,6 +42,7 @@
 | R6 | §7 未决与待办：移除已完成项，按现状重排；新增 D13 的**选项 B 失效**事实 | 编号无跳号 |
 | R7 | 处置 `.github/workflows/stale.yml`：消除「定时自动关闭交付请求」的风险 | 见 Design Decisions D1 |
 | R8 | **不得引入任何未实测的断言**；「计划」与「已生效」严格区分 | 逐条自查 |
+| R9 | 消除仓库内**其它**同类**反向失真**残留（已生效却仍被写成「未配置 / 平台未强制」） | **由第 1 轮独立审查追加**（见 `handoffs/2026-10-15-review.md` 的 B1 / O1），逐处核对 |
 
 ## File Scope
 
@@ -51,11 +52,14 @@
 - `docs/agent-collaboration.md`（仅 §6 落差表，为 R3 的同步）
 - `AGENTS.md`（仅 §14.4）
 - `.github/workflows/stale.yml`
+- `docs/git-workflow.md`（**R9 追加**：§1 的「平台未强制」提示已被证伪）
+- `.github/PULL_REQUEST_TEMPLATE.md`（**R9 追加**：结尾提示句引用 §5 且已被证伪）
 - `tasks/active/TASK-033-stage3-platform-record/**`（本任务档案）
 
 **明确排除：**
 
-- `ci.yml` / `docker.yml` / `scripts/audit-repo.py` / `.github/PULL_REQUEST_TEMPLATE.md`（本期不动）
+- `ci.yml` / `docker.yml` / `scripts/audit-repo.py`（本期不动）。
+  **注意**：`.github/PULL_REQUEST_TEMPLATE.md` **已因 R9 纳入范围**（初版曾将其排除，见 D4）。
 - **D12**（删除 3 个历史远端分支）—— 破坏性操作，**未获授权**
 - **D13 的裁决本身** —— 仍待用户；本任务只**记录**其选项空间因实测而收敛的事实
 - 升级 `actions/stale` 版本（上游版本漂移不在本期范围）
@@ -76,11 +80,25 @@
 
 ### D2 · V 编号沿用 `github-capability.md` §4 的既有口径
 
-该文件 V1–V5 的定义与设计方案 §17.2 在 V1 / V2 / V4 上**逐条一致**，本任务不重编号，避免第三套编号。
+该文件 V1–V5 的定义与设计方案 **§17.1**（待实测表）在 V1 / V2 / V4 上**逐条一致**，本任务不重编号，避免第三套编号。
+（初版误写为「§17.2」，由第 1 轮独立审查指出 —— 见 `handoffs/2026-10-15-review.md` 的 O3。）
 
 ### D3 · 不新增文档
 
 本次结论并入既有文件，不新开文档 —— 新文档会稀释 `AGENTS.md` §15 的索引，也会制造第二处维护点。
+
+### D4 · 为何把两个新文件纳入范围（**第 1 轮独立审查后追加**）
+
+第 1 轮审查指出：本任务要消除的「未配置」类失真在 `docs/git-workflow.md` 与
+`.github/PULL_REQUEST_TEMPLATE.md` 中**同样存在**；而我在初版 `File Scope` 中
+**既未允许也未排除**前者、**明确排除**了后者。
+
+- **选择纳入而非仅登记**，理由：① 本任务的 Objective 就是消除这类失真，
+  「因为自己划了范围所以留着」属**形式合规、实质违背**；② 该失真会让仓库内
+  **自相矛盾**（`git-workflow.md` 的提示正指向已被更新的 `agent-collaboration.md` §6）；
+  ③ 模板的失真会**渲染在每一个新建交付请求上**，而本交付请求的用户验收恰好就在那里。
+- **代价与披露**：这是一次**范围扩张**。已在此处、`handoffs/` 与提交信息中显式披露，
+  并新增 **R9** 记录其来源为审查发现 —— **不掩饰为原计划**。
 
 ## Current State
 
@@ -93,7 +111,12 @@
 
 ## Verification
 
-见 `handoffs/2026-10-15-implementation.md`。
+- **执行位自测与交接**：`handoffs/2026-10-15-implementation.md`
+- **独立审查（第 1 轮）**：`handoffs/2026-10-15-review.md` —— 结论「**需整改**」（2 阻断 / 5 观察 / 3 无法验证），
+  整改处置见该文件 §4 / §5
+- **机器验证**：`scripts/audit-repo.py` → `PASS=6 FAIL=0 WARN=0`；
+  `shared/scripts/audit_framework.py` → `PASS=13 FAIL=0 WARN=0`
+- **未由本轮改动覆盖**：`pnpm lint` / `format:check` / `test` / `build`（理由见 Known Issues 7）
 
 ## Known Issues
 
@@ -111,6 +134,11 @@
 7. 本仓库 `.prettierignore` 为**白名单**模式（仅 `src/` 等），故本期改动的
    `docs/**` / `AGENTS.md` / `.github/**` / `tasks/**` **不进入** `format:check` 的检查范围；
    `eslint .` 亦不覆盖这些文件。这意味着**格式类检查对本期改动不构成保护**，如实登记。
+8. **「模板由哪个分支渲染」未确认**：GitHub 在新建交付请求页面使用**基线分支**还是**工作分支**的
+   `PULL_REQUEST_TEMPLATE.md`，本次未实测。对验收**无影响**（两版的 10 个必需字段相同，
+   差异只在结尾提示句），但用户目视时若看到的是旧提示句，**不应据此判定模板未更新**。
+9. **本任务的 `File Scope` 在第 1 轮独立审查后**被**扩张**（新增 2 个文件），
+   依据与披露见 D4 —— 它不是事后追认，而是**显式登记的变更**。
 
 ## Merge Record
 
