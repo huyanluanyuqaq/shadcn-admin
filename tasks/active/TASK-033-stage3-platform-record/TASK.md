@@ -112,8 +112,8 @@
 ## Verification
 
 - **执行位自测与交接**：`handoffs/2026-10-15-implementation.md`
-- **独立审查（第 1 轮）**：`handoffs/2026-10-15-review.md` —— 结论「**需整改**」（2 阻断 / 5 观察 / 3 无法验证），
-  整改处置见该文件 §4 / §5
+- **独立审查（第 1 轮）**：`handoffs/2026-10-15-review.md` §2–§5 —— 结论「**需整改**」（2 阻断 / 5 观察 / 3 无法验证）
+- **独立审查（第 2 轮，终局）**：同上文件 §7 —— 结论「**可合并**」（阻断项全部关闭；新增 3 项非阻断观察 N1–N3，**登记不迭代**）
 - **机器验证**：`scripts/audit-repo.py` → `PASS=6 FAIL=0 WARN=0`；
   `shared/scripts/audit_framework.py` → `PASS=13 FAIL=0 WARN=0`
 - **未由本轮改动覆盖**：`pnpm lint` / `format:check` / `test` / `build`（理由见 Known Issues 7）
