@@ -30,8 +30,22 @@
 | `.github/PULL_REQUEST_TEMPLATE.md` | 由上游模板**替换**为框架模板（覆盖 10 个必需字段） |
 | `.github/workflows/ci.yml` | ① 新增工作流级 `permissions: contents: read`；② 新增 `audit` 作业；③ `node-version` 20 → 22（与本地对齐） |
 | `.github/workflows/docker.yml` | 触发由 `push main` + `tags v*` 改为 **`tags v*` + `workflow_dispatch`**（D8） |
-| `.github/CONTRIBUTING.md` | 修正上游链接与 Discussions 指引；明确 Issues 关闭；PR 指引对齐新模板 |
+| `.github/CONTRIBUTING.md` | 修正上游链接与 Discussions 指引；PR 指引对齐新模板（「Issues 关闭」表述的追加改正见下） |
 | `AGENTS.md` | 新增 §14 GitHub Collaboration；§9 文档位置表补 3 个新文档 |
+
+### 追加修正（2026-10-14，`gh` 重新认证为仓库所有者后）
+
+复核平台事实时发现 `has_issues` **已由 `false` 变为 `true`**（阶段 1 调研的原始输出记录为
+`false`，同批的 `has_projects` / `has_wiki` 与现测一致 → 属设置被改动，非当初读错）。
+这使分支上 4 处「Issues 关闭」的断言成为**假陈述**，于**同一分支**追加提交改正——
+不新建分支、不改动已推送的历史，便于审查者看到完整轨迹：
+
+| 文件 | 修正 |
+| ---- | ---- |
+| `.github/CONTRIBUTING.md` | 「Issues are disabled」→「不要把 Issues 当作任务跟踪载体（已启用，但非事实来源）」 |
+| `.github/PULL_REQUEST_TEMPLATE.md` | 「关联 Issue：不适用（Issues 关闭）」→「可选（已启用，但不参与状态与审查）」 |
+| `docs/agent-collaboration.md` | §3 的 Issue 说明改为「已启用」，并把 **D2 的理由与 Issues 开关解耦**（改为「避免双写 + 独立 clone 后状态完整」） |
+| `docs/operations/github-capability.md` | §1 事实改正；**新增 §8「平台事实漂移记录」**；§4 补实测载体说明；§6 依重新认证结果重写；§7 待办更新 |
 
 ### 刻意未做（排除范围）
 
@@ -150,12 +164,12 @@ N4 PR 模板删「回滚方案」字段               → [FAIL] F1 模板缺少
 
 | 未执行 | 原因 |
 | ------ | ---- |
-| PR 上 CI（`install-lint-build` + `audit`） | **Agent 无法创建 PR**（见 §4.6 的实测证据）。需用户重新认证 `gh` 或在浏览器创建 PR 后自动触发 |
+| PR 上 CI（`install-lint-build` + `audit`） | 本记录书写时 PR 尚未创建。**该阻塞已于 2026-10-14 解除**（`gh` 已重新认证为仓库所有者，见 §4.7）；PR 创建后的实际结果见 `handoffs/2026-10-14-ci-verification.md` |
 | 分支保护 / 必需检查是否生效（V1–V5） | 平台门禁**尚未配置**，属阶段 3（用户操作） |
 | `docker.yml` 改为 tag-only 后的实际发布 | 需一次受控打 tag 发布；本次刻意不触发 |
 | `docker pull` / 镜像内容 | 与本次变更无关，未触及 Dockerfile |
 
-### 4.6 「Agent 无法创建 PR」的实测证据
+### 4.6 「Agent 无法创建 PR」的实测证据（历史记录，已被 §4.7 取代）
 
 ```text
 $ gh api repos/huyanluanyuqaq/shadcn-admin --jq '.permissions'
@@ -170,11 +184,58 @@ pull request create failed: GraphQL: must be a collaborator (createPullRequest)
 推送走 SSH 密钥（仓库所有者），`gh` 走 OAuth token（另一身份，对本仓库只有只读权限）。
 → 「Agent 能推分支」不等于「Agent 能创建 PR」。
 
+### 4.7 重新认证为仓库所有者（2026-10-14，§4.5 的阻塞解除）
+
+```text
+$ gh auth login --hostname github.com --git-protocol ssh --web --skip-ssh-key
+! First copy your one-time code: ****-****
+Open this URL to continue in your web browser: https://github.com/login/device
+✓ Authentication complete.
+- gh config set -h github.com git_protocol ssh
+✓ Configured git protocol
+✓ Logged in as huyanluanyuqaq
+
+$ gh auth status
+github.com
+  ✓ Logged in to github.com account huyanluanyuqaq (keyring)
+  - Active account: true
+  - Git operations protocol: ssh
+  - Token scopes: 'gist', 'read:org', 'repo'
+  ✓ Logged in to github.com account ndldsn (keyring)
+  - Active account: false
+  - Token scopes: 'gist', 'read:org', 'repo', 'workflow'
+
+$ gh api repos/huyanluanyuqaq/shadcn-admin \
+    --jq '{full_name, private, has_issues, permissions}'
+{"full_name":"huyanluanyuqaq/shadcn-admin","private":false,"has_issues":true,
+ "permissions":{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}}
+
+$ gh api repos/huyanluanyuqaq/business-manager --jq '.permissions'
+{"admin":true,"maintain":true,"pull":true,"push":true,"triage":true}   # 此前 404 不可达
+```
+
+**与 §4.6 的对比：** `permissions` 由 `{pull:true, push:false, admin:false}` 变为
+`{pull:true, push:true, admin:true}`；对私有仓库 `business-manager` 由**404 不可达**变为**可写**。
+
+**保留的缺口（不掩盖）：** 新 token 的 scopes 为 `gist, read:org, repo`，**不含 `workflow`**
+（原 `ndldsn` token 含）。影响面：`gh workflow run` / 重跑作业不可用；
+**不影响**创建 / 合并 PR，也预期不影响分支保护配置。补法：
+`gh auth refresh -h github.com -s workflow`（需再次设备码授权）。
+
+**账号策略：** `ndldsn` **未删除**，作为非活动账号保留，可用 `gh auth switch --user <login>` 切换。
+→ 重新认证是**追加**而非**替换**，不构成对既有凭据的破坏性操作。
+
+**⚠️ 同批复核发现的平台事实漂移（非本次认证引入）：** `has_issues` 已由阶段 1 记录的
+`false` 变为 `true`。据此改正了分支上 4 处断言（见 §1「追加修正」），
+并在 `docs/operations/github-capability.md` **新增 §8 平台事实漂移记录**。
+**D2 决策（`tasks/**/TASK.md` 为唯一事实来源）不变**，但其理由已改写为不依赖 Issues 的开关状态。
+
 ---
 
 ## 5. 遗留问题
 
-1. **`gh` 凭据只读** —— Agent 无法创建/合并 PR。需用户重新认证或在浏览器操作。
+1. ~~**`gh` 凭据只读**~~ → **2026-10-14 已解除**（`gh` 重新认证为仓库所有者，见 §4.7）。
+   遗留缺口：新凭据**缺 `workflow` scope**（影响 `gh workflow run` / 重跑作业，不影响 PR 操作）。
 2. **平台门禁未启用** —— 分支保护、必需检查、禁止绕过均未配置；
    「禁止直推 `main`」**当前平台不强制**。已在 `AGENTS.md` §14.4 与
    能力记录 §2/§5 中显式披露，并写入 PR 模板尾注。
@@ -208,3 +269,9 @@ pull request create failed: GraphQL: must be a collaborator (createPullRequest)
 3. `scripts/audit-repo.py` 的检查项是否覆盖了本仓库真正重要的框架不变量。
 4. `AGENTS.md` §14.4 的落差披露是否足够直白。
 5. 遗留问题 3（§13.2 过时断言）是否应在本 PR 内一并修正，还是另立任务。
+6. **重点复核 §1「追加修正」与能力记录 §8**：本次因平台事实漂移（`has_issues` 由 `false` → `true`）
+   改写了 4 处断言，**并改写了 D2 决策的理由**（原理由「Issues 不可用」已不成立）。
+   请确认改写后的理由（避免双写 + 独立 clone 后状态完整）**足以独立支撑 D2**——
+   若认为不足以支撑，则 D2 需要重新裁决。
+7. 能力记录 §8 提出的「**平台事实会漂移，引用前须重新实测**」是否应写入 `AGENTS.md` §14
+   作为常驻要求（当前只写在能力记录内）。

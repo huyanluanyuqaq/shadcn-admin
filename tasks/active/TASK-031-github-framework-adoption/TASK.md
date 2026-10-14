@@ -21,7 +21,7 @@ Owner: workbuddy
 Owner Since: 2026-10-14
 Assigned Role: developer
 Created: 2026-10-14T07:00:00Z
-Updated: 2026-10-14T07:00:00Z
+Updated: 2026-10-14T07:52:54Z
 Branch: chore/TASK-031-github-framework-adoption
 Requires Human Approval: false
 Platform Config Required: true   # 阶段 3（分支保护 / 必需检查）由用户在网页端完成
@@ -95,15 +95,20 @@ Reused (not modified):
 | **不**把 CI 作业改名为 `verify` | 保持最小变更；必需检查名称以**本仓库实际作业名**为准，并在 `AGENTS.md` §14 与能力记录中声明 |
 | `docker.yml` 保留 `workflow_dispatch` | 保留受控的人工发布出口；tag-only 只针对自动触发 |
 | `latest` 标签语义**随触发方式改变** | 触发改为 tag-only 后，`:latest` 只在打版本 tag 时更新，不再随 `main` 前进 |
-| `stale.yml` 本次**不动** | 属阶段 3 处置项（R7/P-10），且 Issues 当前关闭；本次仅登记为已知遗留 |
+| `stale.yml` 本次**不动** | 属阶段 3 处置项（R7/P-10）；本次仅登记为已知遗留。**注意**：该工作流同时管理 Issues 与 PR，而本仓库 Issues 已启用（见 Known Issues 9），影响面比原判断更大 |
+| 平台事实漂移的改正走**同分支追加提交**，不新建分支、不改写已推送历史 | 审查者需要看到「原断言 → 发现漂移 → 改正」的完整轨迹；重写历史会销毁证据本身 |
 
 ---
 
 ## Current State
 
 > 2026-10-14 07:00 阶段 2 启动：分支 `chore/TASK-031-github-framework-adoption` 已从 `main`（`05bf884`）派生。
-> 2026-10-14 07:10 文件层实施完成，本地全绿（见 `handoffs/2026-10-14-implementation.md`）。
-> **待用户创建 PR**（Agent 无法创建：`gh` 身份对本仓库只读），之后自动触发 CI，再进入主控审查。
+> 2026-10-14 07:10 文件层实施完成并推送，本地全绿（见 `handoffs/2026-10-14-implementation.md`）。
+> 2026-10-14 07:52（UTC）`gh` 重新认证为仓库所有者 `huyanluanyuqaq`，
+> **「Agent 无法创建 PR」的阻塞解除**（见同文件 §4.7）。
+> 同批复核发现**平台事实漂移**：`has_issues` 由阶段 1 记录的 `false` 变为 `true`，
+> 据此改正分支上 4 处断言、新增能力记录 §8「平台事实漂移记录」（见同文件 §1「追加修正」）。
+> 下一步：提交追加修正 → 创建 PR → 观察 CI → 主控审查。
 
 ---
 
@@ -117,7 +122,7 @@ Reused (not modified):
 | `pnpm build` | **通过**（✓ built in 30.14s，exit 0） |
 | `python scripts/audit-repo.py` | **PASS=6 FAIL=0 WARN=0**（含 4 项受控负向测试，均已按预期失败） |
 | YAML 可解析（4 个文件） | **通过**（PyYAML 6.0.3） |
-| PR 上 CI（`install-lint-build` + `audit`） | **未执行**：需先创建 PR；`gh` 只读导致 Agent 无法创建 |
+| PR 上 CI（`install-lint-build` + `audit`） | **待记录**：`gh` 提权后由 Agent 创建 PR 触发；结果回填 `handoffs/2026-10-14-ci-verification.md` |
 | 平台门禁是否生效（V1–V5） | **未实测**：分支保护尚未配置（阶段 3，用户操作） |
 
 原始输出见 `handoffs/2026-10-14-implementation.md` §4。
@@ -126,9 +131,9 @@ Reused (not modified):
 
 ## Known Issues
 
-1. **`gh` 凭据只读**：当前 `gh` 身份对 `huyanluanyuqaq/shadcn-admin` 仅有 `pull` 权限，
-   **Agent 无法创建或合并 PR**。需要：① 以 `huyanluanyuqaq` 重新认证 `gh`；或
-   ② 在浏览器打开 compare 链接创建 PR。属阶段 3 前置。
+1. ~~**`gh` 凭据只读**~~ → **2026-10-14 已解除**：`gh` 已重新认证为仓库所有者
+   （`permissions` 实测 `admin` / `push` / `pull` / `maintain` / `triage` 全为 `true`）。
+   遗留缺口：新凭据 **scopes 缺 `workflow`**，`gh workflow run` 与重跑作业不可用（**不影响** PR 操作）。
 2. **平台门禁尚未启用**：分支保护 / 必需检查 / 禁止绕过 **均未配置**。
    因此「禁止直推 `main`」**当前仍是纯文档约定，平台不强制**。
 3. **「实现者 ≠ 批准者」无平台强制**：单身份（D1=B）下平台无法区分两个协作位。
@@ -139,8 +144,12 @@ Reused (not modified):
 7. **`AGENTS.md` §13.2 的过时断言未修正**：「纯前端，无持久层」自 TASK-001 起已不成立。
    本次**不动**（不在阶段 2 文件清单内，且需先核实真实状态，避免用另一句未经验证的话替换）。
    建议另立小任务；对应框架 §13.4「否定性断言复核」清单。
-8. **依赖漏洞审计未纳入 CI**：Dependabot 只覆盖"有更新时提 PR"，不构成 CVE 门禁。
-9. **`docs/operations/known-pitfalls.md` 等历史文档未纳入审计链接检查范围**（避免历史死链造成噪声）。
+8. **`docs/operations/known-pitfalls.md` 等历史文档未纳入审计链接检查范围**（避免历史死链造成噪声）。
+9. **平台事实漂移（本 PR 内已处置，但仍需确认）**：`has_issues` 已由阶段 1 记录的 `false`
+   变为 `true`（同批读取的 `has_projects` / `has_wiki` 未变 → 属设置被改动，非当初读错）。
+   分支上 4 处「Issues 关闭」的断言已改正，能力记录新增 §8 漂移记录。
+   **需主控确认：** D2 的理由已改写为「避免双写 + 独立 clone 后状态完整」，不再引用
+   「Issues 不可用」——请确认该理由足以**独立**支撑 D2，否则 D2 需重新裁决。
 
 ---
 
