@@ -1,8 +1,27 @@
-name: Close inactive issues/PR
+name: Close inactive issues
+
+# ⚠️ 本项目对上游 actions/stale 的处置（依据与登记见 docs/operations/github-capability.md §7）
+#
+# 上游原配置为「每日定时运行 + 同时处理 Issue 与 PR」。本项目：
+#   · 不使用 Issue（AGENTS.md §14 / 决策 D2：Issue 不参与任务状态与审查）；
+#   · **PR 是交付请求的载体**，PR 若被自动关闭，其任务档案与平台状态即失联。
+# 因此一个「沉寂即关闭」的定时任务对本项目**只有风险、没有价值**（风险 R7）。
+#
+# 本文件相对上游的三处收窄：
+#   1) 移除 schedule 触发器 —— 不再有任何无人值守的自动运行（仅保留手动 workflow_dispatch）
+#   2) days-before-pr-stale / days-before-pr-close 置为 -1 —— 这是 actions/stale 中
+#      「禁用该侧处理」的既有约定；即使被手动运行，也**永不触碰** PR
+#   3) 移除已不需要的 pull-requests: write 权限（最小权限）
+#
+# 恢复上游行为：删去本注释块、恢复 schedule 触发器、把两个 -1 改回 120，
+# 并把 pull-requests: write 加回 permissions。
+# **变更本文件必须走交付请求**（AGENTS.md §14 / rules/github.md §4：禁止直推默认分支，已由平台强制）。
+#
+# ⚠️ 如实声明：上述 -1 语义**未在本仓库实跑验证**（刻意不实跑 —— 会真的给 Issue 打标签/关闭）。
+#    依据是 actions/stale 的既有约定，属**未实测**。
 
 on:
-  schedule:
-  - cron: '38 18 * * *'
+  workflow_dispatch:
 
 jobs:
   stale:
@@ -10,7 +29,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-      pull-requests: write
 
     steps:
     - uses: actions/stale@v5
@@ -21,9 +39,7 @@ jobs:
         stale-issue-label: "stale"
         stale-issue-message: "This issue is stale because it has been open for 120 days with no activity."
         close-issue-message: "This issue was closed because it has been inactive for 120 days since being marked as stale."
-        days-before-pr-stale: 120
-        days-before-pr-close: 120
-        stale-pr-label: "stale"
-        stale-pr-message: "This PR is stale because it has been open for 120 days with no activity."
-        close-pr-message: "This PR was closed because it has been inactive for 120 days since being marked as stale."
+        # PR 侧禁用（见上方注释第 2 条）：本项目不以自动关闭处理沉寂的交付请求
+        days-before-pr-stale: -1
+        days-before-pr-close: -1
         operations-per-run: 0
