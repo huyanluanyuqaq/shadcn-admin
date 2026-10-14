@@ -150,10 +150,25 @@ N4 PR 模板删「回滚方案」字段               → [FAIL] F1 模板缺少
 
 | 未执行 | 原因 |
 | ------ | ---- |
-| PR 上 CI（`install-lint-build` + `audit`） | **Agent 无法创建 PR**（`gh` 身份对本仓库只读）。需用户重新认证 `gh` 或在浏览器创建 PR 后自动触发 |
+| PR 上 CI（`install-lint-build` + `audit`） | **Agent 无法创建 PR**（见 §4.6 的实测证据）。需用户重新认证 `gh` 或在浏览器创建 PR 后自动触发 |
 | 分支保护 / 必需检查是否生效（V1–V5） | 平台门禁**尚未配置**，属阶段 3（用户操作） |
 | `docker.yml` 改为 tag-only 后的实际发布 | 需一次受控打 tag 发布；本次刻意不触发 |
 | `docker pull` / 镜像内容 | 与本次变更无关，未触及 Dockerfile |
+
+### 4.6 「Agent 无法创建 PR」的实测证据
+
+```text
+$ gh api repos/huyanluanyuqaq/shadcn-admin --jq '.permissions'
+{"admin":false,"maintain":false,"pull":true,"push":false,"triage":false}
+
+$ gh pr create --base main --head chore/TASK-031-github-framework-adoption ...
+pull request create failed: GraphQL: must be a collaborator (createPullRequest)
+（exit 1）
+```
+
+**结论：** `git push` 可用而 `gh pr create` 不可用**并不矛盾** —— 二者使用不同凭据：
+推送走 SSH 密钥（仓库所有者），`gh` 走 OAuth token（另一身份，对本仓库只有只读权限）。
+→ 「Agent 能推分支」不等于「Agent 能创建 PR」。
 
 ---
 
