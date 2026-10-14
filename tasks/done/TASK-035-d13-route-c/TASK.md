@@ -9,11 +9,11 @@
 | 字段 | 值 |
 | ---- | -- |
 | Task ID | `TASK-035` |
-| Status | `REVIEW` |
+| Status | `DONE`（2026-10-15 由 TASK-034 按 D13-C 补记归档回写） |
 | Priority | P1（解开「所有任务如何闭环」这一机制性问题） |
 | Assigned Role | implementer（执行位） |
 | Created | 2026-10-15 |
-| Updated | 2026-10-15 |
+| Updated | 2026-10-15（归档回写） |
 | Owner | 执行位（本会话） |
 | Owner Since | 2026-10-15 |
 
@@ -170,10 +170,18 @@
 
 ## Merge Record
 
-**（按 D13-C，本项在下一个任务出现之前**保持空白**；届时由该任务的交付请求补记。）**
+**（按 D13-C 由下一个任务 TASK-034 的交付请求补记 —— 2026-10-15 回写完毕，回归终止于深度 1。）**
 
-**待补记内容：** 交付载体（PR 号）、合并策略、提交范围、CI run id、**合并标识**（`merged_at` / `merge_commit_sha`）、
-遗留问题闭环情况。
+| 项 | 值 |
+| -- | -- |
+| 交付载体 | PR [#6](https://github.com/huyanluanyuqaq/shadcn-admin/pull/6)（`chore/TASK-035-d13-route-c`） |
+| 合并策略 | **rebase-merge**（`AGENTS.md` §14.2） |
+| 提交范围 | `main` `94c5880` → `b31792e`，共 **3** 提交：`eec55b7`（落地 D13-C + 登记 D12）→ `c69cd0d`（回应第 1 轮审查 + 归档审查记录）→ `b31792e`（补录第 2 轮审查 + 就地修正 R1/R2） |
+| 合并标识 | `merged_at` = **`2026-10-14T17:47:37Z`**；`merge_commit_sha` = **`b31792e`**（即合并后 `main` head） |
+| CI | 合并后 `main` push：run [`38609669658`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38609669658)，必需检查 `install-lint-build` + `audit` 均 **success**；合并前 3 个提交各触发 `pull_request` CI 亦全绿 |
+| 独立审查 | 共 **2 轮**（对象 `7f33166` / `9732b85`），均「可合并、无阻断」；记录见 `handoffs/2026-10-15-review.md` |
+| 遗留问题闭环 | **无遗留** —— 第 2 轮非阻断残留 R1 / R2 均已**就地修正**（`Current State` 限定语 + §2 补录闭合悬空引用）；`.agents/**` 三处改动的「无版本控制」局限按 D4 披露，构成 D9 的现实依据，**不属本任务遗留** |
+| 归档 | `Status → DONE`；档案由 `tasks/review/` 移入 `tasks/done/`（载体 = TASK-034 的交付请求） |
 
-> **★ D13-C 的自我演示：** 本任务正是「回写并入下一个任务」的第一个实例 ——
-> 故本节的空白**不是遗漏**，而是**该裁决的预期形态**。
+> **★ D13-C 的自我演示就此完成：** 本任务曾是「回写并入下一个任务」的第一个实例
+> —— `Merge Record` 的空白**是裁决的预期形态**，现由 TASK-034 补齐，**无限回归终止于深度 1** 得到实证。

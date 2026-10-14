@@ -10,14 +10,14 @@
 Task ID: TASK-034
 Title: 统一「验证项」编号口径（V1–V5）
 Workflow: refactor
-Status: BACKLOG
+Status: REVIEW
 Priority: P2
-Owner: ""
-Owner Since: ""
-Assigned Role: architect
+Owner: 主控位（本会话）
+Owner Since: 2026-10-15
+Assigned Role: architect（裁决）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15T00:00:00Z
-Updated: 2026-10-15T00:00:00Z
-Branch: ""
+Updated: 2026-10-15T06:45:00Z
+Branch: docs/TASK-034-unify-v-numbering
 Requires Human Approval: false
 ```
 
@@ -96,12 +96,12 @@ Requires Human Approval: false
 
 ## Acceptance Criteria
 
-- [ ] AC-1: 存在 V 编号出现处的完整清单，每处附实际语义。
-- [ ] AC-2: 裁决明确，且理由可复核（说明另一侧为何被弃用）。
-- [ ] AC-3: 全部出现处已统一；`grep -rn "V[1-5]"` 的每一处都与裁决一致（无例外）。
-- [ ] AC-4: `python shared/scripts/audit_framework.py` → `PASS=13 FAIL=0`；
+- [x] AC-1: 存在 V 编号出现处的完整清单，每处附实际语义。
+- [x] AC-2: 裁决明确，且理由可复核（说明另一侧为何被弃用）。
+- [x] AC-3: 全部出现处已统一；`grep -rn "V[1-5]"` 的每一处都与裁决一致（无例外）。
+- [x] AC-4: `python shared/scripts/audit_framework.py` → `PASS=13 FAIL=0`；
       `python scripts/audit-repo.py`（在 shadcn-admin）→ `PASS=6 FAIL=0`。
-- [ ] AC-5: 本任务的 `File Scope` 之外无改动。
+- [x] AC-5: 本任务的 `File Scope` 之外无改动。
 
 ---
 
@@ -117,6 +117,9 @@ File Scope:
   - docs/operations/github-capability.md          # 仅 shadcn-admin
   - docs/agent-collaboration.md                   # 仅 shadcn-admin（§6 落差表内的 V 引用）
   - tasks/backlog/TASK-034-unify-v-numbering/**
+  # D13-C：本任务交付请求须一并补记 TASK-035 的归档回写（含目录迁移）
+  - tasks/review/TASK-035-d13-route-c/**          # Status→DONE + 移 done/ + 回写 Merge Record
+  - tasks/done/TASK-035-d13-route-c/**            # 迁移目标
 Non-Scope (files):
   - src/**
   - server/**
@@ -140,11 +143,14 @@ Non-Scope (files):
 
 ## Current State
 
-> 2026-10-15 由 TASK-033 的**归档回写**登记（协议 §9「遗留问题已有独立记录」）。
-> 状态 `BACKLOG`：**尚未领取**，也未经设计。领取前需先做只读调研（清点 + 语义登记）。
->
-> **注意：** 本任务**未阻塞任何既有工作** —— 它是**表述一致性**问题；
-> 既有实测结论（直推被拒 ✓、绿灯可合并 ✓）**不受影响且已分别记录**。
+> 2026-10-15 已实施完毕并提交审查：清点 → 裁决（V5 = 「绿灯可合并」阳性对照义）→ 成批统一
+> → 双审计 PASS → TASK-035 归档回写（D13-C）→ 交付请求。实施记录见 `handoffs/2026-10-15-implementation.md`。
+> 本任务自身亦演示 D13-C：**合并后的归档回写（Status → DONE + 移 `tasks/done/` + `Merge Record`）
+> 待下一个任务补记**。
+
+## Merge Record
+
+**（按 D13-C，本项在下一个任务出现之前保持空白；届时由该任务的交付请求补记。）**
 
 ---
 
@@ -152,10 +158,17 @@ Non-Scope (files):
 
 - 冲突**既存在于同一文件内**（`github-capability.md` 的 §4 ⟷ §7 / `:149`），**又跨文件**
   （`.agents/**` 是**跨项目**资产，且 `templates/**`、`shared/**` 各自有一份），
-  故统一必须**成批**做，否则会留下第三个口径。
-- 「V5」在工作空间**记忆文件**与**历史任务档案**中同样出现 —— 历史档案**不改**（历史记录当时准确），
-  但需在裁决后**登记**「历史档案中的 V5 按当时口径理解」。
-- 设计稿 §17.1 缺 V5、§15 却引用 V5 —— 统一时须一并补齐或改写引用。
+  故统一必须**成批**做，否则会留下第三个口径。→ **已按裁决成批统一**（本任务交付）。
+- 「V5」在工作空间**记忆文件**与**历史任务档案**中同样出现 —— 历史档案**不改**（历史记录当时准确）。
+  **登记（裁决后口径声明）：** `tasks/done/**`、`handoffs/**`、`.workbuddy/memory/**` 及各 PR 描述中的
+  「V5」**按其书写时点的口径理解**：2026-10-15 裁决前书写的「直推被拒」义仍指向同一实测事实
+  （GH006 拒绝），该事实**本身从未失效**，只是不再占用 V5 编号（由 V1 / V2 承载）。
+- 设计稿 §17.1 缺 V5、§15 却引用 V5 —— **已补齐**：§17.1 新增 V5 行 + 裁决注，与 §15 的引用就此收敛。
+- **设计稿的早期论证章节（§9.4、§11 等）中的 V1–V4 语义与 §17.1 一致，属历史论证过程，未改动** ——
+  它们不构成冲突（TASK-033 已核「V1/V2/V4 逐条一致」；V3 两处措辞为同义转写）。
+- **裁决后的次生修正（超出清点表的连带发现，已显式披露）：** 能力记录 `:234`（2026-10-14 完成段）
+  原写「⑥ V1/V2/V4/V5 实测全部成立」，但 V5 阳性对照实为 **2026-10-15** 取得 —— 属时间口径错位，
+  已改为「⑥ V1/V2/V4 …（V5 属 2026-10-15，见 ⑨）」。这是统一编号时**顺带消除的失真**，非范围扩张。
 
 ---
 
