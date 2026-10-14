@@ -109,6 +109,9 @@ Reused (not modified):
 > 同批复核发现**平台事实漂移**：`has_issues` 由阶段 1 记录的 `false` 变为 `true`，
 > 据此改正分支上 4 处断言、新增能力记录 §8「平台事实漂移记录」（见同文件 §1「追加修正」）。
 > 下一步：提交追加修正 → 创建 PR → 观察 CI → 主控审查。
+> 2026-10-14 07:56（UTC）**PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1) 已创建**（草稿态），
+> CI 随即以 `pull_request` 事件触发，**两作业全绿**（run `38531690034`）→
+> 阶段 2 最后一项验收「PR 上 CI 如期触发」**完成**（见 `handoffs/2026-10-14-ci-verification.md`）。
 
 ---
 
@@ -122,8 +125,11 @@ Reused (not modified):
 | `pnpm build` | **通过**（✓ built in 30.14s，exit 0） |
 | `python scripts/audit-repo.py` | **PASS=6 FAIL=0 WARN=0**（含 4 项受控负向测试，均已按预期失败） |
 | YAML 可解析（4 个文件） | **通过**（PyYAML 6.0.3） |
-| PR 上 CI（`install-lint-build` + `audit`） | **待记录**：`gh` 提权后由 Agent 创建 PR 触发；结果回填 `handoffs/2026-10-14-ci-verification.md` |
-| 平台门禁是否生效（V1–V5） | **未实测**：分支保护尚未配置（阶段 3，用户操作） |
+| PR 上 CI（`install-lint-build` + `audit`） | **通过**：run `38531690034`（`pull_request` 事件），两作业全绿（1m16s / 5s）。原始输出见 `handoffs/2026-10-14-ci-verification.md` |
+| 平台门禁是否生效（V1/V2/V4/V5） | **未实测**：分支保护尚未配置（阶段 3，用户操作）。V3 已实测为「是」 |
+
+> ⚠️ **CI 全绿 ≠ 门禁成立。** 分支保护未配置前，这两个作业只是「运行了的检查」，
+> 不是「合并的前置条件」。详见 `docs/operations/github-capability.md` §2/§5。
 
 原始输出见 `handoffs/2026-10-14-implementation.md` §4。
 
