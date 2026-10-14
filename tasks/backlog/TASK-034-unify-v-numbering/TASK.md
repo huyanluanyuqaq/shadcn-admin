@@ -36,17 +36,24 @@ Requires Human Approval: false
 ## Background
 
 - 来源：**TASK-033 归档回写时**发现（`tasks/done/TASK-033-stage3-platform-record/TASK.md` 的 `Known Issues` 10）。
-  TASK-033 的三轮独立审查**均未捕获**该冲突 —— 因为它跨文件、且每处单独看都自洽。
-- **冲突事实（2026-10-15 实测清点）：** 同一编号「V5」在两个不同命题间被混用：
+  其**归档审查的 O1 / O3**（`tasks/done/TASK-033-stage3-platform-record/handoffs/2026-10-15-archive-review.md`）
+  进一步澄清了两点口径，本任务据此采用：
+  - ① 此前审查**并非未曾触及**编号体系 —— TASK-033 的 `2026-10-15-review.md` **O5** 曾把
+    「设计方案仅 V1–V4、能力记录有 V1–V5」判为「**扩展而非冲突** → 无需处置」。
+    故准确表述是「**审查者判为无冲突而漏判**」，**不是**「未捕获」。
+  - ② 需**区分层次**：**同一文件内**的冲突（本表内 `github-capability.md` 的两行）与
+    **跨文件**的全局不一致（本表全部行）。**后者**才是「每处单独看都自洽、单文件审查必然漏掉」的那一类。
+- **冲突事实（2026-10-15 实测清点）：** 同一编号「V5」在**两个不同命题**间被混用：
 
   | 文件 / 位置 | V5 的定义 |
   | ----------- | --------- |
   | `shared/scripts/github_setup_checklist.md` §185–189 | **「检查运行通过后合并」→ 合并成功** |
   | `.agents/proposals/dual-agent-github-collaboration-design-v1-draft.md` §15 阶段 3（`:1281`） | **「检查全绿后所有者能否正常合并自己的 PR」** |
-  | `docs/operations/github-capability.md` **§7 第 3 项** | **「必需检查全绿时，所有者能否正常合并自己的 PR」** |
-  | `.agents/protocols/github-capability-matrix.md` **§（V 表）`:160`** | **「直接推送默认分支是否确实被拒绝」** |
+  | `docs/operations/github-capability.md` **§7 第 3 项**（`:213`） | **「必需检查全绿时，所有者能否正常合并自己的 PR」** |
+  | `.agents/protocols/github-capability-matrix.md` **（V 表）`:160`** | **「直接推送默认分支是否确实被拒绝」** |
   | `templates/github/GITHUB-CAPABILITY.md` `:75` | **「直接推送默认分支是否确实被拒绝」** |
   | `docs/operations/github-capability.md` **§4 表 `:104`** | **「直接推送默认分支是否确实被拒绝」**（且实测证据与 **V2 行完全相同**） |
+  | `docs/operations/github-capability.md` **`:149`**（首次真实交付实测表） | 把 V5 与 V4 **并列**写作「合并**被门禁拦截**（V4 / V5）」—— **第 3 种、松散用法**（与 §4 的 direct-push 义不符）。**由 TASK-033 归档审查的 O3 补充** |
 
 - **连带问题：**
   1. 能力记录 §4 的 **V5 行与 V2 行实质重复**（同一 `GH006` 输出同时充当两行的证据，见该节「V2 / V5 的原始输出」）。
@@ -143,7 +150,9 @@ Non-Scope (files):
 
 ## Known Issues
 
-- 冲突**跨文件**（`.agents/**` 是**跨项目**资产），故统一必须**成批**做，否则会留下第三个口径。
+- 冲突**既存在于同一文件内**（`github-capability.md` 的 §4 ⟷ §7 / `:149`），**又跨文件**
+  （`.agents/**` 是**跨项目**资产，且 `templates/**`、`shared/**` 各自有一份），
+  故统一必须**成批**做，否则会留下第三个口径。
 - 「V5」在工作空间**记忆文件**与**历史任务档案**中同样出现 —— 历史档案**不改**（历史记录当时准确），
   但需在裁决后**登记**「历史档案中的 V5 按当时口径理解」。
 - 设计稿 §17.1 缺 V5、§15 却引用 V5 —— 统一时须一并补齐或改写引用。
