@@ -187,7 +187,11 @@ Reused (not modified):
     该提交信息以「本仓库 Issues 已关闭」作为修改理由，而实测 `has_issues=true`。
     因**不改写已推送历史**（重写会销毁「原断言 → 发现漂移 → 改正」的证据链，见 Design Decisions 末条），
     予以保留并在此**显式登记**：**以仓库内文档的现述为准**，该提交信息中的此句不再成立。
-    复核命令：`git log main..HEAD --format='%h%n%B---' | grep -B2 "Issues 已关闭"`。
+    复核命令：`git log 05bf884..da93f4b --format='%h%n%B---' | grep -B2 "Issues 已关闭"`（**固定区间**）。
+    注：`5b2e00c` 是 **rebase-merge 前**的原提交，**不在** `main` 历史内 —— 因 rebase 重写 SHA，
+    `main` 上承载同一句信息的是 **`e7e3e85`**；`5b2e00c` 目前仅经**未删除的**
+    `chore/TASK-031-github-framework-adoption` 分支可达。故 `git merge-base --is-ancestor 5b2e00c da93f4b`
+    返回**非零**属**预期**（不等于该提交「不存在」），引用此 SHA 时须知悉此项。
 11. **测试计数口径**：handoff 的「25 文件 / 303 例」是 **vitest 运行器口径**；源文件独立计数为 **24**。
     差 1 **应为** `shared/dist/schema/traffic.test.js`（`shared/src/schema/traffic.test.ts` 的**编译副本**）
     被一并纳入 —— **推断依据**：`vite.config.ts` 的 `test` 段无自定义 `include` / `exclude`，
@@ -231,7 +235,7 @@ Reused (not modified):
 |----|----|
 | 交付载体 | PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1)（本仓库**首个 PR**） |
 | 合并策略 | **rebase-merge**（`rules/github.md` §6，显式覆盖 `git.md` §5 的 squash 默认） |
-| 提交范围 | `main`（`05bf884`）→ 分支 tip，**11 个提交**（其中**最后 1 个**为本审查留痕提交；此前 tip 为 `d67dcf1`，即审查时点）。核对：`git log --oneline main..HEAD \| wc -l` |
+| 提交范围 | `main`（`05bf884`）→ 分支 tip，**11 个提交**（其中**最后 1 个**为本审查留痕提交；此前 tip 为 `d67dcf1`，即审查时点）。核对：`git log --oneline 05bf884..da93f4b \| wc -l`（**固定区间**；用 `main..HEAD` 会随所在分支上下文变化） |
 | CI · `pull_request` opened | run `38531690034`：`install-lint-build` 1m16s ✅ ／ `audit` 5s ✅ |
 | CI · `pull_request` synchronize（`d67dcf1`） | run `38532099210`：`install-lint-build` 1m24s ✅ ／ `audit` 5s ✅ |
 | CI · `pull_request` synchronize（审查留痕提交 `03d9f02`） | run `38536855765`：`install-lint-build` 1m17s ✅ ／ `audit` 4s ✅ |
