@@ -15,13 +15,13 @@
 Task ID: TASK-031
 Title: 在 shadcn-admin 落地双 Agent GitHub 协作框架（阶段 2）
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: workbuddy
 Owner Since: 2026-10-14
 Assigned Role: developer
 Created: 2026-10-14T07:00:00Z
-Updated: 2026-10-14T08:30:00Z
+Updated: 2026-10-14T08:45:00Z
 Branch: chore/TASK-031-github-framework-adoption
 Requires Human Approval: false
 Platform Config Required: true   # 阶段 3（分支保护 / 必需检查）由用户在网页端完成
@@ -117,6 +117,13 @@ Reused (not modified):
 > 2 项阻断（均为留痕类，非内容/代码缺陷），R1–R10 全部 PASS、修改范围零越界。
 > 两项阻断已在本提交内关闭 → Status `ACTIVE` → `REVIEW`，档案移入 `tasks/review/`。
 > 审查全文见 `handoffs/2026-10-14-review.md`。
+> 2026-10-14 08:42（UTC）**合并完成**：PR #1 以 **rebase-merge** 合入 `main`，
+> `main` 由 `05bf884` 前进到 `da93f4b`（rebase 重写 SHA，原分支 tip `03d9f02` 的等价提交已落 `main`）。
+> **状态 → `DONE`，档案移入 `tasks/done/`。**
+> 合并后的实测结果见 `Merge Record`：**`docker.yml` 未触发**（发布解耦生效）、
+> `main` 上 `push` 触发的 CI 两作业全绿；**平台门禁仍未生效**（`protection` = 404）。
+> 合并后回写（本提交）按 `rules/github.md` §4 走**独立交付请求**，而非直推 `main`
+> —— 由此暴露的框架内部张力已登记为 **D13**（见 `Known Issues` 第 14 项）。
 
 ---
 
@@ -133,6 +140,8 @@ Reused (not modified):
 | PR 上 CI（`install-lint-build` + `audit`） | **通过**：run `38531690034`（`pull_request` opened），两作业全绿（1m16s / 5s）。原始输出见 `handoffs/2026-10-14-ci-verification.md` |
 | PR 上 CI（tip `d67dcf1`，`synchronize`） | **通过**：run `38532099210`，两作业全绿（1m24s / 5s）。补记层 1（此前只出现在 PR 评论，属层 2 未回写） |
 | 独立审查（协议 §5 / §10 N1） | **已完成**：审查实例 `agent-2bed4676-7adc-424a-aaf0-5924f8b2983f`（**独立上下文**，非实现者）。首轮结论 = **需要整改**（2 项留痕类阻断，均已关闭），另有复审记录。**完整结论以 `handoffs/2026-10-14-review.md` §9 为准，本行不另作判定**（逐条 R1–R10 PASS/FAIL 见同文件 §3） |
+| `main` 上 CI（`push` 触发，合并后自动运行） | **通过**：run `38537067337`，`install-lint-build` ✅ ／ `audit` ✅ |
+| 发布解耦（D8 的实测） | **成立**：合并后 `main` 上**没有** `Build and Push Docker Image` 运行。对比历史——TASK-028 / 029 / 030 合并时**均有**该运行 → 解耦真实生效，而非仅仅写在文件里 |
 | 平台门禁是否生效（V1/V2/V4/V5） | **未实测**：分支保护尚未配置（阶段 3，用户操作）。V3 已实测为「是」 |
 
 > ⚠️ **CI 全绿 ≠ 门禁成立。** 分支保护未配置前，这两个作业只是「运行了的检查」，
@@ -177,6 +186,22 @@ Reused (not modified):
     任务档案（含粘贴的原始输出）不在扫描内。本次无真值，属**覆盖面提示**。
 13. **审查独立性的残余限制**：审查实例与实现实例**上下文独立**（满足 `dual-agent-model.md` §5.1 的补救手段），
     但**同模型、同平台凭据**。单一平台身份下平台审计无法区分两个协作位 —— 结构性限制，本任务无法消除。
+14. **★ 框架内部张力 D13（待裁决）**：`rules/github.md` **§4 禁止直接推送默认分支**，
+    而 **§6 要求「合并后必须回写任务文件」**（状态、合并标识、检查运行标识、遗留问题）——
+    而回写**只能发生在合并之后**，两者不可能同时通过「直推」满足。
+    历史惯例（TASK-001~030）实际是**合并后直推 `main`** 完成回写：证据是
+    `gh pr list --state all` 显示本仓库此前**没有任何 PR**（PR #1 是首个），
+    因此那些「归档 + Merge Record」提交只可能落在 `main` 上。
+    本任务按 §4 改为**走独立交付请求**（本条所在的 PR），代价是需要一个短生命周期的
+    **记录分支**，这又与 §2「一个任务一个分支」形成第二处张力。
+    **已在设计稿 §17 登记为 D13（待用户裁决）**；本任务采用的临时做法与理由见本文件 `Merge Record`
+    与 `docs/operations/github-capability.md` §7。
+15. **阶段 2 有一项验收未完成（已如实标注，不随本任务「完成」而掩盖）**：设计稿 §15 的阶段 2 验收中含
+    「**PR 模板在 GitHub 渲染正常（需人工在网页确认一次）**」。本任务的 PR #1 描述是**用 API 写入的**，
+    **没有经过模板**，因此该渲染**从未被人工确认**。本任务自身的验收标准（R1–R10）不包含此项，
+    故不影响 `Status = DONE`；但**阶段 2 作为整体尚未完全验收**。
+    → 需在阶段 3 由用户打开一次 GitHub 的「新建 PR」页面确认模板渲染（若模板中的 HTML 注释或字段渲染异常，
+    会在那里暴露）。此项已同步登记到设计稿 §15 阶段 2 的「状态」行。
 
 ---
 
@@ -198,11 +223,23 @@ Reused (not modified):
 | 提交范围 | `main`（`05bf884`）→ 分支 tip，**11 个提交**（其中**最后 1 个**为本审查留痕提交；此前 tip 为 `d67dcf1`，即审查时点）。核对：`git log --oneline main..HEAD \| wc -l` |
 | CI · `pull_request` opened | run `38531690034`：`install-lint-build` 1m16s ✅ ／ `audit` 5s ✅ |
 | CI · `pull_request` synchronize（`d67dcf1`） | run `38532099210`：`install-lint-build` 1m24s ✅ ／ `audit` 5s ✅ |
-| CI · 审查留痕提交 | **待回填**（合并后归档提交内补） |
-| 发布影响 | **预期不发布镜像**：新 `docker.yml` 为 tag-only；合并后 `main` 上即为该版本，`push main` 不再触发镜像构建 |
-| 分支删除 | **未执行**（`rules/github.md` §6 要求合并后删除工作分支；远端分支删除属破坏性操作，用户未授权 → 记录为待授权项） |
+| CI · `pull_request` synchronize（审查留痕提交 `03d9f02`） | run `38536855765`：`install-lint-build` 1m17s ✅ ／ `audit` 4s ✅ |
+| CI · 合并后 `main`（`push`） | run `38537067337`：`install-lint-build` ✅ ／ `audit` ✅ |
+| **合并标识** | PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1)；`merged_at` = `2026-10-14T08:42:46Z`；`merged_by` = `huyanluanyuqaq`；`merge_commit_sha` = **`da93f4b`**（rebase-merge 重写 SHA；原分支 tip `03d9f02` 的内容已等价落 `main`） |
+| 发布影响（**实测**，非预期） | **未发布镜像**：`main` 上未出现 `Build and Push Docker Image` 运行 → D8 解耦成立（对照见 `Verification`） |
+| 分支删除 | **未执行** —— `rules/github.md` §6 要求「合并后删除该工作分支」，但**远端分支删除属破坏性操作，用户未授权**（与 D12 同域）。已登记为待授权项（`docs/operations/github-capability.md` §7） |
 
-**合并后回填（归档提交内）：** `main` HEAD、`push main` 触发的 CI run、Docker 运行是否出现（预期「无」）。
+**合并后核验（2026-10-14 08:44Z）：**
+
+- `main` HEAD = `da93f4b`；变更已落 `main`（`.github/dependabot.yml`、`scripts/audit-repo.py`、
+  `docs/operations/github-capability.md`、`tasks/done/TASK-031-github-framework-adoption/handoffs/2026-10-14-review.md` 等）
+- `main` 上 `push` 触发 CI run `38537067337` ✅ 两作业全绿
+- `main` 上**无** Docker 运行 → 解耦实证
+- `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection` 仍返回 **404 Branch not protected**
+  → **平台门禁仍未生效**，与 `docs/operations/github-capability.md` §2 / §5 的披露一致
+- 远端分支 `chore/TASK-031-github-framework-adoption` **仍在**（未授权删除）
+- 归档回写本身按 `rules/github.md` **§4** 走独立交付请求（`chore/TASK-031-archive-record`），
+  **未直推 `main`**；由此暴露的 §4 / §6 张力见 `Known Issues` 第 14 项（D13）
 
 ---
 
