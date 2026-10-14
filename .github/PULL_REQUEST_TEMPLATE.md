@@ -1,29 +1,94 @@
-## Description
+<!--
+交付请求模板（Pull Request Template）— shadcn-admin
 
-<!-- A clear and concise description of what the pull request does. Include any relevant motivation and background. -->
+本模板**不产生新信息**：所有内容都应先在任务文件（tasks/**/TASK.md）与交接记录
+（handoffs/**）中写清楚，再渲染到这里。字段映射见 docs/agent-collaboration.md §5。
 
-## Types of changes
+禁止只在 PR 里写信息而不回写任务文件（层 1 才是唯一事实来源）。
+-->
 
-<!-- What types of changes does your code introduce to shadcn-admin? Put an `x` in the boxes that apply -->
+## 关联任务
 
-- [ ] Bug Fix (fixes an issue)
-- [ ] New Feature (adds functionality)
-- [ ] Refactor (improves code structure without changing behavior)
-- [ ] Breaking Change (incompatible change to existing behavior or public API)
-- [ ] Others (any other types not listed above)
+- **任务 ID：** `TASK-<NNN>`
+- **提交引用：** 每个提交的 footer 已包含 `Refs: TASK-<NNN>`
+- **关联 Issue：** 不适用（本仓库 Issues 关闭；任务状态以 `tasks/**/TASK.md` 为准）
 
-## Checklist
+---
 
-<!-- Please follow this checklist and put an x in each of the boxes, like this: [x]. You can also fill these out after creating the PR. This is simply a reminder of what we are going to look for before merging your code. -->
+## 变更摘要
 
-- [ ] I have read the [Contributing Guide](https://github.com/satnaing/shadcn-admin/blob/main/.github/CONTRIBUTING.md)
+<!-- 对应任务文件的 Objective。一句话说清为什么改、改了什么。 -->
 
-## Further comments
+---
 
-<!-- If this is a relatively large or complex change, kick off the discussion by explaining why you chose the solution you did and what alternatives you considered, etc... -->
+## 实现内容与范围
 
-## Related Issue
+**包含范围：**
 
-<!-- If this PR is related to an existing issue, link to it here. -->
+<!-- 本次实际做了什么。逐条对应任务文件的 Requirements。 -->
 
-Closes: #<!-- Issue number, if applicable -->
+**排除范围（明确未做）：**
+
+<!-- 本次刻意未做的事，防止审查者误判为遗漏。 -->
+
+**变更文件：**
+
+| 文件 | 变更类型 | 说明 |
+| ---- | -------- | ---- |
+|      | 新增 / 修改 / 删除 |      |
+
+---
+
+## 测试结果
+
+<!-- 粘贴实际命令与实际输出。禁止只写「已通过」。 -->
+
+```text
+（在此粘贴真实的命令与输出）
+```
+
+**未执行的测试及原因：**
+
+<!-- 无则写「无」。有则说明为何未执行、风险是什么。 -->
+
+---
+
+## 兼容性 / 安全 / 部署影响
+
+**所做的假设：**
+
+**风险：**
+
+**安全影响：**
+
+**部署影响：**
+
+<!-- 无影响时明确写「无」，不要留空。 -->
+
+---
+
+## 回滚方案
+
+<!-- 说明如何回退本次变更。若不可回滚，明确写出并说明原因。 -->
+
+---
+
+## 遗留问题
+
+<!-- 无则写「无」。有则说明是否需要另立任务追踪。 -->
+
+---
+
+## 执行者自检
+
+- [ ] 静态检查、格式检查、测试、构建全部在本地通过
+- [ ] 无调试残留、无密钥或敏感信息、无与任务无关的重构
+- [ ] 每个提交的 footer 含 `Refs: TASK-<NNN>`
+- [ ] 任务文件的变更文件清单与已知问题已如实更新
+- [ ] 交接记录已写入 `handoffs/`，且包含测试的原始输出
+- [ ] 未削弱任何受保护规则
+- [ ] 若某项约定**未被平台强制**，已在本节或任务文件的 `Known Issues` 中显式标注
+
+> 当前**平台未强制**的约定（见 `docs/operations/github-capability.md` §5）：
+> 禁止直推 `main`、合并前必须通过必需检查、实现者 ≠ 批准者。
+> 未配置分支保护前，这些**仅靠流程自觉**。
