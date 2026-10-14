@@ -42,7 +42,7 @@
 | `docs/operations/github-capability.md`（仓库内） | §4 V5 行改新义（证据 = PR #4 `merged: true`，2026-10-15）；原 GH006 输出改标注为「V1 / V2 的证据」；「V1 与 V5 不可合并」注改写为「V1 与 V2 不可合并」；`:140/143/154/157/234` 等 5 处 V 编号引用同步；§5 落差表行同步；§7 第 3 项注更新为「已经 TASK-034 裁决」；头部「最后更新」 |
 | `docs/agent-collaboration.md`（仓库内） | §6 落差表「能力记录 §4 V2 / V5」→「V1 / V2」（与能力记录 §5 逐行一致约束） |
 | `tasks/review/TASK-035-d13-route-c/**` → `tasks/done/...` | 归档回写（Status / Updated / Merge Record / 目录迁移） |
-| `tasks/active/TASK-034-unify-v-numbering/**` → `tasks/review/...` | 本任务档案（领取 + 实施记录 + AC 核销） |
+| `tasks/backlog/TASK-034-unify-v-numbering/**` → `tasks/review/...` | 本任务档案（领取 + 实施记录 + AC 核销） |
 
 > **审查提示（★ 须知）：** 前 4 个文件在**工作空间层**（`.agents/**` / `templates/**` / `shared/**`），
 > **不在本仓库版本控制内**（TASK-035 D4 已实测披露的同一事实）——它们已直接更新，
