@@ -44,11 +44,20 @@ Thank you for considering contributing to **shadcn-admin**! Every contribution i
 
 ## How to Contribute
 
-- **Feature Requests:** Open an issue or start a discussion to discuss the feature before implementation.
-- **Bug Fixes:** Provide clear reproduction steps in your issue.
-- **Documentation:** Improvements to the documentation (README) are always appreciated.
+> **This repository is a fork of [`satnaing/shadcn-admin`](https://github.com/satnaing/shadcn-admin)
+> used for a self-hosted subscription-management build. Work here is tracked in this repository,
+> not upstream.**
 
-> **Note:** Pull Requests adding new features without a prior issue or discussion will **not be accepted**.
+- **Issues are disabled in this repository.** Do not rely on the upstream issue tracker or
+  Discussions; they belong to the upstream project and are not monitored here.
+- **Bug Fixes / Features:** describe the reproduction steps and the expected result in the
+  pull request itself. Work is tracked as task files under `tasks/**/TASK.md`, which are the
+  source of truth for scope, acceptance criteria and status.
+- **Documentation:** improvements to the documentation are always appreciated.
+
+> **Note:** For the upstream project, PRs adding new features without a prior issue or discussion
+> will not be accepted. In this fork, the requirement is instead that **every PR is backed by a
+> task file** under `tasks/` (see `docs/agent-collaboration.md`).
 
 ---
 
@@ -68,15 +77,22 @@ pnpm lint && pnpm format && pnpm knip && pnpm build
 
 ## Pull Request Guidelines
 
-- **Follow the [PR Template](./PULL_REQUEST_TEMPLATE.md):**
-  - Description
-  - Types of changes
-  - Checklist
-  - Further comments
-  - Related Issue
-- Ensure your changes pass **CI checks**.
-- Keep PRs **focused** and **concise**.
-- Reference related issues in your PR description.
+- **Follow the [PR Template](./PULL_REQUEST_TEMPLATE.md).** Its sections are:
+  - Related task (`Refs: TASK-NNN`)
+  - Change summary
+  - In scope / out of scope, and the changed-file list
+  - Test results — **paste the actual commands and output**, never just "all green"
+  - Tests not run, and why
+  - Compatibility / security / deployment impact
+  - Rollback plan
+  - Open issues
+  - Author self-check
+- Ensure your changes pass **CI checks** (`.github/workflows/ci.yml`).
+- Keep PRs **focused** and **concise**; one PR per task.
+- Merge strategy is **rebase-merge** (`docs/git-workflow.md` §4).
+- Do not push directly to `main`; all changes go through a pull request.
+  (Branch protection is not configured yet, so this is a convention — see
+  `docs/operations/github-capability.md`.)
 
 ---
 
@@ -98,4 +114,6 @@ pnpm lint && pnpm format && pnpm knip && pnpm build
 
 Thank you for helping make **shadcn-admin** better! 🚀
 
-If you have any questions, feel free to reach out via [Discussions](https://github.com/satnaing/shadcn-admin/discussions).
+If you have any questions about **this fork**, open a pull request with your question, or reach the
+maintainer through this repository. Upstream support ([`satnaing/shadcn-admin`](https://github.com/satnaing/shadcn-admin))
+and its Discussions belong to the upstream project.
