@@ -3,8 +3,9 @@
 > **目的：** 规定本仓库中两个协作位（主控位 / 执行位）如何以 GitHub 为载体完成一个任务，
 > 以及**哪些约定由平台强制、哪些只靠流程自觉**。
 >
-> **本文件是仓库内自持的说明。** 本仓库被单独 clone 后没有工作空间，
-> 上层规范（`.agents/`）不可读，因此本文件必须能独立成立。
+> **本文件是仓库内自持的说明。** 自 TASK-039（2026-10-15）起，`.agents/` 协作框架已随本仓库
+> 版本化（逐字复制自 Workspace 模板仓库），独立 clone 后同样可读；本文件是其上的**项目级流程摘要**，
+> 与 `.agents/protocols/github-collaboration.md` 不一致时以框架原文为准。
 >
 > 相关文档：[`git-workflow.md`](./git-workflow.md)（分支与提交）、
 > [`operations/github-capability.md`](./operations/github-capability.md)（平台能力与实测事实）。

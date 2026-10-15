@@ -4,6 +4,10 @@
 > **两种工作模式：**
 > - **Workspace 模式**（项目位于 Workspace 的 `projects/` 下）：本文件 + Workspace `AGENTS.md` + Task 规则共同生效。
 > - **Standalone 模式**（项目被单独 clone，无 Workspace）：本文件 + Task 规则生效，见 §12。
+>
+> **框架基线（TASK-039，2026-10-15）：** 双 Agent 协作框架已整体入仓 —— `.agents/`（角色/规则/协议/工作流）
+> 与 `templates/`（任务/交接/ADR/GitHub 模板）逐字复制自 Workspace 模板仓库 `projects/_workspace-template/`，
+> 独立 clone 后完整可用（见 §4 / §12）。
 
 ---
 
@@ -69,7 +73,10 @@ Upstream: satnaing/shadcn-admin（本仓库为其 fork，接入时尚无自定�
 ```
 shadcn-admin/
 ├── AGENTS.md              ← 本文件
-├── README.md              ← 上游原文（未改动；其中 Auth/Clerk/Sponsor 表述描述上游状态，本仓库已移除 Clerk，见 §13.3）
+├── README.md              ← 上游原文 + 末尾「Agent 协作」章节（TASK-039 追加；其中 Auth/Clerk/Sponsor 等主体表述描述上游状态，本仓库已移除 Clerk，见 §13.3）
+├── .agents/               ← 【TASK-039】双 Agent 协作框架（roles/workflows/rules/protocols/state/proposals），
+│                            逐字复制自模板仓库；**项目内只读**，项目级覆盖走本文件 §10
+├── templates/             ← 【TASK-039】框架模板（task/handoff/adr/github/project），同样逐字复制、只读
 ├── docs/                  ← 协调层（新增）
 │   ├── requirements/  architecture/  technical/  decisions/  operations/
 ├── tasks/                 ← 协调层（新增）：backlog/ active/ review/ done/
@@ -101,8 +108,9 @@ shadcn-admin/
 │   ├── drizzle/            # 迁移 SQL + meta 快照
 │   ├── scripts/            # smoke.ts 端到端冒烟（31 项）
 │   └── package.json
-├── shared/                 ← 【新增】前后端共享类型与 zod schema
-│   └── src/
+├── shared/                 ← 双语义：① pnpm 包 @repo/shared（src/ 前后端共享类型与 zod schema）
+│   ├── src/                 ② 【TASK-039】框架脚本与共享资源（scripts/ tools/ knowledge/，逐字复制自模板仓库）
+│   ├── scripts/  tools/  knowledge/
 ├── Dockerfile              ← 【新增】单容器构建（TASK-005）
 ├── docker-compose.yml      ← 【新增】单容器 + SQLite 数据卷（TASK-005）
 ├── netlify.toml            ← 上游遗留静态部署配置（已被 docker compose 取代，保留未删）
@@ -246,9 +254,11 @@ docker compose up -d --build
 | **Agent 协作流程** | `docs/agent-collaboration.md` |
 | **Git 工作流** | `docs/git-workflow.md` |
 | **GitHub 平台能力记录** | `docs/operations/github-capability.md` |
+| **框架规范（角色/规则/协议/工作流）** | `.agents/`（TASK-039 起随仓库版本化，逐字快照只读） |
+| **框架模板（任务/交接/ADR/GitHub）** | `templates/`（TASK-039 起随仓库版本化，逐字快照只读） |
 | 任务 | `tasks/` |
 
-**写文档前请先读：** `.agents/rules/documentation.md`（Workspace 模式）或本文件 §12（Standalone 模式）。
+**写文档前请先读：** `.agents/rules/documentation.md`（TASK-039 起已随仓库版本化，两种模式下均直接可读）。
 
 ---
 
@@ -262,6 +272,7 @@ docker compose up -d --build
   `@faker-js/faker` 与 `features/*/data/data.ts` **均已移除**（复核命令见
   `docs/operations/negative-assertion-review.md`）。新增领域模块时数据源**必须是真实 API**，
   不得重新引入 mock 数据。
+- [补充] **框架快照只读（TASK-039）**：`.agents/` 与 `templates/` 是模板仓库的逐字快照，**不得在本项目内直接修改**；项目级规则覆盖一律通过本文件 §10 的 [覆盖] / [补充] / [增强] 标记表达（优先级见 `.agents/protocols/rule-precedence.md`）。框架演进在模板仓库进行，完成后同步快照并走交付请求。
 - [增强] 涉及认证（Clerk → JWT 迁移）、密钥、数据库迁移的变更，必须经 **Security 角色**审查后方可合入。
 
 ---
@@ -285,22 +296,23 @@ Task 规则（TASK.md 的 Task Rules 节）
 
 ## 12. Standalone Mode（独立运行）
 
-本项目被单独 `git clone` 后，**没有 Workspace**。此时：
+本项目被单独 `git clone` 后，**没有 Workspace**。自 **TASK-039（2026-10-15）** 起，双 Agent 协作框架
+已随仓库版本化，Standalone 与 Workspace 两种模式下的规范供给**完全相同**：
 
-**仍然有效：** 本文件（项目规则）、`tasks/` 中的 Task 与 Handoff、`docs/` 中的全部文档。
+**两种模式下均有效：** 本文件（项目规则）、`.agents/`（角色/规则/协议/工作流）、`templates/`（模板）、
+`tasks/` 中的 Task 与 Handoff、`docs/` 中的全部文档。
 
-**缺失：** `.agents/roles/`、`.agents/workflows/`、`.agents/rules/`、`.agents/protocols/`。
+**Workspace 模式额外生效：** Workspace 根 `AGENTS.md`（多项目 Discovery 与跨项目状态，见 `.agents/state/`）。
 
-**应对方式：**
-1. 核心约束已内嵌于 `docs/operations/agent-constraints.md`，Standalone 下同样必须遵守。
-2. 需完整规范时，重新 clone 原 Workspace 并把本项目放回 `projects/` 下。
+**要点摘要：** `docs/operations/agent-constraints.md` 是受保护规则的摘要；与 `.agents/rules/security.md`
+等原文不一致时**以原文为准**，摘要不得作为削弱受保护规则的依据。
 
-**Standalone 下的最小工作流：**
+**最小工作流：**
 
 ```
-读本文件 → 读 TASK.md → 按 §3 技术栈与 §5-§8 命令工作
-        → 遵守 §10 项目规则 + §12 内嵌约束
-        → 写 Handoff 到 task 的 handoffs/
+读本文件 → 按需读 .agents/ 的 role / workflow / rule / protocol
+        → 读 TASK.md → 按 §3 技术栈与 §5-§8 命令实施
+        → 遵守 §10 项目规则 → 写 Handoff 到 task 的 handoffs/
 ```
 
 ---
@@ -383,7 +395,7 @@ Task 规则（TASK.md 的 Task Rules 节）
   **★ 回写路径（D13 裁决 · 选项 C）：** 回写**并入下一个任务的交付请求**，**不单独开「回写专用」交付请求**。
   因此在下一个任务出现之前，最近完成的任务**保持 `Status = REVIEW`、留在 `tasks/review/`**，
   并须在其 `TASK.md` 诚实标注「归档回写待下一个任务补记」。
-  规范来源：`.agents/rules/github.md` §2 / §6（`.agents/**` **不在本仓库内**，独立 clone 后不可读）。
+  规范来源：`.agents/rules/github.md` §2 / §6（TASK-039 起 `.agents/**` **已在本仓库内**，独立 clone 后同样可读）。
 
 ### 14.3 发布与合并解耦（重要）
 

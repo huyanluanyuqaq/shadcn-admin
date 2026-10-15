@@ -246,7 +246,7 @@ main                          → 未变动（e3231e7）
 > **不再开「回写专用」分支** —— TASK-031 的 `chore/TASK-031-archive-record` 与
 > TASK-033 的 `chore/TASK-033-archive-record` 属**选项 A 期的历史做法**，此后不再产生。
 > 规范已落入 `.agents/rules/github.md` **§2 / §6** 与 `.agents/protocols/github-collaboration.md` **§9**
-> （`.agents/**` **不在本仓库内**，独立 clone 后不可读）。
+> （TASK-039 起 `.agents/**` **已在本仓库内**，独立 clone 后可读）。
 > **已接受的代价：** 在下一个任务出现之前，最近完成的任务**保持 `Status = REVIEW`、留在 `tasks/review/`**
 > —— 即协议 §9 的「状态与目录一致」检查**在该窗口内不成立**。这是**已裁决的代价，不是缺陷**。
 > **回归终止于深度 1**：任何 `Merge Record` 至多**延后一个任务**补记，不会无限套娃；

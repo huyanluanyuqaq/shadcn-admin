@@ -117,3 +117,14 @@ Crafted with 🤍 by [@satnaing](https://github.com/satnaing)
 ## License
 
 Licensed under the [MIT License](https://choosealicense.com/licenses/mit/)
+
+---
+
+## Agent Collaboration
+
+This repository has been extended into a self-hosted subscription management system and adopts a dual-agent collaboration framework:
+
+- **Agent entry:** [`AGENTS.md`](AGENTS.md) — project rules and tech stack
+- **Framework:** [`.agents/`](.agents/) — roles, rules, protocols and workflows (versioned with this repo since TASK-039)
+- **Tasks & handoffs:** [`tasks/`](tasks/) — task definitions, handoffs and review records
+- **Docs:** [`docs/`](docs/) — architecture, operations and platform capability records

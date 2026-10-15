@@ -1,7 +1,7 @@
 # Agent Constraints（受保护规则摘要）
 
-> 本文件是 **Standalone 模式**下受保护规则的**要点摘要**。
-> 在 Workspace 模式下，以 `.agents/rules/*.md` 与 `.agents/protocols/*.md` **原文为准**。
+> 本文件是受保护规则的**要点摘要**。自 TASK-039（2026-10-15）起 `.agents/` 已随仓库版本化，
+> 两种模式下均可直接读取原文；与 `.agents/rules/*.md`、`.agents/protocols/*.md` **原文**不一致时，以原文为准。
 > 本摘要不可作为削弱任何受保护规则的依据。
 
 ---
