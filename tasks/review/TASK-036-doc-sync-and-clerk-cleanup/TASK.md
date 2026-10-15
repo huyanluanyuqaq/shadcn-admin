@@ -16,7 +16,7 @@ Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T07:01:53Z
+Updated: 2026-10-15T07:10:20Z
 Branch: chore/TASK-036-doc-sync-and-clerk-cleanup
 Requires Human Approval: false
 ```
@@ -153,9 +153,10 @@ Non-Scope (files):
 > ⑤ 验证全过：audit PASS=13 FAIL=0；`pnpm build` / `pnpm lint` / `pnpm format:check` 全绿
 > （原始输出见 `handoffs/2026-10-15-implementation.md`）。
 >
-> **提交序列（4+1 个：4 个实施提交 + 1 个补录提交 `1778228`，均含 `Refs: TASK-036` footer，显式路径 `git add`）：**
+> **提交序列（实施 4 个 + 补录 1 个 + 审查整改 1 个，均含 `Refs: TASK-036` footer，显式路径 `git add`）：**
 > `c722b4a` 建档案 → `4bef0cf` clerk 清理 + 断言同步 → `e11aac3` TASK-032 归档回写 →
-> `ce6fb6a` 本档案回填 + 迁 `tasks/review/` → `1778228` 补录 CI 双绿留痕（补录提交，当前末提交）。
+> `ce6fb6a` 本档案回填 + 迁 `tasks/review/` → `1778228` 补录 CI 双绿留痕 →
+> `6703430` 按独立审查整改 O1–O5（含设计稿 `:1281` 限定语与复审记录归档）。
 >
 > **本任务自身亦演示 D13-C：** 合并后的归档回写（`Status → DONE` + 移 `tasks/done/` +
 > `Merge Record`）待下一个任务补记（见 `Merge Record` 区空白）。
@@ -172,7 +173,7 @@ Non-Scope (files):
 | 格式 | `pnpm format:check` | **通过**（All matched files use Prettier code style!） |
 | PR #8 事实（AC-4 依据） | `gh api repos/…/pulls/8` 等 | `merged: true`、`merged_at 2026-10-15T05:31:34Z`、`merge_commit_sha f212b7c31921…`、5 提交、父链 `2be342e` → … → `f212b7c` |
 | 合并后 CI | `gh api …/actions/runs/38687252674/jobs` | `audit` 5s success / `install-lint-build` 1m22s success；`head_sha=f212b7c` 上仅 CI 一个工作流运行（无 docker 运行） |
-| 远端分支状态 | `git ls-remote --heads origin` | 仅 `main`（`f212b7c`）；`docs/TASK-032-…` 已随合并删除 |
+| 远端分支状态 | `git ls-remote --heads origin` | **时点快照（2026-10-15，TASK-032 合并后、本任务分支推送前；原始输出见 `handoffs/2026-10-15-implementation.md`）：** 仅 `main`（`f212b7c`）；`docs/TASK-032-…` 已随合并删除。该状态随新任务交付分支暂时增加、合并删分支后恢复——引用前以 `git ls-remote --heads origin` 重测 |
 | PR 门禁 | `gh pr checks <n>` | 双绿（见 `handoffs/2026-10-15-implementation.md`，PR 创建后回填） |
 
 原始命令输出全文见 `handoffs/2026-10-15-implementation.md`。
@@ -189,7 +190,7 @@ Non-Scope (files):
   实施位的检索模式是「现仅剩」，而 `:1281` 用的是无「现」字的「仅剩」变体，grep 因此漏掉；
   且主控位任务定义的枚举本身即不全（三处枚举来自主控位的同一模式）—— **非实施位单方失误**。
   处置：按 MEMORY §10「不因划了范围而留存已知失真」在 `:1281` 补与另三处同构的三要素限定语，
-  并在此登记（本次整改已落地）。
+  并在此登记（整改落实于提交 `6703430`）。
 - **张力披露 D1（上游差异取舍）：** clerk 两文件源自上游 `7e80b2e`（作者 satnaing，纯上游未改动），
   删除会与上游产生差异。D11「上游资产保留不动」保护的是**有功能 / 记录价值**的资产；
   clerk 属 Clerk 迁移遗留死代码，且早已在 TASK-032 登记待清理（`negative-assertion-review.md` §4 D1）。
