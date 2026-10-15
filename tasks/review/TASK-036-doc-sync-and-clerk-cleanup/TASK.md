@@ -16,7 +16,7 @@ Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T07:30:00Z
+Updated: 2026-10-15T07:01:53Z
 Branch: chore/TASK-036-doc-sync-and-clerk-cleanup
 Requires Human Approval: false
 ```
@@ -34,8 +34,9 @@ Requires Human Approval: false
 - 来源：TASK-032（`tasks/review/TASK-032-fix-stale-assertions/`）建立的「否定性 / 时点性断言复核机制」
   在框架设计稿（`.agents/proposals/dual-agent-github-collaboration-design-v1-draft.md`，不在 Git 内）
   上暴露同类问题：阶段 4 验收制度已被 PR #4–#8 五次真实交付实证，但设计稿未留「状态」行（文档滞后）；
-  §17 / §17.1 / §18.1 三处「远端现仅剩 `main`」式**时点快照**以现在时陈述，未加限定语
-  （每完成一个任务，交付分支会暂时增加、合并删分支后恢复）。
+  「远端现仅剩 `main`」式**时点快照**以现在时陈述、未加限定语的共**四处**
+  （每完成一个任务，交付分支会暂时增加、合并删分支后恢复）——
+  **前三处（§17 / §17.1 / §18.1）来自任务定义；第四处（§15 阶段 3 状态行 `:1281`）由独立审查发现。**
 - TASK-032 的 `Known Issues` D1 登记了 `src/assets/clerk-*.tsx` 死代码「待后续任务清理」——
   本任务即该后续任务（`src/**` 首次进入本类任务的 File Scope）。
 - 按 D13 裁决 C：本任务的交付请求**同时承载 TASK-032 的归档回写**（见 `rules/github.md` §6）。
@@ -152,9 +153,9 @@ Non-Scope (files):
 > ⑤ 验证全过：audit PASS=13 FAIL=0；`pnpm build` / `pnpm lint` / `pnpm format:check` 全绿
 > （原始输出见 `handoffs/2026-10-15-implementation.md`）。
 >
-> **提交序列（4 个，均含 `Refs: TASK-036` footer，显式路径 `git add`）：**
+> **提交序列（4+1 个：4 个实施提交 + 1 个补录提交 `1778228`，均含 `Refs: TASK-036` footer，显式路径 `git add`）：**
 > `c722b4a` 建档案 → `4bef0cf` clerk 清理 + 断言同步 → `e11aac3` TASK-032 归档回写 →
-> （末提交）本档案回填 + 迁 `tasks/review/`。
+> `ce6fb6a` 本档案回填 + 迁 `tasks/review/` → `1778228` 补录 CI 双绿留痕（补录提交，当前末提交）。
 >
 > **本任务自身亦演示 D13-C：** 合并后的归档回写（`Status → DONE` + 移 `tasks/done/` +
 > `Merge Record`）待下一个任务补记（见 `Merge Record` 区空白）。
@@ -181,6 +182,14 @@ Non-Scope (files):
 - **范围披露 R1（来源 = 主控位范围裁定，非审查发现）：** 用户只点名 §17.1 / §18.1 两处；
   §17 主表 D12 行「远端现仅剩 `main`」是**同一缺陷的同类失真**。按项目「范围扩张正当处理范式」
   （MEMORY §10：不因划了范围而留存已知失真）纳入修正，并在此显式登记，**不掩饰为原计划**。
+- **范围披露 R2（来源 = 审查位发现，PR #9 独立审查 O2 阻断项）：** 设计稿 §15 阶段 3 状态行
+  （`:1281`）「远端仅剩 `main`」是**第四处同类时点快照残留**——无限定语、无任何披露，
+  且**当前为假**（`git ls-remote --heads origin` 实测现有 `main` + 本 PR 分支两个 head）。
+  本任务 Background 原枚举为「三处」、R1 仅披露 §17 主表一处，枚举不完整。**漏检原因如实写明：**
+  实施位的检索模式是「现仅剩」，而 `:1281` 用的是无「现」字的「仅剩」变体，grep 因此漏掉；
+  且主控位任务定义的枚举本身即不全（三处枚举来自主控位的同一模式）—— **非实施位单方失误**。
+  处置：按 MEMORY §10「不因划了范围而留存已知失真」在 `:1281` 补与另三处同构的三要素限定语，
+  并在此登记（本次整改已落地）。
 - **张力披露 D1（上游差异取舍）：** clerk 两文件源自上游 `7e80b2e`（作者 satnaing，纯上游未改动），
   删除会与上游产生差异。D11「上游资产保留不动」保护的是**有功能 / 记录价值**的资产；
   clerk 属 Clerk 迁移遗留死代码，且早已在 TASK-032 登记待清理（`negative-assertion-review.md` §4 D1）。

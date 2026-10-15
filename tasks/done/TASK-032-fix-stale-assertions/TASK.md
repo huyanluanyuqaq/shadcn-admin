@@ -149,14 +149,14 @@ Non-Scope (files):
 | 合并策略 | **rebase-merge**（`AGENTS.md` §14.2） |
 | 提交范围 | `main` `2be342e` → `f212b7c`，共 **5** 提交，**原样未重写**（无 squash / amend / 重排）：分支基于 `main` 尖 `2be342e`（实测 `c138888` 父提交 = `2be342e`），rebase-merge 仅将 5 提交**原样重放**于同一基尖（内容零变化；SHA 因 GitHub rebase-merge 必然改写 committer 元数据而变更，属该策略的固有形态）。原始分支提交：`c138888` → `9bae9ec` → `345b89e` → `c183fa0` → `ba7775b`；`main` 上重放后：`a7e13e2` → `f2c593b` → `c0a1e9f` → `39fa466` → `f212b7c` |
 | 合并标识 | `merged_at` = **`2026-10-15T05:31:34Z`**；`merge_commit_sha` = **`f212b7c31921d948bf4f19cbdbc8673128448e22`**（即合并后 `main` head；父提交 `39fa466`，基线 `2be342e` 为其祖先） |
-| CI | 合并后 `main` push：run [`38687252674`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38687252674)，必需检查 `install-lint-build` + `audit` 均 **success**（`audit` 5s：05:31:40→05:31:45；`install-lint-build` 1m22s：05:31:40→05:33:02）；合并前 5 个提交各触发 `pull_request` CI 亦全绿 |
+| CI | 合并后 `main` push：run [`38687252674`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38687252674)，必需检查 `install-lint-build` + `audit` 均 **success**（`audit` 5s：05:31:40→05:31:45；`install-lint-build` 1m22s：05:31:40→05:33:02）；合并前 PR head（`ba7775b`）的 `pull_request` CI 全绿（run `38682757487`：`audit` 4s / `install-lint-build` 1m29s）；其余 4 个提交被后续 push 顺延取代、未产生独立 run（审查位以 `commits/<sha>/check-runs` 逐一实测为零） |
 | D8 解耦复现 | 合并后 `f212b7c` 上**仅** `Continuous Integration` 一个工作流运行（`actions/runs?head_sha=f212b7c` 实测），**无 `Build and Push Docker Image` 运行** —— D8 解耦**第 7 次独立复现** |
-| 独立审查 | 共 **2 轮**（对象 `9bae9ec` / `345b89e`，即原始分支 SHA），均「可合并、无阻断」；记录见 `handoffs/2026-10-15-review.md`（**换实例双会话**，`dual-agent-model.md` §5.1） |
+| 独立审查 | 共 **2 轮**（对象 `9bae9ec` / `345b89e`，即原始分支 SHA）：**第 1 轮结论「待整改」**（阻断项 O1：§14.6 上游资产「从未存在」误判，已回退，见 Known Issues R3）；**第 2 轮结论「可合并，无阻断」**（O1–O5 全部关闭、无新问题）。记录见 `handoffs/2026-10-15-review.md`（**换实例双会话**，`dual-agent-model.md` §5.1） |
 | 遗留问题闭环 | **无遗留** —— 第 1 轮 O1 阻断项（§14.6 上游资产误判）已回退，第 2 轮非阻断残留 N1/N2 已就地强化；`Refs:` footer 流程偏差已如实登记（Known Issues），后续任务遵循 |
 | 归档 | `Status → DONE`；档案由 `tasks/review/` 移入 `tasks/done/`（载体 = TASK-036 的交付请求，2026-10-15）；远端分支 `docs/TASK-032-fix-stale-assertions` 已随合并删除（`git ls-remote --heads origin` 实测仅剩 `main`） |
 
-> **★ D13-C 的第二次实证就此完成：** 本任务曾是「回写并入下一个任务」的第二个实例
-> —— `Merge Record` 的空白**是裁决的预期形态**，现由 TASK-036 补齐，**无限回归终止于深度 1** 再次得到实证。
+> **★ D13-C 的第三次实证就此完成：** 本任务曾是「回写并入下一个任务」的第三个实例
+> —— `Merge Record` 的空白**是裁决的预期形态**，现由 TASK-036 补齐，**无限回归终止于深度 1** 第三次得到实证。
 
 ---
 
