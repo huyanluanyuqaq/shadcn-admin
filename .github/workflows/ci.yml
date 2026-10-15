@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # 与本地开发环境对齐（本机为 Node 22）。版本不一致会让本地通过、
       # CI 失败（或反之），削弱检查的可信度。
@@ -74,7 +74,7 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       # ubuntu-latest 自带 python3；脚本只用标准库，无需 setup-python。
       - name: Run repo framework audit
