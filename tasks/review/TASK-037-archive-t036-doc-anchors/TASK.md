@@ -16,7 +16,7 @@ Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T12:16:48Z
+Updated: 2026-10-15T12:20:35Z
 Branch: chore/TASK-037-archive-t036-doc-anchors
 Requires Human Approval: false
 ```
@@ -99,8 +99,8 @@ Requires Human Approval: false
 - [x] AC-2: `.gitignore` 含 `.workbuddy/`（带注释，`.gitignore:43`）；
       `git status --short` 不再出现 `?? .workbuddy/`（`git check-ignore -v` 实测命中）。
 - [x] AC-3: `ci.yml` 两处 checkout v4→v5（行 22 / 行 77），其余行未动
-      （setup-node 保持 v4、node 22 未动）；本地 `yaml.safe_load` 验证合法（YAML OK）。
-      PR `gh pr checks` 双绿见补录提交。
+      （setup-node 保持 v4、node 22 未动）；本地 `yaml.safe_load` 验证合法（YAML OK）；
+      PR #10 `gh pr checks` **双绿**（run `38733746197`：audit 5s / install-lint-build 54s）。
 - [x] AC-4: 设计稿三处计数注完成时点化（时点 / 动态预期 / 重测命令三要素齐全）；
       D13 实例映射与 D8 八 head run 列表均以实查输出为准（handoff §2 留痕，
       含 `b31792e` 双 run 细节如实披露）。
@@ -173,8 +173,8 @@ Non-Scope (files):
 >
 > **提交序列（均含 `Refs: TASK-037` footer，显式路径 `git add`）：**
 > `2e9084c` 建档案 → `95fd1c2` TASK-036 归档回写 + 迁 `tasks/done/` →
-> `c7729dd` .gitignore + ci.yml checkout →（本提交）档案回填 + 迁 `tasks/review/` + handoff
-> →（补录提交）PR 编号与 `gh pr checks` 双绿留痕。
+> `c7729dd` .gitignore + ci.yml checkout → `fef2a1e` 档案回填 + 迁 `tasks/review/` + handoff
+> →（补录提交）PR #10 编号与 `gh pr checks` 双绿留痕（run `38733746197`）。
 >
 > **本任务自身亦演示 D13-C：** 合并后的归档回写（`Status → DONE` + 移 `tasks/done/` +
 > `Merge Record`）待下一个任务补记（见 `Merge Record` 区空白）。
@@ -197,7 +197,7 @@ Non-Scope (files):
 | 构建 | `pnpm build` | **✓ built in 750ms**（首次因环境防误删保护拦下，`rm -rf dist` 后通过） |
 | Lint | `pnpm lint` | **通过** |
 | 格式 | `pnpm format:check` | **通过**（覆盖 ci.yml） |
-| PR 门禁 | `gh pr checks` | 见补录提交 |
+| PR 门禁 | `gh pr checks` | **双绿**（PR #10，run `38733746197`：audit 5s / install-lint-build 54s；head `fef2a1e` OPEN/MERGEABLE） |
 
 原始命令输出全文见 `handoffs/2026-10-15-implementation.md`。
 

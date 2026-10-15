@@ -271,13 +271,28 @@ $ git status --short
 | 格式 | `pnpm format:check` | **通过**（All matched files use Prettier code style!；覆盖 ci.yml） |
 | `.workbuddy/` ignore | `git status --short` | 干净（无 `?? .workbuddy/`） |
 | ci.yml YAML | `python -c "import yaml;yaml.safe_load(...)"` | **YAML OK** |
-| PR 门禁 | `gh pr checks` | 见 §6（PR 建立后补录） |
+| PR 门禁 | `gh pr checks` | **双绿**（PR #10，run `38733746197`：audit 5s / install-lint-build 54s；head `fef2a1e` OPEN/MERGEABLE） |
 
 ---
 
-## 6. PR 与 CI（建立后补录）
+## 6. PR 与 CI
 
-（PR 编号、URL、run id、`gh pr checks` 输出在推送建 PR 后以补录提交追加。）
+```
+$ gh pr create --base main --head chore/TASK-037-archive-t036-doc-anchors \
+    --title "docs(TASK-037): 承载 TASK-036 归档回写（D13-C 第四实例）+ 设计稿历史计数注时点化 + V3 措辞对齐 + 仓库杂项"
+https://github.com/huyanluanyuqaq/shadcn-admin/pull/10
+
+$ gh pr checks 10
+audit                pass    5s    https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38733746197/job/116417680885
+install-lint-build   pass    54s   https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38733746197/job/116417681425
+
+$ gh pr view 10 --json number,state,mergeable,headRefOid
+{"headRefOid":"fef2a1ed8b849ecbc60479a563cdf0fd7eb715f8","mergeable":"MERGEABLE","number":10,"state":"OPEN"}
+```
+
+- **PR #10**（`chore/TASK-037-archive-t036-doc-anchors` → `main`），head `fef2a1e`；
+- CI run `38733746197`（pull_request 事件）双绿：`audit` 5s / `install-lint-build` 54s；
+- PR 状态 OPEN / MERGEABLE。**不合并**（合并不经执行位）。
 
 ---
 
@@ -290,8 +305,8 @@ $ git status --short
 | 1 | `2e9084c` | docs(TASK-037): 建立任务档案（TASK-036 归档回写 + 设计稿计数时点化 + 仓库杂项） |
 | 2 | `95fd1c2` | docs(TASK-036): 归档回写 —— Status → DONE、回填 Merge Record 七要素、移入 tasks/done/ |
 | 3 | `c7729dd` | chore(TASK-037): .gitignore 增 .workbuddy/ + ci.yml checkout v4→v5 |
-| 4 | （本提交） | docs(TASK-037): 档案回填（实施记录/验证/Known Issues）+ 迁 tasks/review/ + handoff |
-| 5 | （补录） | docs(TASK-037): 补录 PR 编号与 gh pr checks 双绿留痕 |
+| 4 | `fef2a1e` | docs(TASK-037): 档案回填（实施记录/验证/Known Issues）+ 迁 tasks/review/ + handoff |
+| 5 | （本提交） | docs(TASK-037): 补录 PR #10 与 gh pr checks 双绿留痕（run 38733746197） |
 
 ---
 
