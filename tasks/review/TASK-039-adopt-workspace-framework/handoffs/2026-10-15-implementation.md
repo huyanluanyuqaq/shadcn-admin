@@ -256,3 +256,30 @@ fca3e57 ci(audit): audit-repo.py 新增 F7 框架资产在位检查
 5. **六处文档断言**：逐处读 diff，确认无「顺手优化」框架文本、无超出范围的改动。
 6. **D13-C 承载**：`git log origin/main..HEAD` 前两提交（`6d8c731`/`da98560`）为 TASK-037
    归档回写，范围仅 `tasks/**`；PR 描述须显式披露。
+
+---
+
+## 8. PR 门禁双绿留痕（两个 head 实查）
+
+PR #11（`https://github.com/huyanluanyuqaq/shadcn-admin/pull/11`）自创建起经历两个 head
+（第二个 head 因 Meta `Updated` N4 纪律修正 amend 产生），两个 head 均双绿：
+
+| head | 提交 | run | audit | install-lint-build |
+|------|------|-----|-------|--------------------|
+| `4d55549` | 档案回填 + 迁 review/ + handoff | `38766865552` | pass 5s | pass 1m17s |
+| `4f9c0af` | 补录 PR/双绿留痕（amend 后） | `38767377364` | pass 4s | pass 1m29s |
+
+```
+$ gh pr checks 11
+audit               pass  5s     …/actions/runs/38766865552/job/116532235929
+install-lint-build  pass  1m17s  …/actions/runs/38766865552/job/116532235777
+（amend 后重跑）
+$ gh pr checks 11
+audit               pass  4s     …/actions/runs/38767377364/job/116533999464
+install-lint-build  pass  1m29s  …/actions/runs/38767377364/job/116533998661
+```
+
+**amend 事件披露：** 首個留痕提交（`59bc152`）Meta `Updated` 设为 16:22:00Z，晚于其提交时间
+16:14:26Z，违反 N4 纪律（`Updated` 必须早于提交时间）。该提交尚未推送，就地 amend 修正
+`Updated` 为 16:12:00Z 并保持原提交时间（SHA 变为 `4f9c0af`），随后推送。此为流程纪律修正，
+无内容损失（diff 仅 Meta 一行）。
