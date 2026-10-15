@@ -16,7 +16,7 @@ Owner: 主控位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T16:05:00Z
+Updated: 2026-10-15T16:12:00Z
 Branch: chore/TASK-039-adopt-workspace-framework
 Requires Human Approval: false
 ```
@@ -144,7 +144,8 @@ Requires Human Approval: false
       （PASS=7 FAIL=0 WARN=0 / PASS=13 FAIL=0 WARN=0 SKIP=0；原始输出见 handoffs/2026-10-15-implementation.md）
 - [x] AC-5: `pnpm lint` / `pnpm format:check` / `pnpm build` 本地通过；`pnpm test` 本地通过或已如实披露由 CI 执行。
       （四者均本地通过；`pnpm test` 303/303（25 文件）；build 首次撞环境 safe-delete guard，处置后通过，见 Known Issues）
-- [ ] AC-6: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit` 双绿（run id 留痕）。
+- [x] AC-6: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit` 双绿（run id 留痕）。
+      （PR #11；`gh pr checks 11` 双绿：`audit` pass 5s / `install-lint-build` pass 1m17s，run `38766865552`）
 - [ ] AC-7: 两轮独立审查记录落 `handoffs/`；阻断项关闭且经复核（非仅标记）。
 - [ ] AC-8: rebase-merge 合并后 `main` 含 TASK-037 回写与本任务交付；D8 复现（合并后无 docker run）；两个仓库 `git status` 干净。
 
@@ -237,7 +238,8 @@ Non-Scope (files):
 >
 > **提交序列（均含 `Refs: TASK-039` footer，显式路径 `git add`）：**
 > `27c4528` 登记任务档案 → `12bb509` 复制框架资产（79 文件）→ `13078a7` 修正六处文档断言 →
-> `fca3e57` audit-repo.py 新增 F7 → 本提交（档案回填 + 迁 `tasks/review/` + handoff）。
+> `fca3e57` audit-repo.py 新增 F7 → `4d55549` 档案回填 + 迁 `tasks/review/` + 实施 handoff →
+> 本提交（补录 PR #11 与 `gh pr checks` 双绿留痕，run `38766865552`）。
 > 序列截至本档案 Meta `Updated` 时点；如后续仍有提交，以 `git log --oneline main..HEAD` 实查为准。
 >
 > **本任务自身亦演示 D13-C：** 合并后的归档回写（`Status → DONE` + 移 `tasks/done/` +
