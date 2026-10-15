@@ -22,6 +22,7 @@ da98560 chore(tasks): remove review TASK-037 after archive
 `da98560` + `6d8c731` 为 **TASK-037 归档回写**（D13-C 第五实例，TASK-038 已执行但未推送的
 本地提交），按 D13-C 由本分支承载推送（范围仅 `tasks/**`）。
 `git status --short` 干净（无未提交/未跟踪杂物）。
+（上列为实施中期快照；完整 9 提交序列见 §6。）
 
 ---
 
@@ -117,7 +118,8 @@ $ git diff origin/main --stat -- src server shared/src shared/package.json packa
 ===CODE-LAYER-DIFF-END===        # 无输出 = 代码层零改动
 ```
 
-（`git diff origin/main --stat` 总计 89 files changed, 10399 insertions(+), 27 deletions(-)；
+（`git diff origin/main --stat` 总计 89 files changed, 10399 insertions(+), 27 deletions(-)
+——此为 `4d55549` 时点快照；截至 `5f14c97` 实测为 90 files / 10777 insertions(+)/ 27 deletions(-)，
 其中 3 处 rename 为 TASK-037 归档回写 `tasks/review/`→`tasks/done/`：R094 TASK.md +
 R100 两份 handoff。）
 
@@ -230,12 +232,22 @@ CI 环境无此保护。与 TASK-036/037 同款，已登记 Known Issues。
 
 ## 6. 提交序列（均含 `Refs: TASK-039` footer）
 
+分支 `chore/TASK-039-adopt-workspace-framework` 自本地 `main`（`da98560`）派生，
+`origin/main..HEAD` 共 9 提交 = D13-C 承载的 TASK-037 归档回写 2 个 + TASK-039 本任务 7 个：
+
 ```
+# TASK-037 归档回写（D13-C 第五实例，范围仅 tasks/**）
+6d8c731 chore(tasks): archive TASK-037 (D13-C  fifth instance)
+da98560 chore(tasks): remove review TASK-037 after archive
+
+# TASK-039 本任务
 27c4528 chore(tasks): 登记 TASK-039（接入模板仓库双 Agent 协作框架）
 12bb509 chore(framework): 复制模板仓库双 Agent 协作框架资产入仓（77 文件）
 13078a7 docs(framework): 修正框架入仓后失效的文档断言（六处）
 fca3e57 ci(audit): audit-repo.py 新增 F7 框架资产在位检查
-<本提交> docs(TASK-039): 档案回填（Current State / Changed Files / Known Issues / Merge Record 留白）+ 实施 handoff + 迁 tasks/review/
+4d55549 docs(TASK-039): 档案回填并迁 tasks/review/（Status=REVIEW，Merge Record 按 D13-C 留待回填）
+4f9c0af docs(TASK-039): 补录 PR #11 与 CI 双绿留痕（run 38766865552）   # Meta Updated N4 纪律 amend 后 SHA
+5f14c97 docs(TASK-039): handoff 补录两个 head 的 CI 双绿留痕与 amend 事件披露
 ```
 
 全部提交使用显式路径 `git add`（禁 `-A`/`.`），footer 含 `Refs: TASK-039`。
@@ -259,27 +271,33 @@ fca3e57 ci(audit): audit-repo.py 新增 F7 框架资产在位检查
 
 ---
 
-## 8. PR 门禁双绿留痕（两个 head 实查）
+## 8. PR 门禁双绿留痕（三个 head 实查）
 
-PR #11（`https://github.com/huyanluanyuqaq/shadcn-admin/pull/11`）自创建起经历两个 head
-（第二个 head 因 Meta `Updated` N4 纪律修正 amend 产生），两个 head 均双绿：
+PR #11（`https://github.com/huyanluanyuqaq/shadcn-admin/pull/11`）自创建起经历三个 head
+（第二个 head 因 Meta `Updated` N4 纪律修正 amend 产生，第三个为留痕补录），三个 head 均双绿：
 
 | head | 提交 | run | audit | install-lint-build |
 |------|------|-----|-------|--------------------|
 | `4d55549` | 档案回填 + 迁 review/ + handoff | `38766865552` | pass 5s | pass 1m17s |
 | `4f9c0af` | 补录 PR/双绿留痕（amend 后） | `38767377364` | pass 4s | pass 1m29s |
+| `5f14c97` | handoff 补录两个 head 双绿 + amend 披露 | `38767820005` | pass 5s | pass 1m15s |
 
 ```
-$ gh pr checks 11
+$ gh pr checks 11        # head 4d55549
 audit               pass  5s     …/actions/runs/38766865552/job/116532235929
 install-lint-build  pass  1m17s  …/actions/runs/38766865552/job/116532235777
-（amend 后重跑）
-$ gh pr checks 11
+$ gh pr checks 11        # head 4f9c0af（amend 后重跑）
 audit               pass  4s     …/actions/runs/38767377364/job/116533999464
 install-lint-build  pass  1m29s  …/actions/runs/38767377364/job/116533998661
+$ gh pr checks 11        # head 5f14c97
+audit               pass  5s     …/actions/runs/38767820005/job/116535527971
+install-lint-build  pass  1m15s  …/actions/runs/38767820005/job/116535528147
 ```
 
 **amend 事件披露：** 首個留痕提交（`59bc152`）Meta `Updated` 设为 16:22:00Z，晚于其提交时间
 16:14:26Z，违反 N4 纪律（`Updated` 必须早于提交时间）。该提交尚未推送，就地 amend 修正
 `Updated` 为 16:12:00Z 并保持原提交时间（SHA 变为 `4f9c0af`），随后推送。此为流程纪律修正，
 无内容损失（diff 仅 Meta 一行）。
+
+**鸡生蛋固有滞后注：** 记录某个 head 双绿的提交自身会产生新 head 与新 run；合并门禁以
+**合并时点 head** 的 run 为准，合并后 `main` push run 由下一个任务的 Merge Record 回填（D13-C）。
