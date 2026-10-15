@@ -10,13 +10,13 @@
 Task ID: TASK-036
 Title: 设计稿滞后断言补记与时点快照限定 + clerk 死代码清理
 Workflow: docs
-Status: REVIEW（实施完毕并提交审查；归档回写按 D13-C 待下一个任务补记）
+Status: DONE
 Priority: P2
 Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T07:10:20Z
+Updated: 2026-10-15T12:08:04Z
 Branch: chore/TASK-036-doc-sync-and-clerk-cleanup
 Requires Human Approval: false
 ```
@@ -213,4 +213,19 @@ Non-Scope (files):
 
 ## Merge Record
 
-**（按 D13-C，本项在下一个任务出现之前保持空白；届时由该任务的交付请求补记。）**
+**（按 D13-C 由下一个任务 TASK-037 的交付请求补记 —— 2026-10-15 回写完毕，回归终止于深度 1。）**
+
+| 项 | 值 |
+| -- | -- |
+| 交付载体 | PR [#9](https://github.com/huyanluanyuqaq/shadcn-admin/pull/9)（`chore/TASK-036-doc-sync-and-clerk-cleanup` → `main`） |
+| 合并策略 | **rebase-merge**（`AGENTS.md` §14.2） |
+| 提交范围 | `main` `f212b7c` → `6ee2777`，共 **8** 提交；**8 对 SHA 全改写、内容零变化**（is-ancestor 均非祖先 + 逐对 tree/subject 相同，实查输出见 `tasks/review/TASK-037-archive-t036-doc-anchors/handoffs/2026-10-15-implementation.md`）：`c722b4a→f1d1428`、`4bef0cf→66ca01e`、`e11aac3→6093280`、`ce6fb6a→e686251`、`1778228→9b1aaf9`、`6703430→410b9e5`、`10f893a→ae1e76f`、`320d95e→6ee2777` |
+| 合并标识 | `merged_at` = **`2026-10-15T09:28:05Z`**；`merge_commit_sha` = **`6ee27779ca641a10166941ad89f93833a323f457`**（即合并后 `main` head） |
+| CI | 合并后 `main` push：run [`38713147537`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38713147537)，必需检查 `audit`（09:28:11→09:28:15）+ `install-lint-build`（09:28:11→09:29:21）均 **success**；合并前 PR head（`10f893a`）的 `pull_request` CI 亦双绿（run `38697133770`：`audit` 07:11:56→07:12:02 / `install-lint-build` 07:11:57→07:13:17） |
+| D8 解耦复现 | 合并后 `6ee2777` 上**仅** `Continuous Integration` 一个工作流运行（`actions/runs?head_sha=6ee27779…` 实测 total_count = 1），**无 `Build and Push Docker Image` 运行** —— D8 解耦**第 8 次独立复现** |
+| 独立审查 | 共 **2 轮**（换实例双会话，对象 `1778228` / `10f893a`，即原始分支 SHA）：**第 1 轮结论「待整改」**（阻断 O1：TASK-032 Merge Record「独立审查」行事实错误；阻断 O2：设计稿 `:1281` 第四处无限定时点快照；非阻断 O3–O5）→ 两轮整改（`6703430` 落实 O1–O5 + N4、`10f893a` 落实主控位复核 N7-1/N7-2/N7-3）→ **第 2 轮复审结论「可合并，无阻断」**（O1–O5、N7-1/N7-2/N7-3、N4 全部经实跑验证关闭；N6 裁定为历史记录可接受；N8 由执行位于合并前补记 PR 描述后关闭）。记录见 `handoffs/2026-10-15-review.md` §1–§6 |
+| 遗留问题闭环 | **无遗留** —— 第 1 轮 O1–O5 全部实质关闭；N7-1/N7-2/N7-3、N4 经独立实跑验证关闭；N8（PR 描述补记审查周期）已由执行位于合并前履行（`gh pr view 9 --json body` 实测含「审查与整改」章节） |
+| 归档 | `Status → DONE`；档案由 `tasks/review/` 移入 `tasks/done/`（载体 = TASK-037 的交付请求，2026-10-15）；远端分支 `chore/TASK-036-doc-sync-and-clerk-cleanup` 已随合并删除 |
+
+> **★ D13-C 的第四次实证就此完成：** 本任务曾是「回写并入下一个任务」的第四个实例
+> —— `Merge Record` 的空白**是裁决的预期形态**，现由 TASK-037 补齐，**无限回归终止于深度 1** 第四次得到实证。
