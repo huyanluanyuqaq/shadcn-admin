@@ -10,13 +10,13 @@
 Task ID: TASK-032
 Title: 核实并修正仓库内残留的过时否定性断言
 Workflow: refactor
-Status: REVIEW（2026-10-15 实施完毕并提交审查；归档回写按 D13-C 待下一个任务补记）
+Status: DONE
 Priority: P2
 Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-14T08:45:00Z
-Updated: 2026-10-15T04:14:40Z
+Updated: 2026-10-15T06:00:00Z
 Branch: docs/TASK-032-fix-stale-assertions
 Requires Human Approval: false
 ```
@@ -141,7 +141,22 @@ Non-Scope (files):
 
 ## Merge Record
 
-**（按 D13-C，本项在下一个任务出现之前保持空白；届时由该任务的交付请求补记。）**
+**（按 D13-C 由下一个任务 TASK-036 的交付请求补记 —— 2026-10-15 回写完毕，回归终止于深度 1。）**
+
+| 项 | 值 |
+| -- | -- |
+| 交付载体 | PR [#8](https://github.com/huyanluanyuqaq/shadcn-admin/pull/8)（`docs/TASK-032-fix-stale-assertions` → `main`） |
+| 合并策略 | **rebase-merge**（`AGENTS.md` §14.2） |
+| 提交范围 | `main` `2be342e` → `f212b7c`，共 **5** 提交，**原样未重写**（无 squash / amend / 重排）：分支基于 `main` 尖 `2be342e`（实测 `c138888` 父提交 = `2be342e`），rebase-merge 仅将 5 提交**原样重放**于同一基尖（内容零变化；SHA 因 GitHub rebase-merge 必然改写 committer 元数据而变更，属该策略的固有形态）。原始分支提交：`c138888` → `9bae9ec` → `345b89e` → `c183fa0` → `ba7775b`；`main` 上重放后：`a7e13e2` → `f2c593b` → `c0a1e9f` → `39fa466` → `f212b7c` |
+| 合并标识 | `merged_at` = **`2026-10-15T05:31:34Z`**；`merge_commit_sha` = **`f212b7c31921d948bf4f19cbdbc8673128448e22`**（即合并后 `main` head；父提交 `39fa466`，基线 `2be342e` 为其祖先） |
+| CI | 合并后 `main` push：run [`38687252674`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38687252674)，必需检查 `install-lint-build` + `audit` 均 **success**（`audit` 5s：05:31:40→05:31:45；`install-lint-build` 1m22s：05:31:40→05:33:02）；合并前 5 个提交各触发 `pull_request` CI 亦全绿 |
+| D8 解耦复现 | 合并后 `f212b7c` 上**仅** `Continuous Integration` 一个工作流运行（`actions/runs?head_sha=f212b7c` 实测），**无 `Build and Push Docker Image` 运行** —— D8 解耦**第 7 次独立复现** |
+| 独立审查 | 共 **2 轮**（对象 `9bae9ec` / `345b89e`，即原始分支 SHA），均「可合并、无阻断」；记录见 `handoffs/2026-10-15-review.md`（**换实例双会话**，`dual-agent-model.md` §5.1） |
+| 遗留问题闭环 | **无遗留** —— 第 1 轮 O1 阻断项（§14.6 上游资产误判）已回退，第 2 轮非阻断残留 N1/N2 已就地强化；`Refs:` footer 流程偏差已如实登记（Known Issues），后续任务遵循 |
+| 归档 | `Status → DONE`；档案由 `tasks/review/` 移入 `tasks/done/`（载体 = TASK-036 的交付请求，2026-10-15）；远端分支 `docs/TASK-032-fix-stale-assertions` 已随合并删除（`git ls-remote --heads origin` 实测仅剩 `main`） |
+
+> **★ D13-C 的第二次实证就此完成：** 本任务曾是「回写并入下一个任务」的第二个实例
+> —— `Merge Record` 的空白**是裁决的预期形态**，现由 TASK-036 补齐，**无限回归终止于深度 1** 再次得到实证。
 
 ---
 
