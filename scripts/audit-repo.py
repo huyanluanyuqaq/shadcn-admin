@@ -2,8 +2,13 @@
 """仓库级框架一致性审计（Repo Framework Audit）。
 
 对**本仓库**的框架制品做只读、无网络、结果确定的检查，用于 CI 门禁。
-它是工作空间级 `shared/scripts/audit_framework.py` 的**仓库内子集**：本仓库被
-单独 clone 后没有工作空间，门禁必须自持。
+它与随仓库版本化的框架自检 `shared/scripts/audit_framework.py` 分工：
+本脚本是**仓库门禁**（目标稳定、随 CI 强制执行），后者是**框架全量自检**
+（开发期本地运行）。门禁必须自持 —— 单独 clone 后无工作空间也能跑。
+
+检查范围：交付请求模板字段、工作流触发与最小权限、占位符与明文密钥、
+协作文档引用与链接、声明的必需检查名与作业名一致性，以及双 Agent
+框架资产（`.agents/` / `templates/` / `shared/scripts/`）是否在位。
 
 设计原则：
   - 只用标准库；不做 YAML 解析（避免引入依赖），只做文本与结构断言。
@@ -253,7 +258,28 @@ def check_f6(_root: Path) -> Result:
     return Result("F6", PASS, f"{len(declared)} 个必需检查名与工作流作业名一致")
 
 
-CHECKS = [check_f1, check_f2, check_f3, check_f4, check_f5, check_f6]
+def check_f7(_root: Path) -> Result:
+    """F7 双 Agent 框架资产在位（TASK-039 接入后的门禁）。"""
+    required = [
+        ROOT / ".agents" / "roles",
+        ROOT / ".agents" / "workflows",
+        ROOT / ".agents" / "rules",
+        ROOT / ".agents" / "protocols",
+        ROOT / ".agents" / "rules" / "security.md",
+        ROOT / ".agents" / "protocols" / "dual-agent-model.md",
+        ROOT / "templates" / "task" / "TASK.md",
+        ROOT / "templates" / "handoff" / "HANDOFF.md",
+        ROOT / "templates" / "adr" / "ADR.md",
+        ROOT / "templates" / "github" / "PULL_REQUEST_TEMPLATE.md",
+        ROOT / "shared" / "scripts" / "audit_framework.py",
+    ]
+    missing = [rel(p) for p in required if not p.exists()]
+    if missing:
+        return Result("F7", FAIL, f"框架资产缺失 {len(missing)} 项", missing)
+    return Result("F7", PASS, "双 Agent 框架资产在位（.agents/ 四目录 + templates/ 四模板 + shared/scripts 自检脚本）")
+
+
+CHECKS = [check_f1, check_f2, check_f3, check_f4, check_f5, check_f6, check_f7]
 
 
 def main() -> int:
