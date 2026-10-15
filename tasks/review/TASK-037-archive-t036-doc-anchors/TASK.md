@@ -16,7 +16,7 @@ Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T12:52:00Z
+Updated: 2026-10-15T13:11:46Z
 Branch: chore/TASK-037-archive-t036-doc-anchors
 Requires Human Approval: false
 ```
@@ -189,7 +189,7 @@ Non-Scope (files):
 > ① **O1**：Verification「PR 门禁」行改为历数两个 head 的 run（首轮 `fef2a1e` →
 > run `38733746197` 双绿；`424d2f0` → run `38734054788` 双绿）并以防腐措辞收尾
 > （合并门禁以合并时点 head 的 run 为准；合并后 `main` push run 由下一个任务的
-> Merge Record 回填）；handoff §6 补最终 head `gh pr checks` 原始输出。
+> Merge Record 回填）；handoff §6 补 `424d2f0` 的 `gh pr checks` 原始输出。
 > ② **O2**：AC-6 改为不引具体时间值的防腐表述（Meta `Updated` 纪律的验证以
 > `git log -1 --format=%aI` 实查为准），杜绝文字与 Meta 值再次不同步。
 > ③ **O3**：提交序列中 `424d2f0` 补全 SHA 与身份；本整改提交自指并加防腐注
@@ -197,6 +197,7 @@ Non-Scope (files):
 > ④ **O4**：PR #10 描述「测试结果」节纯插入两个 head 的双绿记录
 > （推送并确认新 head 双绿后执行 `gh pr edit 10`，纯插入不改既有内容，
 > 复验 `gh pr view 10 --json body` 确认在场）。
+> ⑤ **N1（第 2 轮复审发现，随本提交修正）：** 上记 O1 描述中「最终 head」无锚指称残余 1 处，已改为 `424d2f0` 锚定（第 2 轮记录见 `handoffs/2026-10-15-review.md` §8）。
 
 ## Verification
 
