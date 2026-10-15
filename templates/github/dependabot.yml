@@ -1,0 +1,44 @@
+# 依赖更新配置模板（Dependabot）。
+#
+# 用法：复制到项目的 .github/dependabot.yml，按实际生态替换 {{...}} 占位符，
+#       删除不适用的条目与注释。
+#
+# 注意：
+#   - 依赖更新同样走交付请求流程，必须通过必需检查后才能合并。
+#   - 若项目有锁文件策略，保持与之一致（锁定版本 vs 允许范围更新）。
+
+version: 2
+
+updates:
+  # {{按项目实际使用的生态重复本段：npm / pip / uv / docker / github-actions ...}}
+  - package-ecosystem: "{{npm}}"
+    directory: "{{/}}"
+    schedule:
+      interval: "{{weekly}}"
+      day: "{{monday}}"
+      time: "{{09:00}}"
+      timezone: "{{Asia/Shanghai}}"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+    commit-message:
+      prefix: "chore(deps)"
+    # 大版本升级通常需要人工评估，建议单独分组或暂不自动提交
+    groups:
+      {{minor-and-patch}}:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  # 工作流与动作本身也属于依赖，建议一并跟踪
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "{{monthly}}"
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "chore(ci)"

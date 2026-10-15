@@ -1,0 +1,52 @@
+# CI 工作流骨架（语言无关）。
+#
+# 用法：复制到项目的 .github/workflows/ci.yml，用项目实际的构建工具替换全部 {{...}} 占位符。
+#       不要假设所有项目使用相同的构建工具 —— 本骨架刻意不含任何工具假设。
+#
+# 要点：
+#   1. 必须在 **pull_request** 上触发，否则检查发生在合并之后，不构成门禁。
+#   2. 作业名固定为 verify，便于在分支保护中选定为必需检查。
+#   3. 显式声明最小 permissions。
+#   4. 只把稳定且必要的检查设为必需；宁可少而稳，不要多而脆。
+
+name: CI
+
+on:
+  pull_request:
+    branches: ["{{default-branch}}"]
+  push:
+    branches: ["{{default-branch}}"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: "{{runner-image}}"
+    timeout-minutes: {{15}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 下面五步对应 .agents/rules/github.md §5 的必需检查四类。
+      # 按项目技术栈替换命令；不适用的类别可删除，但需在能力记录中说明。
+
+      - name: Install dependencies
+        run: "{{install-command}}"
+
+      - name: Format check
+        run: "{{format-check-command}}"
+
+      - name: Static analysis
+        run: "{{lint-command}}"
+
+      - name: Tests
+        run: "{{test-command}}"
+
+      - name: Build
+        run: "{{build-command}}"
