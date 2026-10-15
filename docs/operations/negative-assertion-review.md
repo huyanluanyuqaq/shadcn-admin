@@ -50,7 +50,7 @@
 | C11 | `AGENTS.md` §13.6 | better-sqlite3 限定 `^12.4.1`（v13 起无预编译） | `grep better-sqlite3 server/package.json` | 执行位 | 2026-10-15 |
 | C12 | `AGENTS.md` §14.1 | 必需检查表与工作流作业名一致 | `python scripts/audit-repo.py`（F6） | 执行位 | 2026-10-15 |
 | C13 | `AGENTS.md` §14.5 | 不设 `.github/CODEOWNERS` | `ls .github/CODEOWNERS 2>/dev/null`（有输出即为失真） | 执行位 | 2026-10-15 |
-| C14 | `AGENTS.md` §14.6 | `stale.yml` 已处置：无 schedule 触发器、PR 侧 `-1` 禁用、最小权限、**无任何无人值守自动运行** | `grep -c "schedule:" .github/workflows/stale.yml`（应为 0）+ `grep "days-before-pr-stale" .github/workflows/stale.yml`（应为 -1） | 执行位 | 2026-10-15 |
+| C14 | `AGENTS.md` §14.6 | `stale.yml` 已处置：无 schedule 触发器、PR 侧 `-1` 禁用、最小权限、**无任何无人值守自动运行** | `grep -A2 '^on:' .github/workflows/stale.yml`（应仅见 `workflow_dispatch`）+ `grep "days-before-pr-stale" .github/workflows/stale.yml`（应为 -1） | 执行位 | 2026-10-15 |
 | C15 | `AGENTS.md` §14.6 | 上游遗留资产存在：`.github/ISSUE_TEMPLATE/`、`.github/CODE_OF_CONDUCT.md`、`.github/FUNDING.yml`、根 `netlify.toml`；`.github/CODEOWNERS` 不存在 | `ls .github/ISSUE_TEMPLATE .github/CODE_OF_CONDUCT.md .github/FUNDING.yml netlify.toml` + `ls .github/CODEOWNERS 2>&1`（后者应不存在） | 执行位 | 2026-10-15 |
 | P1 | `AGENTS.md` §14.4 | 分支保护已配置（经典保护、enforce_admins、approvals=0） | `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection` | 主控位 | 2026-10-15 |
 | P2 | `docs/operations/github-capability.md` | 平台事实全表（含漂移表） | 按该文档 §8 的复核命令逐条重测 | 主控位 | 2026-10-15 |
@@ -77,7 +77,7 @@
 | --- | --- | --- | --- | --- |
 | 1 | `AGENTS.md` §13.2 | 「纯前端，无持久层：当前所有数据为 faker mock，刷新即变」 | 持久层已落地（Hono + SQLite + Drizzle）；「功能已完成」的判定标准改为端到端可用 | `server/` + 11 个迁移 + §3 已登记 |
 | 2 | `AGENTS.md` §10 | 「mock 数据当前来自 @faker-js/faker…接后端后必须改为 TanStack Query」 | 迁移已完成；新模块数据源必须是真实 API，不得 reintroduce mock | `package.json` 无 faker；`src/` 零引用 |
-| 3 | `AGENTS.md` §4 目录说明 | 「每个模块含 data/（schema.ts + data.ts mock）」 | data/ 仅存于 3 个模块且只含 schema.ts | `ls src/features/*/data/` |
+| 3 | `AGENTS.md` §4 目录说明 | 「每个模块含 data/（schema.ts + data.ts mock）」 | data/ 仅存于 3 个模块且不含 mock 数据（schema.ts + 其测试；措辞后经 O3 精确化） | `ls src/features/*/data/` |
 | 4 | `AGENTS.md` §13.3 | 「src/routes/clerk/ 与 features/auth/ 存在两套认证路由，迁移时需一并处理」 | Clerk 已移除（TASK-002 / ADR-002），认证统一为自建 JWT；遗留死资产登记见 §4 | `ls src/routes/` 无 clerk/ |
 | 5 | `AGENTS.md` §14.6 | 「stale.yml 属待处置项」 | 已处置（TASK-033）：无 schedule、PR 侧 -1、最小权限 | `stale.yml` 文件头 + `github-capability.md` §7 |
 | 6 | `AGENTS.md` §14.6 | 「ISSUE_TEMPLATE/、CODE_OF_CONDUCT.md、FUNDING.yml 为上游内容，保留」 | ~~三者从未存在，从清单移除~~ → **误判，已回退**：三者实际存在于 `.github/` 下、由上游引入（`7e80b2e`），原表述属实；恢复原清单并补 `.github/` 前缀（审查 O1 拦下） | `git ls-files .github/` + `git log --diff-filter=A -- .github/ISSUE_TEMPLATE .github/CODE_OF_CONDUCT.md .github/FUNDING.yml` |

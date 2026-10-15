@@ -150,11 +150,12 @@ Non-Scope (files):
 - ~~「纯前端，无持久层」是否确已过时尚未独立核实~~ → **已核实：确已过时**
   （`server/` Hono + SQLite + 11 个迁移 + 真实 API 层俱全；`@faker-js/faker` 与 `data.ts` 零残留）。
   修正与依据见 `Current State` 与 `negative-assertion-review.md` §3.1。
-- **同类失真纳入修正（范围扩张披露，来源 = 本任务调研，非审查发现）：**
+- **范围披露（来源 = 本任务调研，非审查发现）：**
   - R1：`AGENTS.md` §6 原引用 `features/users/`（不存在）—— 与否定性断言同类的文档腐坏，
     已改指 `features/customers/components/`。
   - R2：`AGENTS.md` §4 README 行增补防误读注（上游原文中的 Clerk / Sponsor 表述描述上游状态，
     本仓库已移除 Clerk）—— 防止后续会话把 README 当成本仓库现状。
+    **注释性增补，不计入「6 处修正」计数。**
   - R3（**误判，已回退 —— 独立审查 O1 拦下**）：曾判定 `AGENTS.md` §14.6 的
     `ISSUE_TEMPLATE/`、`CODE_OF_CONDUCT.md`、`FUNDING.yml` 「从未存在」并将其移出清单。
     实测（审查者实跑 + 本人复核）：三者**存在于 `.github/` 下**、由上游 `satnaing` 引入
