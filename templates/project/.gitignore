@@ -1,0 +1,47 @@
+# ============================================================
+# Project-level .gitignore
+# 按项目实际技术栈增删。以下是通用条目。
+# ============================================================
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# --- Editor ---
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Secrets（必须忽略！） ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets/
+credentials/
+
+# --- Python（如适用） ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+dist/
+build/
+
+# --- Node（如适用） ---
+node_modules/
+.next/
+dist/
+coverage/
+
+# --- 通用构建产物 ---
+*.log
+*.tmp
+.cache/

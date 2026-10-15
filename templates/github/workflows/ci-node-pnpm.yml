@@ -1,0 +1,69 @@
+# CI 工作流模板（Node + pnpm）。
+#
+# 用法：复制到项目的 .github/workflows/ci.yml，替换 {{...}} 占位符。
+#
+# 要点（依据 .agents/protocols/github-collaboration.md §7 与 .agents/rules/github.md §5）：
+#   1. 必须在 **pull_request** 上触发 —— 否则检查发生在合并之后，不构成门禁（见下方 §触发条件）。
+#   2. 作业名固定为 verify，便于在分支保护中选定为必需检查；改名须同步更新能力记录。
+#   3. 显式声明最小 permissions。
+#   4. 禁止为了让检查变绿而删除测试或放宽断言。
+#
+# 触发条件说明：
+#   若分支保护已启用「要求合并前必须经过 PR」，则 pull_request 触发即可覆盖全部入口，
+#   无需再为工作分支添加 push 触发。若未启用该保护（例如无法启用分支保护的场景），
+#   则必须额外添加工作分支的 push 触发，否则检查只在合并后运行。
+
+name: CI
+
+on:
+  pull_request:
+    branches: ["{{default-branch}}"]
+  push:
+    branches: ["{{default-branch}}"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: {{15}}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: "{{pnpm-version}}"
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "{{node-version}}"
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # 若为多包仓库：被测代码依赖的本地包可能需要先构建，
+      # 否则会出现「无法解析内部依赖」类的失败（表现为依赖预打包被跳过 + 组件测试批量报错）。
+      # - name: Build internal dependencies
+      #   run: pnpm build:{{shared-package}}
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build
