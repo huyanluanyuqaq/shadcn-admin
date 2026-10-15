@@ -69,7 +69,7 @@ Upstream: satnaing/shadcn-admin（本仓库为其 fork，接入时尚无自定�
 ```
 shadcn-admin/
 ├── AGENTS.md              ← 本文件
-├── README.md              ← 上游原文（未改动）
+├── README.md              ← 上游原文（未改动；其中 Auth/Clerk/Sponsor 表述描述上游状态，本仓库已移除 Clerk，见 §13.3）
 ├── docs/                  ← 协调层（新增）
 │   ├── requirements/  architecture/  technical/  decisions/  operations/
 ├── tasks/                 ← 协调层（新增）：backlog/ active/ review/ done/
@@ -113,7 +113,7 @@ shadcn-admin/
 
 | 目录 | 用途 |
 |------|------|
-| `src/features/<domain>/` | 领域模块。每个模块含 `components/`、`data/`（`schema.ts` zod 校验 + `data.ts` mock）、`index.tsx` |
+| `src/features/<domain>/` | 领域模块。含 `components/`、`index.tsx`；`data/`（仅 `schema.ts` zod 校验，无 mock）仅存于 customers / notifications / subscriptions |
 | `src/components/data-table/` | 通用表格能力，所有列表页复用 |
 | `src/components/ui/` | shadcn 原语，**通过 CLI 管理，不手写修改** |
 | `src/routes/` | TanStack Router 文件路由，新增页面后需重新生成 `routeTree.gen.ts` |
@@ -205,8 +205,8 @@ pnpm test:coverage
 
 **测试要求：**
 - 测试为 Vitest **浏览器模式**（`@vitest/browser-playwright`），非 jsdom —— 组件测试在真实 Chromium 中运行。
-- 测试文件与源码同目录，命名 `*.test.tsx`（如 `features/users/components/users-dialogs.test.tsx`）。
-- 新增业务模块时，至少为「对话框表单校验」与「表格行操作」补测试，参照 `features/users/` 现有测试。
+- 测试文件与源码同目录，命名 `*.test.tsx`（如 `features/customers/components/customers-action-dialog.test.tsx`）。
+- 新增业务模块时，至少为「对话框表单校验」与「表格行操作」补测试，参照 `features/customers/components/` 现有测试。
 
 ---
 
@@ -242,7 +242,7 @@ docker compose up -d --build
 | **架构文档（后端与容器化方案）** | `docs/architecture/overview.md` |
 | 技术文档 | `docs/technical/` |
 | 架构决策记录 | `docs/decisions/` |
-| 运维文档 | `docs/operations/`（含 `agent-constraints.md`、`github-capability.md`） |
+| 运维文档 | `docs/operations/`（含 `agent-constraints.md`、`github-capability.md`、`negative-assertion-review.md`） |
 | **Agent 协作流程** | `docs/agent-collaboration.md` |
 | **Git 工作流** | `docs/git-workflow.md` |
 | **GitHub 平台能力记录** | `docs/operations/github-capability.md` |
@@ -258,8 +258,10 @@ docker compose up -d --build
   在架构方案获得人类确认前，**不得改动代码层**（`src/`、`package.json`、`vite.config.ts` 等）。
 - [补充] 包管理器固定为 **pnpm**；新增依赖一律 `pnpm add`，不得生成 `package-lock.json` 或 `yarn.lock`。
 - [补充] `src/routeTree.gen.ts` 与 `src/components/ui/` 为生成/托管文件，禁止手工编辑。
-- [补充] mock 数据当前来自 `@faker-js/faker`（`features/*/data/data.ts`）。接后端后，
-  **必须改为 TanStack Query 调用真实 API**，并删除对应 faker 数据与 devDependency。
+- [补充] 数据层已接后端（TASK-003 起）：前端经 TanStack Query 调用真实 API；
+  `@faker-js/faker` 与 `features/*/data/data.ts` **均已移除**（复核命令见
+  `docs/operations/negative-assertion-review.md`）。新增领域模块时数据源**必须是真实 API**，
+  不得重新引入 mock 数据。
 - [增强] 涉及认证（Clerk → JWT 迁移）、密钥、数据库迁移的变更，必须经 **Security 角色**审查后方可合入。
 
 ---
@@ -311,11 +313,18 @@ Task 规则（TASK.md 的 Task Rules 节）
    同 Workspace 下的 `projects/business-manager` 为 **Tailwind 3.4**。
    **两边组件不可互相复制粘贴** —— Tailwind 4 使用 CSS-first 配置与 `@theme`，
    且 shadcn 组件结构在两个大版本间不兼容。跨项目借鉴只能参考交互模式，必须重写实现。
-2. **纯前端，无持久层**：当前所有数据为 faker mock，刷新即变。任何"功能已完成"的断言，
-   在接入真实 API 前都只代表 UI 存在，不代表数据可用。
-3. **Clerk 与自托管目标冲突**：Clerk 是 SaaS 认证，依赖外网与 `VITE_CLERK_PUBLISHABLE_KEY`。
-   目标是 `docker compose` 自托管，因此**必须移除 Clerk**，改为自建 JWT。
-   注意 `src/routes/clerk/` 与 `features/auth/` 存在两套认证路由，迁移时需一并处理。
+2. **持久层已落地，判定标准随之改变**：后端（Hono + SQLite + Drizzle，迁移见 `server/drizzle/`）
+   自 TASK-001 已建设，数据持久化、刷新不丢（TASK-002 移除 Clerk 改自建 JWT，TASK-005 落地
+   单容器部署）。因此任何"功能已完成"的断言，判定标准是**端到端可用**
+   （API + 持久化 + 测试通过），不再是「只看 UI 存在」。
+   **注意反向失真：** 不得再把本项目描述为「纯前端 / 无持久层 / mock 数据」——
+   那描述的是接入时的基线（`docs/architecture/overview.md` §1 已按历史快照声明保留）。
+3. **Clerk 已移除（TASK-002，ADR-002）**：Clerk 是 SaaS 认证，依赖外网与
+   `VITE_CLERK_PUBLISHABLE_KEY`，与 `docker compose` 自托管目标冲突 —— 迁移**已完成**：
+   现为自建 JWT（`jose` + `bcryptjs`，见 §3）。迁移前曾存在 `src/routes/clerk/` 与
+   `features/auth/` 两套认证路由，现已统一为后者 + `(auth)` 路由组。
+   遗留：`src/assets/clerk-*.tsx` 两个 logo 资产已无引用（死代码，待清理，
+   登记见 `docs/operations/negative-assertion-review.md` §4 D1）。
 4. **测试方法特殊**：Vitest 浏览器模式需 Playwright Chromium。沙箱/CI 环境下若未执行
    `pnpm test:browser:install`，测试全部失败 —— 这不是代码缺陷。
 5. **上游同步**：本仓库是 `satnaing/shadcn-admin` 的 fork。若需跟进上游更新，
@@ -419,10 +428,13 @@ Task 规则（TASK.md 的 Task Rules 节）
 本仓库是 `satnaing/shadcn-admin` 的 fork。以下文件为上游内容，**与本项目的协作制度无关**，
 保留以避免制造无意义的差异：
 
-`ISSUE_TEMPLATE/`（指向上游 Discussions）、`CODE_OF_CONDUCT.md`、`FUNDING.yml`、`netlify.toml`。
+`netlify.toml`（静态部署配置，已被 docker compose 取代）。
 
-`stale.yml` 属**待处置**项：其定时任务可能关闭长期不活跃的 PR（阈值 120 天），
-处置决定记录在 `docs/operations/github-capability.md` §7。
+`stale.yml` **已处置**（TASK-033）：上游原配置为「每日定时运行 + 同时处理 Issue 与 PR」，
+本项目已移除 `schedule` 触发器（仅保留手动 `workflow_dispatch`）、PR 侧处理置 `-1` 禁用、
+移除 `pull-requests: write` 权限（最小权限）。依据与登记见
+`docs/operations/github-capability.md` §7 与 `stale.yml` 文件头注释。
+**该文件当前无任何无人值守自动运行**；恢复上游行为须走交付请求。
 
 > **下列条目属于受保护约定，本文件不得削弱：**
 > ① 禁止直接推送 `main`；② 由实现者批准自己提交的交付物；③ 伪造或绕过检查；

@@ -10,13 +10,13 @@
 Task ID: TASK-034
 Title: 统一「验证项」编号口径（V1–V5）
 Workflow: refactor
-Status: REVIEW
+Status: DONE（2026-10-15 由 TASK-032 按 D13-C 补记归档回写）
 Priority: P2
 Owner: 主控位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（裁决）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15T00:00:00Z
-Updated: 2026-10-15T01:00:00Z
+Updated: 2026-10-15T04:14:40Z（归档回写）
 Branch: docs/TASK-034-unify-v-numbering
 Requires Human Approval: false
 ```
@@ -146,11 +146,25 @@ Non-Scope (files):
 > 2026-10-15 已实施完毕并提交审查：清点 → 裁决（V5 = 「绿灯可合并」阳性对照义）→ 成批统一
 > → 双审计 PASS → TASK-035 归档回写（D13-C）→ 交付请求。实施记录见 `handoffs/2026-10-15-implementation.md`。
 > 本任务自身亦演示 D13-C：**合并后的归档回写（Status → DONE + 移 `tasks/done/` + `Merge Record`）
-> 待下一个任务补记**。
+> 已于 2026-10-15 由 TASK-032 的交付请求补记完毕，「无限回归终止于深度 1」再次得到实证。**
 
 ## Merge Record
 
-**（按 D13-C，本项在下一个任务出现之前保持空白；届时由该任务的交付请求补记。）**
+**（按 D13-C 由下一个任务 TASK-032 的交付请求补记 —— 2026-10-15 回写完毕，回归终止于深度 1。）**
+
+| 项 | 值 |
+| -- | -- |
+| 交付载体 | PR [#7](https://github.com/huyanluanyuqaq/shadcn-admin/pull/7)（`docs/TASK-034-unify-v-numbering`） |
+| 合并策略 | **rebase-merge**（`AGENTS.md` §14.2） |
+| 提交范围 | `main` `b31792e` → `2be342e`，共 **3** 提交：`c06f6f4`（统一 V 编号口径 + 按 D13-C 归档 TASK-035）→ `2c16900`（归档独立审查记录（1 轮，可合并）并按 O1 就地更正实施记录措辞）→ `2be342e`（登记 PR #7 期间 Actions 停用与恢复，CI 重投递留痕） |
+| 合并标识 | `merged_at` = **`2026-10-15T01:34:05Z`**；`merge_commit_sha` = **`2be342e`**（即合并后 `main` head） |
+| CI | 合并后 `main` push：run [`38666357026`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38666357026)（head = `2be342e`），必需检查 `install-lint-build` + `audit` 均 **success**；合并前 `pull_request` CI 全绿 —— 含 Actions 停用恢复后以空提交 `e40ab0b` 重投递的 run [`38663011372`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38663011372)（双绿）。**本请求期间仓库 Actions 曾被平台侧停用**，全过程见 `Known Issues` 末条 |
+| 独立审查 | 共 **1 轮**，结论「可合并、无阻断」；记录见 `handoffs/2026-10-15-review.md` |
+| 遗留问题闭环 | **无遗留** —— O1 已就地修正；两个 CI 重投递空提交（`f701e1b` / `e40ab0b`）被 rebase-merge 丢弃一事已在 `Known Issues` 补登悬空说明 |
+| 归档 | `Status → DONE`；档案由 `tasks/review/` 移入 `tasks/done/`（载体 = TASK-032 的交付请求） |
+
+> **★ D13-C 的第二次实例：** 本任务验证了「回写延后一个任务」的代价边界 ——
+> `Merge Record` 的空白同样是裁决的预期形态，现由 TASK-032 补齐。
 
 ---
 
@@ -177,6 +191,10 @@ Non-Scope (files):
   （`install-lint-build` 54s / `audit` 6s），PR #7 恢复 `mergeable_state: clean`。
   ⇒ **分支上 `f701e1b`、`e40ab0b` 两个空提交均为 CI 重投递用途，无文件改动**（前者为停用期间
   的无效尝试，后者为恢复后的有效重投递）；本条即为它们的留痕。
+  ⇒ **悬空 SHA 说明（2026-10-15 归档回写时补记）：** rebase-merge 会丢弃 rebase 后为空的提交，
+  故二者**均未进入 `main`**（`git merge-base --is-ancestor` 实测为非祖先；对象仅存于本地 reflog，
+  随时可能被 GC 回收）。`main` 上本任务的 3 个提交见 `Merge Record`。
+  引用这两个 SHA 时**不得**称其为「已合入 `main` 的提交」。
 
 ---
 
