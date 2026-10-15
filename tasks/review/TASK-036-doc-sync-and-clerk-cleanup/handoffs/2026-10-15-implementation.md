@@ -158,7 +158,19 @@ audit	pass	4s
 install-lint-build	pass	1m13s
 ```
 
-末提交（档案迁移 + 本文件）推送后的 CI 复核：见补录提交（`gh pr checks 9` 对末 head 复跑双绿）。
+末提交（`ce6fb6a`，档案迁移 + 本文件）推送后的 CI 复核（pull_request run `38690925584`，实测双绿）：
+
+```text
+$ gh pr checks 9
+audit	pass	4s
+install-lint-build	pass	1m19s
+
+$ gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/38690925584/jobs --jq '.jobs[] | {name, conclusion, started_at, completed_at}'
+{"completed_at":"2026-10-15T06:12:34Z","conclusion":"success","name":"install-lint-build","started_at":"2026-10-15T06:11:15Z"}
+{"completed_at":"2026-10-15T06:11:20Z","conclusion":"success","name":"audit","started_at":"2026-10-15T06:11:16Z"}
+```
+
+（head `e11aac3` 的 run `38690630917`：audit 4s / install-lint-build 1m13s，亦双绿。）
 
 ## 6. 偏离与披露
 
