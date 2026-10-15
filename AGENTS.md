@@ -113,7 +113,7 @@ shadcn-admin/
 
 | 目录 | 用途 |
 |------|------|
-| `src/features/<domain>/` | 领域模块。含 `components/`、`index.tsx`；`data/`（仅 `schema.ts` zod 校验，无 mock）仅存于 customers / notifications / subscriptions |
+| `src/features/<domain>/` | 领域模块。含 `components/`、`index.tsx`；`data/`（zod `schema.ts`，无 mock 数据）仅存于 customers / notifications / subscriptions |
 | `src/components/data-table/` | 通用表格能力，所有列表页复用 |
 | `src/components/ui/` | shadcn 原语，**通过 CLI 管理，不手写修改** |
 | `src/routes/` | TanStack Router 文件路由，新增页面后需重新生成 `routeTree.gen.ts` |
@@ -428,7 +428,7 @@ Task 规则（TASK.md 的 Task Rules 节）
 本仓库是 `satnaing/shadcn-admin` 的 fork。以下文件为上游内容，**与本项目的协作制度无关**，
 保留以避免制造无意义的差异：
 
-`netlify.toml`（静态部署配置，已被 docker compose 取代）。
+`.github/ISSUE_TEMPLATE/`（指向上游 Discussions）、`.github/CODE_OF_CONDUCT.md`、`.github/FUNDING.yml`、`netlify.toml`（静态部署配置，已被 docker compose 取代）。
 
 `stale.yml` **已处置**（TASK-033）：上游原配置为「每日定时运行 + 同时处理 Issue 与 PR」，
 本项目已移除 `schedule` 触发器（仅保留手动 `workflow_dispatch`）、PR 侧处理置 `-1` 禁用、
