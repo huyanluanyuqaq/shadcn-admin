@@ -119,9 +119,9 @@ $ git diff origin/main --stat -- src server shared/src shared/package.json packa
 ```
 
 （`git diff origin/main --stat` 总计 89 files changed, 10399 insertions(+), 27 deletions(-)
-——此为 `4d55549` 时点快照；截至 `5f14c97` 实测为 90 files / 10777 insertions(+)/ 27 deletions(-)，
-其中 3 处 rename 为 TASK-037 归档回写 `tasks/review/`→`tasks/done/`：R094 TASK.md +
-R100 两份 handoff。）
+——此为 `fca3e57` 时点快照（逐提交实测：`fca3e57`=89/10399/27、`4d55549`=90/10748/27、
+`5f14c97`=90/10777/27）；其中 3 处 rename 为 TASK-037 归档回写
+`tasks/review/`→`tasks/done/`：R094 TASK.md + R100 两份 handoff。）
 
 ### 4.2 仓库门禁（F1–F7）
 
@@ -233,7 +233,9 @@ CI 环境无此保护。与 TASK-036/037 同款，已登记 Known Issues。
 ## 6. 提交序列（均含 `Refs: TASK-039` footer）
 
 分支 `chore/TASK-039-adopt-workspace-framework` 自本地 `main`（`da98560`）派生，
-`origin/main..HEAD` 共 9 提交 = D13-C 承载的 TASK-037 归档回写 2 个 + TASK-039 本任务 7 个：
+`origin/main..HEAD` 共 9 提交 = D13-C 承载的 TASK-037 归档回写 2 个 + TASK-039 本任务 7 个
+（本数为 `a0979bf` 时点前快照；第 10 提交 `a0979bf` 为第 1 轮审查归档 + O1–O4 整改，
+见本节末）：
 
 ```
 # TASK-037 归档回写（D13-C 第五实例，范围仅 tasks/**）
@@ -253,6 +255,14 @@ fca3e57 ci(audit): audit-repo.py 新增 F7 框架资产在位检查
 全部提交使用显式路径 `git add`（禁 `-A`/`.`），footer 含 `Refs: TASK-039`。
 「框架资产复制」与「文档断言修正」分为两提交属 Task Rules [覆盖] 许可
 （同属一个逻辑变更「框架接入」，不夹带其它内容）。
+
+第 10 提交（第 1 轮审查后整改）：
+
+```
+a0979bf docs(TASK-039): 归档第 1 轮独立审查记录并合并前整改 O1-O4
+```
+
+（第 2 轮定向审查的归档提交不计入上表；最终序列以 `git log --oneline main..HEAD` 实查为准。）
 
 ---
 

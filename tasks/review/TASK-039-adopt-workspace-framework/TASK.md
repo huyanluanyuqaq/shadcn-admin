@@ -16,7 +16,7 @@ Owner: 主控位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T16:34:00Z
+Updated: 2026-10-15T16:52:00Z
 Branch: chore/TASK-039-adopt-workspace-framework
 Requires Human Approval: false
 ```
@@ -148,7 +148,10 @@ Requires Human Approval: false
       （PR #11；三个 head 均双绿：`4d55549`→run `38766865552` / `4f9c0af`→run `38767377364` /
       `5f14c97`→run `38767820005`；合并门禁以合并时点 head 的 run 为准，合并后 `main` push run
       由下一个任务的 Merge Record 回填（D13-C））
-- [ ] AC-7: 两轮独立审查记录落 `handoffs/`；阻断项关闭且经复核（非仅标记）。
+- [x] AC-7: 两轮独立审查记录落 `handoffs/`；阻断项关闭且经复核（非仅标记）。
+      （两轮均由不携带实现上下文的新实例执行、记录逐字归档于 `handoffs/2026-10-15-review.md`：
+      第 1 轮全量「可合并，无阻断」+ O1–O4 已整改并经第 2 轮实跑复核到位；
+      第 2 轮定向「可合并，无阻断」+ N1–N3 提示已顺手更正）
 - [ ] AC-8: rebase-merge 合并后 `main` 含 TASK-037 回写与本任务交付；D8 复现（合并后无 docker run）；两个仓库 `git status` 干净。
 
 ---
@@ -221,7 +224,8 @@ Non-Scope (files):
 > ② 框架资产入仓：`.agents/`（roles 9 / workflows 6 / rules 6 / protocols 12 / state /
 > proposals / 根 README，计 36 文件）、`templates/`（task / handoff / adr / github / project，
 > 计 32 文件）、`shared/{scripts,tools,knowledge}` + `shared/README.md`（计 9 文件）——
-> 框架资产共 **77** 个文件（另任务档案 3 个文件：TASK.md + HANDOFF-001 + 实施 handoff），
+> 框架资产共 **77** 个文件（另任务档案 4 个文件：TASK.md + HANDOFF-001 + 实施 handoff +
+> 第 1 轮审查记录），
 > 与 `projects/_workspace-template/` 对应资产 `diff -r` **零差异**（第 1 轮独立审查另以
 > 双仓 git blob SHA 全量比对证实入库内容逐字节一致）；
 > `shared/` 采用**合并**策略（框架子目录并入 pnpm 包 `@repo/shared` 所在目录，
@@ -267,6 +271,16 @@ Non-Scope (files):
 > ③ **O3**：AC-6 与 handoff §8 补录第三个 head（`5f14c97`→run `38767820005`）双绿，
 > 并加「鸡生蛋固有滞后」防腐注（合并门禁以合并时点 head 的 run 为准）。
 > ④ **O4**：handoff §6 提交序列补全为 9 提交（D13-C 承载 2 + TASK-039 七）。
+>
+> **第 2 轮定向审查与 N1–N3 整改：** 第 2 轮（新实例，I2，定向核实 O1–O4 整改 +
+> 回归）结论「**可合并，无阻断项**」：O1–O4 全部经实跑核实到位（框架资产 77 =
+> 36+32+9 与档案全文/PR body 一致无残留、统计带时点锚、三个 head run 双绿经
+> `gh api` 核验、提交序列逐一吻合、整改提交仅触档案 3 文件、审查记录逐字保留、
+> 双审计 PASS=7/PASS=13、`diff -r` 零差异、框架资产自入仓提交后零波及、N4 满足）。
+> 三项提示已顺手更正：**N1**（implementation.md §4.1 时点标签误标 `4d55549`——
+> 逐提交实测 89/10399/27 精确对应 `fca3e57`，已改锚并附逐提交实测值）；
+> **N2**（任务档案文件数括注 3→4，补第 1 轮审查记录）；**N3**（handoff §6 提交
+> 序列补时点锚 + 第 10 提交 `a0979bf`）。PR #11 body R8 节同步更新为两轮审查结论。
 
 ---
 
@@ -289,7 +303,7 @@ Non-Scope (files):
 | 项目文档（改） | `docs/operations/agent-constraints.md` | L3-5 文件头模式表述改写 |
 | 项目文档（改） | `docs/operations/negative-assertion-review.md` | C9 行更新（框架资产与模板一致 + 新复核命令）、C4 行更新（README 追加章节）、新增 C16（shared/ 双语义） |
 | 门禁（改） | `scripts/audit-repo.py` | 新增 F7「框架资产在位」；docstring 分工说明更新；CHECKS 纳入 F7 |
-| 任务档案（新增） | `tasks/review/TASK-039-adopt-workspace-framework/**` | TASK.md + handoffs/HANDOFF-001 + handoffs/2026-10-15-implementation.md（3 文件；自 active/ 迁入） |
+| 任务档案（新增） | `tasks/review/TASK-039-adopt-workspace-framework/**` | TASK.md + 三份 handoff（HANDOFF-001 派遣 / 2026-10-15-implementation 实施 / 2026-10-15-review 第 1 轮审查；共 4 文件，review.md 由第 1 轮审查归档提交 `a0979bf` 新增） |
 | D13-C 承载（rename） | `tasks/review/TASK-037-…/**` → `tasks/done/TASK-037-…/**` | TASK-037 归档回写（本地两提交 `6d8c731`+`da98560` 内容，随本分支推送） |
 
 ---
@@ -345,11 +359,12 @@ Non-Scope (files):
 | 001 | 主控位 | 执行位 | 2026-10-15 | 定义 TASK-039，派遣执行位实施（本会话两职串行，审查由新实例承担） |
 | 002 | 执行位 | 主控位 | 2026-10-15 | 实施完毕：框架资产 77 文件入仓零差异、六处文档断言修正、F7 门禁、双审计 + lint/format/build/test 全绿；待推送建交付请求与两轮独立审查 |
 | 003 | 主控位 | 审查者（新实例） | 2026-10-15 | 第 1 轮全量独立审查：结论「可合并，无阻断」+ O1–O4 观察项；整改后进入第 2 轮定向审查 |
+| 004 | 主控位 | 审查者（新实例） | 2026-10-15 | 第 2 轮定向独立审查：结论「可合并，无阻断」，O1–O4 整改实跑核实到位 + N1–N3 提示（已顺手更正） |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-coordinator-to-implementer.md`（派遣）；
 `handoffs/2026-10-15-implementation.md`（实施记录，全部实跑命令与原始输出）；
-`handoffs/2026-10-15-review.md`（第 1 轮独立审查记录，逐字归档）
-**Next Action：** 第 1 轮整改提交 → 第 2 轮定向审查（I2）→ rebase-merge + D8 验证 + 收尾
+`handoffs/2026-10-15-review.md`（两轮独立审查记录，逐字归档）
+**Next Action：** 第 2 轮整改提交（N1–N3 + 档案回填）→ 合并前最终验证 → rebase-merge + D8 验证 + 收尾
 
 ---
 
