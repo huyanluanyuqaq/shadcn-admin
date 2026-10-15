@@ -16,7 +16,7 @@ Owner: 主控位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（裁决）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15T00:00:00Z
-Updated: 2026-10-15T06:45:00Z
+Updated: 2026-10-15T01:00:00Z
 Branch: docs/TASK-034-unify-v-numbering
 Requires Human Approval: false
 ```
@@ -169,6 +169,14 @@ Non-Scope (files):
 - **裁决后的次生修正（超出清点表的连带发现，已显式披露）：** 能力记录 `:234`（2026-10-14 完成段）
   原写「⑥ V1/V2/V4/V5 实测全部成立」，但 V5 阳性对照实为 **2026-10-15** 取得 —— 属时间口径错位，
   已改为「⑥ V1/V2/V4 …（V5 属 2026-10-15，见 ⑨）」。这是统一编号时**顺带消除的失真**，非范围扩张。
+- **★ 本请求期间仓库 Actions 曾被停用（2026-10-14T17:47:40Z 之后 → 2026-10-15 用户手动恢复）：**
+  PR #7 的 push / `pull_request` 事件**到达了 GitHub**（事件日志有记录、第三方 App 在头提交上建了
+  check suite），但 `github-actions` app **零响应**——无 check suite、无 run。实证：手动调度返回
+  **HTTP 422 "Actions has been disabled for this repository."**；账户与其他仓库（`Rules`）同时段
+  运行正常。用户于 2026-10-15 手动恢复后，以空提交 `e40ab0b` 重新投递，run **`38663011372` 双绿**
+  （`install-lint-build` 54s / `audit` 6s），PR #7 恢复 `mergeable_state: clean`。
+  ⇒ **分支上 `f701e1b`、`e40ab0b` 两个空提交均为 CI 重投递用途，无文件改动**（前者为停用期间
+  的无效尝试，后者为恢复后的有效重投递）；本条即为它们的留痕。
 
 ---
 
