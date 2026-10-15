@@ -323,8 +323,8 @@ Task 规则（TASK.md 的 Task Rules 节）
    `VITE_CLERK_PUBLISHABLE_KEY`，与 `docker compose` 自托管目标冲突 —— 迁移**已完成**：
    现为自建 JWT（`jose` + `bcryptjs`，见 §3）。迁移前曾存在 `src/routes/clerk/` 与
    `features/auth/` 两套认证路由，现已统一为后者 + `(auth)` 路由组。
-   遗留：`src/assets/clerk-*.tsx` 两个 logo 资产已无引用（死代码，待清理，
-   登记见 `docs/operations/negative-assertion-review.md` §4 D1）。
+   两个 logo 资产已于 TASK-036 清理（2026-10-15）；死代码登记与复核命令见
+   `docs/operations/negative-assertion-review.md` §4 D1。
 4. **测试方法特殊**：Vitest 浏览器模式需 Playwright Chromium。沙箱/CI 环境下若未执行
    `pnpm test:browser:install`，测试全部失败 —— 这不是代码缺陷。
 5. **上游同步**：本仓库是 `satnaing/shadcn-admin` 的 fork。若需跟进上游更新，

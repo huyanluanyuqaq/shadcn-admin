@@ -102,7 +102,7 @@
 
 | # | 发现 | 性质 | 处置 |
 | --- | --- | --- | --- |
-| D1 | `src/assets/clerk-full-logo.tsx`、`src/assets/clerk-logo.tsx` 零引用（Clerk 迁移遗留死代码） | 死代码 | **登记待后续任务清理** —— `src/**` 在 TASK-032 的 Non-Scope。复核命令：`grep -rln clerk src/ --include='*.tsx' --include='*.ts' \| grep -v assets`（空 = 仍无引用） |
+| D1 | ~~`src/assets/clerk-full-logo.tsx`、`src/assets/clerk-logo.tsx` 零引用（Clerk 迁移遗留死代码）~~ | 死代码 | **已由 TASK-036 清理（2026-10-15）** —— 两文件已删除（源自上游 `7e80b2e`，纯上游未改动；取舍披露见 TASK-036 档案 Known Issues）。复核命令仍保留（可复跑验证「保持无引用」）：`grep -rln clerk src/ --include='*.tsx' --include='*.ts' \| grep -v assets`（空 = 仍无引用） |
 | D2 | `.workbuddy/`（历次 PR 临时文件）未被 `.gitignore` 覆盖且未入库 | 卫生 | 提交一律用**显式路径**，不 `git add -A`；是否纳入 `.gitignore` 由主控位另行裁决（不在 TASK-032 范围） |
 
 ---
