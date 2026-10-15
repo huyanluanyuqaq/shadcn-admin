@@ -40,18 +40,19 @@
 | C1 | `AGENTS.md` §3 表 / §13.2 | 后端/数据库/认证/容器化四行均为「已建设」；数据持久化（刷新不丢） | `ls server/src/index.ts server/drizzle/*.sql Dockerfile docker-compose.yml` | 执行位 | 2026-10-15 |
 | C2 | `AGENTS.md` §3 表 | 依赖版本（TS ~6.0 / React 19.2 / Vite 8 / Router 1.168 / Query 5.99 / axios 1.15 / Table 8.21 / Recharts 3.8 / rhf 7 / zod 4 / zustand 5 / Tailwind 4.2） | `grep -E '"(typescript\|react\|vite\|@tanstack/react-router\|@tanstack/react-query\|axios\|@tanstack/react-table\|recharts\|react-hook-form\|zod\|zustand\|tailwindcss)"' package.json` | 执行位 | 2026-10-15 |
 | C3 | `AGENTS.md` §3 表 | `src/components/ui/` 有 30 个组件 | `ls src/components/ui/ \| wc -l` | 执行位 | 2026-10-15 |
-| C4 | `AGENTS.md` §4 树 | `README.md` 为上游原文（未改动） | `git log --oneline -1 --format='%an %ad' -- README.md`（作者应为上游、日期早于接入；防误读注见 §4 树内） | 执行位 | 2026-10-15 |
+| C4 | `AGENTS.md` §4 树 | `README.md` 主体为上游原文，仅末尾追加「Agent 协作」章节（TASK-039） | `git log --oneline --diff-filter=M -- README.md`（应仅见 TASK-039 一次追加）+ `tail -n 10 README.md`（应见协作章节） | 执行位 | 2026-10-15 |
 | C5 | `AGENTS.md` §4 树 | `netlify.toml` 为上游遗留、已被 docker compose 取代 | `ls netlify.toml docker-compose.yml` | 执行位 | 2026-10-15 |
 | C6 | `AGENTS.md` §4 / §10 | `data/` 仅存于 customers / notifications / subscriptions 且**不含 mock 数据**（仅 `schema.ts` + 其测试）；`@faker-js/faker` 与 `data.ts` 零残留 | `ls src/features/*/data/`；`grep -rn faker package.json server/package.json shared/package.json`；`grep -rln faker src/`（后两者空 = 成立） | 执行位 | 2026-10-15 |
 | C7 | `AGENTS.md` §6 | 测试范例指向 `features/customers/`（原 `features/users/` 已不存在） | `ls src/features/customers/components/*.test.tsx` | 执行位 | 2026-10-15 |
 | C8 | `AGENTS.md` §9 表 | `docs/operations/` 含 `agent-constraints.md` / `github-capability.md` / `negative-assertion-review.md`；`agent-collaboration.md` / `git-workflow.md` 存在 | `ls docs/operations/*.md docs/agent-collaboration.md docs/git-workflow.md` | 执行位 | 2026-10-15 |
-| C9 | `AGENTS.md` §12 | Standalone 模式下 `.agents/**` 缺失 | `ls .agents 2>/dev/null`（**双态断言**：Workspace 模式下项目内本无 `.agents/`，按所在模式判定） | 执行位 | 2026-10-15 |
+| C9 | `AGENTS.md` §4 / §12 | `.agents/` 与 `templates/` 已入仓，且与模板仓库逐字一致（TASK-039 接入后 Standalone 缺失断言已失效） | `ls .agents templates`（两目录均在）+ Workspace 模式下 `diff -r .agents ../_workspace-template/.agents && diff -r templates ../_workspace-template/templates`（无输出 = 一致；Standalone 下跳过 diff 部分） | 执行位 | 2026-10-15 |
 | C10 | `AGENTS.md` §13.1 | `projects/business-manager` 为 Tailwind 3.4 | `grep '"tailwindcss"' ../business-manager/src/client/package.json` | architect | 2026-10-15 |
 | C11 | `AGENTS.md` §13.6 | better-sqlite3 限定 `^12.4.1`（v13 起无预编译） | `grep better-sqlite3 server/package.json` | 执行位 | 2026-10-15 |
 | C12 | `AGENTS.md` §14.1 | 必需检查表与工作流作业名一致 | `python scripts/audit-repo.py`（F6） | 执行位 | 2026-10-15 |
 | C13 | `AGENTS.md` §14.5 | 不设 `.github/CODEOWNERS` | `ls .github/CODEOWNERS 2>/dev/null`（有输出即为失真） | 执行位 | 2026-10-15 |
 | C14 | `AGENTS.md` §14.6 | `stale.yml` 已处置：无 schedule 触发器、PR 侧 `-1` 禁用、最小权限、**无任何无人值守自动运行** | `grep -A2 '^on:' .github/workflows/stale.yml`（应仅见 `workflow_dispatch`）+ `grep "days-before-pr-stale" .github/workflows/stale.yml`（应为 -1） | 执行位 | 2026-10-15 |
 | C15 | `AGENTS.md` §14.6 | 上游遗留资产存在：`.github/ISSUE_TEMPLATE/`、`.github/CODE_OF_CONDUCT.md`、`.github/FUNDING.yml`、根 `netlify.toml`；`.github/CODEOWNERS` 不存在 | `ls .github/ISSUE_TEMPLATE .github/CODE_OF_CONDUCT.md .github/FUNDING.yml netlify.toml` + `ls .github/CODEOWNERS 2>&1`（后者应不存在） | 执行位 | 2026-10-15 |
+| C16 | `AGENTS.md` §4 树 | `shared/` 为双语义：pnpm 包 `@repo/shared`（`src/`）+ 框架脚本（`scripts/` `tools/` `knowledge/`，TASK-039 合入） | `ls shared/` + `python shared/scripts/audit_framework.py --root .`（A2 校验 `shared/` 路径引用可解析） | 执行位 | 2026-10-15 |
 | P1 | `AGENTS.md` §14.4 | 分支保护已配置（经典保护、enforce_admins、approvals=0） | `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection` | 主控位 | 2026-10-15 |
 | P2 | `docs/operations/github-capability.md` | 平台事实全表（含漂移表） | 按该文档 §8 的复核命令逐条重测 | 主控位 | 2026-10-15 |
 | H1 | `docs/architecture/overview.md` §1 | 「现状与差距」为接入时基线快照（历史声明） | `sed -n '1,6p' docs/architecture/overview.md`（声明必须在场） | architect | 2026-10-15 |
