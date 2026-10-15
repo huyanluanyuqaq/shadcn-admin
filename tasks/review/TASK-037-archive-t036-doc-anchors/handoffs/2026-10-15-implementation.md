@@ -294,6 +294,29 @@ $ gh pr view 10 --json number,state,mergeable,headRefOid
 - CI run `38733746197`（pull_request 事件）双绿：`audit` 5s / `install-lint-build` 54s；
 - PR 状态 OPEN / MERGEABLE。**不合并**（合并不经执行位）。
 
+### 6.1 补录（合并前整改 O1）：`424d2f0` 的 `gh pr checks` 原始输出
+
+`424d2f0`（补录提交）推送后 PR #10 head 更新，触发新 run `38734054788`（pull_request 事件）。
+以下为对 head `424d2f0` 的实跑原始输出：
+
+```
+$ gh pr checks 10
+audit                pass    6s     https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38734054788/job/116418733034
+install-lint-build   pass    1m16s  https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38734054788/job/116418733424
+
+$ gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/38734054788 --jq '{id, head_sha, event, status, conclusion}'
+{"conclusion":"success","event":"pull_request","head_sha":"424d2f0fcf958ea64e09396576c8c88f607a09e0","id":38734054788,"status":"completed"}
+
+$ gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/38734054788/jobs --jq '.jobs[] | {name, status, conclusion, started_at, completed_at}'
+{"completed_at":"2026-10-15T12:21:59Z","conclusion":"success","name":"audit","started_at":"2026-10-15T12:21:53Z","status":"completed"}
+{"completed_at":"2026-10-15T12:23:09Z","conclusion":"success","name":"install-lint-build","started_at":"2026-10-15T12:21:53Z","status":"completed"}
+```
+
+- run `38734054788`（head_sha = `424d2f0fcf958ea64e09396576c8c88f607a09e0`，pull_request）：
+  `audit` 12:21:53→12:21:59Z success（6s）；`install-lint-build` 12:21:53→12:23:09Z success（1m16s）。
+- 两个 head 的 run 均双绿：`fef2a1e` → `38733746197`（§6 上文）；`424d2f0` → `38734054788`（本节）。
+  合并门禁以合并时点 head 的 run 为准；合并后 `main` push run 由下一个任务的 Merge Record 回填（D13-C）。
+
 ---
 
 ## 7. 提交序列
@@ -306,7 +329,14 @@ $ gh pr view 10 --json number,state,mergeable,headRefOid
 | 2 | `95fd1c2` | docs(TASK-036): 归档回写 —— Status → DONE、回填 Merge Record 七要素、移入 tasks/done/ |
 | 3 | `c7729dd` | chore(TASK-037): .gitignore 增 .workbuddy/ + ci.yml checkout v4→v5 |
 | 4 | `fef2a1e` | docs(TASK-037): 档案回填（实施记录/验证/Known Issues）+ 迁 tasks/review/ + handoff |
-| 5 | （本提交） | docs(TASK-037): 补录 PR #10 与 gh pr checks 双绿留痕（run 38733746197） |
+| 5 | `424d2f0` | docs(TASK-037): 补录 PR #10 与 gh pr checks 双绿留痕（run 38733746197） |
+| 6 | （本提交） | docs(TASK-037): 合并前整改 O1–O4（补录最终 head 双绿 run / AC-6 防腐表述 / 序列补 SHA） |
+| 7 | （随后提交） | docs(TASK-037): 归档第 1 轮复审记录（可合并，无阻断 + O1–O4） |
+
+> 注：第 6/7 行为第 1 轮独立审查后的合并前整改两提交（审查结论「可合并，无阻断」+ O1–O4，
+> 完整记录见 `2026-10-15-review.md`）；第 5 行 SHA 于合并前整改时补全（写就时该提交尚不存在，
+> O3 自指极限，同 TASK-036 O5 模式）。序列截至本 handoff 最后编辑时点；如后续仍有提交，
+> 以 `git log --oneline main..HEAD` 实查为准。
 
 ---
 

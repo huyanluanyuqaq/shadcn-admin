@@ -16,7 +16,7 @@ Owner: 执行位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T12:20:35Z
+Updated: 2026-10-15T12:52:00Z
 Branch: chore/TASK-037-archive-t036-doc-anchors
 Requires Human Approval: false
 ```
@@ -108,7 +108,8 @@ Requires Human Approval: false
       结论「甲下不需要：`pull_request` 触发已足够」一字未动）；
       `github-capability-matrix.md` 零改动。
 - [x] AC-6: 本档案交付时位于 `tasks/review/`、`Status: REVIEW`、Meta `Updated`
-      （12:16:48Z）早于提交时间；handoff 含全部实跑命令与原始输出；
+      刷新为真实编辑时间且早于提交时间（N4 纪律；提交时间以 `git log -1 --format=%aI`
+      实查为准）；handoff 含全部实跑命令与原始输出；
       Known Issues 如实披露 `.agents/` 无版本控制与 D9 排除理由。
 - [x] AC-7: `audit_framework.py` PASS=13 FAIL=0；`scripts/audit-repo.py` PASS=6；
       `pnpm build` / `pnpm lint` / `pnpm format:check` 全绿；`git status --short` 干净。
@@ -174,10 +175,28 @@ Non-Scope (files):
 > **提交序列（均含 `Refs: TASK-037` footer，显式路径 `git add`）：**
 > `2e9084c` 建档案 → `95fd1c2` TASK-036 归档回写 + 迁 `tasks/done/` →
 > `c7729dd` .gitignore + ci.yml checkout → `fef2a1e` 档案回填 + 迁 `tasks/review/` + handoff
-> →（补录提交）PR #10 编号与 `gh pr checks` 双绿留痕（run `38733746197`）。
+> → `424d2f0` 补录 PR #10 与 `gh pr checks` 双绿留痕（run `38733746197`）
+> → 本提交与随后的复审记录归档提交（合并前整改 O1–O4 + 归档第 1 轮复审记录）。
+> 序列截至本档案 Meta `Updated` 时点；如后续仍有提交，以 `git log --oneline main..HEAD` 实查为准。
 >
 > **本任务自身亦演示 D13-C：** 合并后的归档回写（`Status → DONE` + 移 `tasks/done/` +
 > `Merge Record`）待下一个任务补记（见 `Merge Record` 区空白）。
+>
+> **合并前整改（第 1 轮独立审查后续）：** 独立审查结论「**可合并，无阻断**」
+> （完整记录逐字归档于 `handoffs/2026-10-15-review.md`，第 1 轮复审记录），
+> 同时提出 4 项非阻断观察（O1–O4，均属留痕同步 / 自指极限 / 活文档补记类，
+> 不影响任何事实 claim）；按项目纪律（不因划了范围而留存已知失真）于合并前就地整改：
+> ① **O1**：Verification「PR 门禁」行改为历数两个 head 的 run（首轮 `fef2a1e` →
+> run `38733746197` 双绿；`424d2f0` → run `38734054788` 双绿）并以防腐措辞收尾
+> （合并门禁以合并时点 head 的 run 为准；合并后 `main` push run 由下一个任务的
+> Merge Record 回填）；handoff §6 补最终 head `gh pr checks` 原始输出。
+> ② **O2**：AC-6 改为不引具体时间值的防腐表述（Meta `Updated` 纪律的验证以
+> `git log -1 --format=%aI` 实查为准），杜绝文字与 Meta 值再次不同步。
+> ③ **O3**：提交序列中 `424d2f0` 补全 SHA 与身份；本整改提交自指并加防腐注
+> （序列截至本档案 Meta `Updated` 时点，后续提交以 `git log --oneline main..HEAD` 实查为准）。
+> ④ **O4**：PR #10 描述「测试结果」节纯插入两个 head 的双绿记录
+> （推送并确认新 head 双绿后执行 `gh pr edit 10`，纯插入不改既有内容，
+> 复验 `gh pr view 10 --json body` 确认在场）。
 
 ## Verification
 
@@ -197,7 +216,7 @@ Non-Scope (files):
 | 构建 | `pnpm build` | **✓ built in 750ms**（首次因环境防误删保护拦下，`rm -rf dist` 后通过） |
 | Lint | `pnpm lint` | **通过** |
 | 格式 | `pnpm format:check` | **通过**（覆盖 ci.yml） |
-| PR 门禁 | `gh pr checks` | **双绿**（PR #10，run `38733746197`：audit 5s / install-lint-build 54s；head `fef2a1e` OPEN/MERGEABLE） |
+| PR 门禁 | `gh pr checks`（两个 head 实查） | **双绿**：首轮 head `fef2a1e` → run `38733746197`（audit 5s / install-lint-build 54s）；`424d2f0` → run `38734054788`（audit 6s / install-lint-build 1m16s）；两个 run 均 success，PR #10 OPEN / MERGEABLE。以上为截至本档案 Meta `Updated` 时点的 PR 侧留痕；合并门禁以合并时点 head 的 run 为准，合并后 `main` push run 由下一个任务的 Merge Record 回填（D13-C） |
 
 原始命令输出全文见 `handoffs/2026-10-15-implementation.md`。
 
