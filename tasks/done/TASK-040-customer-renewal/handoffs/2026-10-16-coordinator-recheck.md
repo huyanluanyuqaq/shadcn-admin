@@ -311,3 +311,99 @@ $ gh pr view 12 --json state,mergedAt,mergeCommit,headRefOid
 - **终止「鸡生蛋」无限回归的办法**：修正提交须在 `Current State` 与 PR 描述中**写入防腐注** —— 「head/run 为撰写时点快照；合并门禁以**合并时点 head 的 run** 为准；最终权威事实由 `Merge Record`（D13-C **第七实例**回填）承载」。此后**不再**为纯文案单开一轮。
 
 > ⚠️ 本附录由**主控位**出具 ⇒ **不构成 AC-10 记录**，**待随修正提交一并入库**。
+> （注：该修正提交已于 2026-10-16 23:44 以 `c0777db` 入库并随 PR #12 合并 —— 见附录 F。）
+
+---
+
+## 附录 F 合并执行记录与合并后清单（2026-10-16 23:57，主控位）
+
+> ⚠️ 本附录由**主控位**（本任务设计者 + 阶段 9 复审出具方）记录其**合并动作**，
+> **不构成 AC-10 记录**；待随 **D13-C 第七实例**（TASK-041 的交付请求）一并入库。
+
+### F.1 职责依据（先核实、后执行）
+
+按需先核实「谁执行合并」，不得凭习惯：
+
+- `dual-agent-model.md` §6 分工表：**「合并」= 主控位 ✅ 独占 / 执行位 ❌**（第 156 行；
+  第 152 行「推送默认分支（合并）」同）⇒ **合并是主控位职责**。
+- 纠正：本记录 §5 与派单文本中「合并由执行位做」的表述**有误**——
+  执行位独占的是「创建任务分支 / 推送到任务分支 / 提交交付请求」（第 150/151/153 行），
+  **不含**合并。
+- `rules/github.md` §6（合并前置：审查通过 + 必需检查通过 + 分支保护满足 + 必要授权）、
+  §7（未获授权即合并 = 越权）；`AGENTS.md` §14.2（rebase-merge + 合并后删除工作分支 + 回写 Merge Record）。
+
+### F.2 合并前置（实跑核验）
+
+| 前置 | 实测 |
+|---|---|
+| 授权 | ✅ 人类显式授权「授权合并 PR #12」（2026-10-16 23:56） |
+| 审查 | ✅ AC-10 两轮独立审查记录已落 `handoffs/2026-10-16-review.md`，结论 PASS / 无阻断 |
+| 必需检查 | ✅ run `38926410506`：`audit` + `install-lint-build` 双绿 |
+| 分支保护 | ✅ 经典保护：必需检查 `audit`/`install-lint-build`、必需 PR、approvals=0、`enforce_admins=true` |
+| 可合并性 | ✅ `mergeable: MERGEABLE` / `mergeStateStatus: CLEAN` / `isDraft: false` |
+
+### F.3 合并结果
+
+```
+$ gh pr merge 12 --rebase
+$ gh pr view 12 --json state,mergedAt,mergeCommit
+{"state":"MERGED","mergedAt":"2026-10-16T15:57:43Z",
+ "mergeCommit":{"oid":"3d37b4aadc5ba3ca80ab231391c991ee1253f7fe"},
+ "headRefOid":"c0777db36b64485d464d79d4ea10583fb6b2b55f"}
+```
+
+- **合并判据只看 `gh pr view --json state,mergedAt,mergeCommit`**（未用 run 状态反推）。
+- `origin/main`：`34d9d69 → 3d37b4a`（rebase-merge，线性历史）。
+
+### F.4 ★ rebase-merge 改写了全部 SHA（11 对映射）
+
+**判据**：`git merge-base --is-ancestor 3d37b4a origin/main` → 通过；`git cat-file -t <sha>` 逐项可复现。
+
+| # | pre-rebase（feature 分支） | post-rebase（main） | 提交主题 |
+|---|---|---|---|
+| 1 | `5d74064` | `df202f7` | 设计与任务档案 |
+| 2 | `e572da3` | `6df3b8c` | feat：续期功能 |
+| 3 | `4f6c94c` | `bcf77d3` | 档案回填 |
+| 4 | `300c28d` | `d445f5b` | 整改 7 项 |
+| 5 | `f8264f3` | `1cab4be` | 第二轮整改 |
+| 6 | `aa0a8a8` | `237d10c` | 第三轮 R1–R4 |
+| 7 | `a2af804` | `65c5029` | R6–R8 |
+| 8 | `1cce4fc` | `dee1ef5` | 补完 R8 + A4 |
+| 9 | `b4aa45a` | `02ce61c` | AC-10 记录入库 |
+| 10 | `c0777db` | `3d37b4a` | 合批修正（A1/A2/B1/B2） |
+| 11 | `1183145` | `d8d16c2` | TASK-039 D13-C 第六实例回写 |
+
+⇒ 档案与 PR 描述中出现的 `1cce4fc`/`b4aa45a`/`c0777db` 等为**合并前 head 体系**，
+在 `main` 上**不可复现**（但仍在本地对象库中，可 `git cat-file -t` 验证）。
+**这不是缺陷**，是 rebase-merge 的既定后果；权威事实以 `Merge Record` 的映射表为准。
+
+### F.5 合并后验证
+
+- **CI**：`main` push run **`38928137184`** → `conclusion: success`，`headSha = 3d37b4a`。
+- **D8 解耦（第 11 次复现）**：`gh run list --workflow=docker.yml` 最新一次为 2026-10-13 ⇒
+  **本次合并未触发任何 Docker 运行**（`docker.yml` tag-only 生效）。
+- **工作分支已删**：远端 `feature/TASK-040-customer-renewal` 已删除（`git ls-remote` 无匹配）；
+  本地分支已 `git branch -D`。仓库 `delete_branch_on_merge = false`，故为显式删除。
+- 本地已切至 `main` 并 `pull --ff-only` ⇒ HEAD = `3d37b4a` = `origin/main`。
+
+### F.6 合并后清单（`github-collaboration.md` §9）逐项
+
+- [x] 交付请求已正确合并（`state: MERGED`，`mergeCommit: 3d37b4a`）
+- [x] 必需检查符合要求（合并前 run `38926410506`；合并后 run `38928137184`，均已记录）
+- [x] 任务状态与物理目录一致 **或** 已按 D13-C 标注「回写待补记」⇒ 取后者：`Status = REVIEW` + 留 `tasks/review/`，档案已标注「Merge Record 待下一个任务（第七实例）回填」
+- [x] 必要文档已更新（设计文档 / ADR-004 / 档案 / 审查记录 均随本 PR 入库）
+- [x] 遗留问题已有独立记录（本文件附录 A–F）
+- [x] 最终交付报告与实际仓库状态一致（本附录即为合并时点实况）
+- [x] 已指明本任务 `Merge Record` 由**哪一个后续任务**补记 ⇒ **TASK-041**（D13-C 第七实例）
+
+### F.7 移交 TASK-041 的回写项（第七实例）
+
+除 `Merge Record` 七要素外，须一并修正以下**滞后断言**（均为合并前后差异所致，非缺陷）：
+
+1. `TASK.md:13` —— `Status: REVIEW（2026-10-16 实施完成，已推送；**待独立审查后合并**）`
+   ⇒ 括注已滞后（审查与合并均已完成）⇒ 随回写改为 `Status: DONE（2026-10-16 已合并，PR #12）`。
+2. `TASK.md` `Current State` 的「head `f8264f3` / run `38908188715`」「当前 head `b4aa45a`」
+   ⇒ 合并后应引用 **main `3d37b4a` + run `38928137184`**，并附 F.4 的 SHA 映射指针。
+3. `git mv tasks/review/TASK-040-customer-renewal tasks/done/TASK-040-customer-renewal`。
+
+> ⚠️ 本附录由**主控位**出具 ⇒ **不构成 AC-10 记录**；**待随 TASK-041 的交付请求（第七实例）一并入库**。
