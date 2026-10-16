@@ -36,7 +36,7 @@ Requires Human Approval: false   # 普通变更：无 DB 迁移、无生产部�
 > 已推送并创建 PR #12（CI 双绿），待独立审查通过后由人类授权 rebase-merge。
 
 > **编号说明：** 本仓库序号 001–037 已占用，**038 由模板仓库任务占用**，
-> **039 为框架接入任务**（在 `tasks/review/`，待本任务承载归档回写）。
+> **039 为框架接入任务**（已完成归档回写并迁入 `tasks/done/`，提交 `1183145`）。
 > 本任务取 **040**。
 
 ---
@@ -339,7 +339,12 @@ Non-Scope (files):
 > D8 第 10 次复现 / 两轮审查 O1–O4 / N1–N3 均已整改关闭 / 11 对 SHA 映射）+
 > `git mv` → `tasks/done/TASK-039-adopt-workspace-framework/`（footer `Refs: TASK-039`）。
 >
-> **本档案修订后 Next Action：** 推送远端 → 创建交付请求（PR 待审）。
+> **本任务 PR #12（2026-10-16）：**
+> PR https://github.com/huyanluanyuqaq/shadcn-admin/pull/12（rebase-merge），head `f8264f3`；
+> CI run `38908188715`（`audit` + `install-lint-build` 双绿）。
+> 已执行两轮整改（`300c28d` 7 项 + `f8264f3` 4 项），状态：交付完整性缺陷全部关闭，待独立审查。
+>
+> **本档案修订后 Next Action：** 独立审查（新实例，I2）→ 整改（如有）→ 人类授权 rebase-merge。
 
 ---
 

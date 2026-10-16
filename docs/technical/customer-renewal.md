@@ -136,15 +136,10 @@ const selectedCustomer =
 > 并登记为 Known Issue L8。**注意区分**：这不是「允许把长期静默改写为有限期」——
 > 变更结果在提交前可见；只是不再以禁用阻断。
 
-判定实现建议（顺序敏感，先窄后宽）：
-
-```tsx
-const renewDisabledReason =
-  selectedRows.length === 0 ? '请先在列表中选择一行客户'
-  : selectedRows.length > 1 ? `一次只能续期一个客户（当前已选 ${selectedRows.length} 行）`
-  : !selectedCustomer ? '选中的客户不在当前数据中，请重新选择'
-  : null
-```
+**实现注记（与 `customers-table.tsx` 一致）：** 本项目实现中使用 `Object.keys(rowSelection).length`
+  区分第 1 条（`=== 0`）与第 3 条（`=== 1` 但 `!selectedCustomer`，即 id 已不在当前数据集内），
+  二者均禁用且文案不同。`getFilteredSelectedRowModel().rows` 用于过滤掉翻页/筛选后的残留 id，
+  只有该集合 `length === 1` 且 `selectedCustomer` 存在时才可用。
 
 **关于提示的实现方式：** 使用**原生 `title` 属性**，不用 Radix `Tooltip`。
 理由有二：① 与同区域既有「刷新」按钮的写法一致，零新增复杂度；
