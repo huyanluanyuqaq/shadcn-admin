@@ -10,13 +10,13 @@
 Task ID: TASK-041
 Title: 客户到期时间改为必填（表单 + API 入参双重强制；历史 null 保留、编辑时补填）
 Workflow: refactor          # 非新增能力，而是收紧既有字段的契约与校验
-Status: DESIGN
+Status: REVIEW
 Priority: P2
-Owner: 主控位（定义与设计已由本会话完成，待执行位认领）
+Owner: 主控位（定义与设计已完成）→ 执行位（实施已完成，待审查）
 Owner Since: 2026-10-16
-Assigned Role: architect（设计，已完成）→ developer（实施，待认领）；审查由不携带实现上下文的新实例承担
+Assigned Role: architect（设计，已完成）→ developer（实施，已完成）；审查由不携带实现上下文的新实例承担
 Created: 2026-10-16
-Updated: 2026-10-16
+Updated: 2026-10-17
 Branch: refactor/TASK-041-customer-expire-required
 Requires Human Approval: true   # 破坏性接口变更：POST /api/customers 由「expireAt 可省略」变「必填」；
                                 # 且编辑历史 null 客户时不能再「原样保存」
@@ -31,8 +31,14 @@ Requires Human Approval: true   # 破坏性接口变更：POST /api/customers �
 > | `REVIEW` | `review/` |
 > | `DONE` | `done/` |
 >
-> **本任务当前为 `DESIGN`（`active/`）：** 设计阶段（Architect）产物已定稿并落盘。
-> **但因存在未满足的 `blocks` 依赖（TASK-040 未合并），本任务不得进入 `ACTIVE`。**
+> **本任务当前为 `REVIEW`（`review/`）：** 实施阶段已完成（提交 `b14e097` + `0ccd79a`），
+> 本地验证全绿（`pnpm test` **345 passed**），待独立审查通过后由人类授权 rebase-merge。
+>
+> **注（D13-C 既定形态，非缺陷）：** 本任务合并后**仍保持 `Status = REVIEW`、留在 `tasks/review/`**，
+> 其 `Merge Record` 由**下一个任务**按 D13-C **第八实例**回填。
+>
+> **历史注记：** 本任务曾因 `blocks` 依赖（TASK-040 未合并）被限制在 `DESIGN`、不得进入 `ACTIVE`；
+> 该依赖已于 2026-10-16 解除（TASK-040 以 PR #12 合入 `main`，merge commit `3d37b4a`）。
 
 > **编号说明：** 本仓库序号 001–037 已占用，038 为模板仓库任务，039 为框架接入任务
 > （在 `tasks/review/`），**040 为客户续期任务**。本任务取 **041**。
@@ -229,44 +235,44 @@ Requires Human Approval: true   # 破坏性接口变更：POST /api/customers �
 
 | 依赖 | 类型 | 状态 |
 |------|------|------|
-| **TASK-040（客户续期）** | **blocks（本任务依赖它先合并）** | **未完成**（`Status = DESIGN`，待执行位实施） |
-| TASK-040 归档回写（D13-C 第七实例） | 随本分支承载 | 待 TASK-040 合并后实查回填 |
+| **TASK-040（客户续期）** | **blocks（本任务依赖它先合并）** | ✅ **已完成** —— PR #12 `MERGED`，`mergedAt 2026-10-16T15:57:43Z`，merge commit `3d37b4a`；`git merge-base --is-ancestor 3d37b4a origin/main` 通过 |
+| TASK-040 归档回写（D13-C 第七实例） | 随本分支承载 | ✅ **已完成**（提交 `8062818`，footer `Refs: TASK-040`）—— 见下方 Current State |
 | GitHub 分支保护 + CI（`install-lint-build` / `audit`） | external | 已配置（2026-10-14 起，`AGENTS.md` §14.4） |
 
-> **存在未满足的 `blocks` 依赖 ⇒ 本任务不得进入 `ACTIVE`。** 执行位须先确认 TASK-040 已合并
-> （`gh pr view <n> --json state,mergedAt,mergeCommit` 与 `git merge-base --is-ancestor`），
-> 再从最新 `main` 派生分支。
+> **`blocks` 依赖已解除 ⇒ 本任务已自最新 `main`（`3d37b4a`）派生分支实施完毕。**
+> 实查命令（执行位于 2026-10-17 执行）：`gh pr view 12 --json state,mergedAt,mergeCommit` +
+> `git merge-base --is-ancestor 3d37b4aadc5ba3ca80ab231391c991ee1253f7fe origin/main`。
 
 ---
 
 ## Acceptance Criteria
 
-- [ ] AC-1: 表单层：`expireAt: null` 被校验拒绝且提示文案为「请选择到期时间」；合法 `Date` 通过。
-- [ ] AC-2: API 入参层：`POST /api/customers` 缺 `expireAt` → **400**、带合法值 → 201；
+- [x] AC-1: 表单层：`expireAt: null` 被校验拒绝且提示文案为「请选择到期时间」；合法 `Date` 通过。
+- [x] AC-2: API 入参层：`POST /api/customers` 缺 `expireAt` → **400**、带合法值 → 201；
       `PATCH` 省略 `expireAt` → 200（部分更新仍可用）；`PATCH` 传 `{ expireAt: null }` → **400**。
-- [ ] AC-3: 输出层：`customerSchema` 的 `.extend({...})` 中**显式覆写** `expireAt` 为
+- [x] AC-3: 输出层：`customerSchema` 的 `.extend({...})` 中**显式覆写** `expireAt` 为
       `z.number().int().nullable()`；`Customer.expireAt` 的类型仍为 `number | null`（走查 + `tsc` 为证）。
-- [ ] AC-4: 界面：占位为「请选择到期时间」；「清除到期时间」按钮**不存在**；
+- [x] AC-4: 界面：占位为「请选择到期时间」；「清除到期时间」按钮**不存在**；
       「购买时间 + 档位」自动计算分支行为不变。
-- [ ] AC-5: 日历 `required` 的**实测结论已记录**：要么确实阻止取消选择，要么退化为
+- [x] AC-5: 日历 `required` 的**实测结论已记录**：要么确实阻止取消选择，要么退化为
       「可落到 `null` 但被校验拦住」并**如实披露**——二选一，不得含糊或写成「UI 上无法清空」。
-- [ ] AC-6: 历史 `null` 客户打开编辑即为无效初值：不补填 → 保存被拦；补填 → 保存成功且
+- [x] AC-6: 历史 `null` 客户打开编辑即为无效初值：不补填 → 保存被拦；补填 → 保存成功且
       `mutateAsync` 载荷含新的 `expireAt`（有对应用例）。
-- [ ] AC-7: 列表 `null` 文案为「**未设置**」（D-3，已由人类追认）；`daysLeft` 实现与
+- [x] AC-7: 列表 `null` 文案为「**未设置**」（D-3，已由人类追认）；`daysLeft` 实现与
       `splitPlanCycles` 的判空逻辑**未改**。
-- [ ] AC-8: `server/scripts/smoke.ts` 10 处载荷补**远期** `expireAt`；新增两条契约检查
+- [x] AC-8: `server/scripts/smoke.ts` 10 处载荷补**远期** `expireAt`；新增两条契约检查
       （缺字段 400 / 传 `null` 400）；`pnpm --filter server smoke` 全绿。
-- [ ] AC-9: 测试按设计文档 §7 落地并实测通过；**未**放宽校验（以用例名与断言行核对，非通过率）。
-- [ ] AC-10: `api-contract.md` 的 `expireAt` 行已更新（与代码同提交）；
+- [x] AC-9: 测试按设计文档 §7 落地并实测通过；**未**放宽校验（以用例名与断言行核对，非通过率）。
+- [x] AC-10: `api-contract.md` 的 `expireAt` 行已更新（与代码同提交）；
       `customer-renewal.md` 的跨任务注记已补且**仅有注记**（以 diff 为证）。
-- [ ] AC-11: 未改动 `server/src/**`、`server/drizzle/**`、`src/features/subscriptions/**`、
+- [x] AC-11: 未改动 `server/src/**`、`server/drizzle/**`、`src/features/subscriptions/**`、
       `src/components/ui/**`、`package.json`、`pnpm-lock.yaml`（以 diff 为空为证）。
-- [ ] AC-12: `pnpm build:shared && pnpm lint && pnpm format:check && pnpm build && pnpm test`
+- [x] AC-12: `pnpm build:shared && pnpm lint && pnpm format:check && pnpm build && pnpm test`
       全部本地通过（若浏览器不可用则如实披露由 CI 执行）；`python3 scripts/audit-repo.py` 全 PASS。
 - [ ] AC-13: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit`
       双绿（run id 留痕，含「合并门禁以合并时点 head 的 run 为准」防腐注）。
 - [ ] AC-14: 两轮独立审查记录落 `handoffs/`，阻断项关闭并经实跑复核；实现者未自我批准。
-- [ ] AC-15: TASK-040 归档回写完成（`Status = DONE` + Merge Record 七要素 + 迁 `tasks/done/`），
+- [x] AC-15: TASK-040 归档回写完成（`Status = DONE` + Merge Record 七要素 + 迁 `tasks/done/`），
       且本任务 `Merge Record` 已标注「待下一个任务回填（D13-C 第八实例）」。
 
 ---
@@ -286,7 +292,8 @@ File Scope:
   - docs/technical/customer-expire-required.md                          # 本设计（补实现状态与锚点）
   - docs/technical/customer-renewal.md                                  # 仅 1 行跨任务注记（滞后修正）
   - docs/decisions/ADR-005-customer-expire-required.md                  # 状态与授权记录
-  - tasks/active/TASK-041-customer-expire-required/**                   # 任务档案与交接
+  - tasks/review/TASK-041-customer-expire-required/**                   # 任务档案与交接
+    # （随 Status → REVIEW 已从 active/ 迁入 review/；凡见 active/ 路径均指同一目录的历史位置）
   - tasks/review/TASK-040-customer-renewal/**                           # D13-C 回写（仅 tasks/**）
   - tasks/done/TASK-040-customer-renewal/**                             # D13-C 归档迁入
 Non-Scope (files):
@@ -344,52 +351,82 @@ Non-Scope (files):
 
 ## Current State
 
-> **2026-10-16 —— 设计阶段完成（主控位 / Architect），尚未实施；因 `blocks` 依赖（TASK-040）
-> 未满足，本任务**不得**进入 `ACTIVE`。**
+> **2026-10-17 —— 实施阶段完成（执行位 / Implementer），提交 `b14e097`（代码 + 契约文档）与
+> `0ccd79a`（测试 + 冒烟）；分支 `refactor/TASK-041-customer-expire-required`，基线 `origin/main = 3d37b4a`。**
 >
-> **已完成（本会话）：**
-> ① 实查并定盘 12 项设计依据（设计文档 §2 的 F1–F12），其中三项决定性结论：
-> 「共享 schema 创建与更新共用」「输出 schema 由输入派生 ⇒ 必须显式覆写」
-> 「冒烟脚本 10 处创建客户不带 `expireAt`」；
-> ② **实跑 zod 4.3.6 探针**（临时脚本已删，`git status` 已复原），确认三件事：
-> 必填中文文案可用（v4 无 `required_error`）；**对象级 refine 会使 `.partial()` 调用即抛错**
-> ⇒ 校验只能加在字段级；输出 schema 覆写有效；
-> ③ 产出设计文档 `docs/technical/customer-expire-required.md`（§3 三层强制点、§4 界面与交互、
-> §5 历史数据处理与跨任务连带影响、§6 契约与冒烟同步、§7 测试要求、§8 五项已知限制、§9 决策 D1–D8）；
-> ④ 产出 ADR-005（`Accepted`，含逐项授权记录：**D-1 / D-2 / D-3 三项均已由人类裁定或追认生效**）；
-> ⑤ 登记本档案与派遣交接 `handoffs/HANDOFF-001-coordinator-to-implementer.md`。
+> **本地验证（全绿，实跑）：**
+> `pnpm build:shared` ✅ / `pnpm lint` ✅（无输出）/ `pnpm format:check` ✅（All matched files use
+> Prettier code style!）/ `pnpm build` ✅（✓ built）/ **`pnpm test` 27 文件 / 345 passed** ✅（基线 334，
+> 新增 11）/ **`python scripts/audit-repo.py` PASS=7 FAIL=0** ✅ /
+> `python ../../shared/scripts/audit_framework.py` **PASS=12 FAIL=0 SKIP=1** ✅。
 >
-> **人类裁定（本任务设计前）：** ① 强制层级 = 表单 + API 入参；② 历史 `null` 保留、编辑时补填；
-> ③ 另立 TASK-041（不并入 TASK-040）。
+> **冒烟（`pnpm --filter server smoke`，隔离环境：DB `VACUUM INTO` 快照 + `PORT=3002`）：**
+> 本分支 **133 通过 / 7 失败**；**基线对照**（还原改动后的 `main`，同一隔离环境）为
+> **130 通过 / 7 失败**，失败项 **`diff` 逐行一致** ⇒ 7 项均为**基线固有**
+> （Telegram/飞书 mock 未启动 ⇒ 通知未派发；富格式段 `FOREIGN KEY constraint failed`），
+> **与本任务无关**。新增 3 条契约检查**全部通过**。
 >
-> **设计产物以工作区未提交状态交付**（主控位不创建分支、不提交、不推送——分支创建与提交属执行位职责）。
+> **代码改动（4 文件）与 File Scope 逐项吻合：** `shared/src/schema/entities.ts`（入参必填 +
+> 输出覆写）、`src/features/customers/data/schema.ts`（字段级 refine + `toCustomerInput` 类型断言）、
+> `src/features/customers/components/customers-action-dialog.tsx`（占位 / 移除清除按钮 / 日历 `required`）、
+> `customers-columns.tsx`（「未设置」）。**禁用面零改动**（AC-11 以 `git diff --stat` 为空为证）。
 >
-> **未开始：** 全部代码改动、测试落地、冒烟调整、本地验证、推送、审查、合并。
+> **★ 实施期两处设计未预见的连锁（已就地处理，详见设计文档 §11.1）：**
+> ① **TypeScript 5.5 推断类型谓词** 令 `.refine((v) => v !== null)` 把输出类型收窄为 `Date`
+> ⇒ 加**显式返回类型注解** `(v): boolean =>` 规避，输出保持 `Date | null`（与 D5 一致）；
+> ② 入参必填后 `toCustomerInput` 返回类型冲突 ⇒ **运行时保留** `null → null` 的防御性映射
+> （§7.1 要求），加类型断言与注释标明其不再由表单触达。**均未放宽校验。**
 >
-> **Next Action（执行位）：** 确认 TASK-040 已合并后自最新 `main` 派生
-> `refactor/TASK-041-customer-expire-required` 并提交设计产物，随后从
-> `shared/src/schema/entities.ts` 的两处改动开始实施。
+> **★ AC-5 实测：`required` 生效。** 到期时间日历再次点击已选日期**不清空**；
+> 对照组（同页「购买时间」日历**未**加 `required`）**会被清空** ⇒ 差异确由 `required` 带来。
+>
+> **D13-C 第七实例已完成（提交 `8062818`，footer `Refs: TASK-040`）：** TASK-040
+> `Status → DONE` + Merge Record 九项**实查**回填 + **11 对 SHA 映射逐对验证**
+> （两侧 `tree` 相同、post 侧在 `main` 上）+ `git mv` → `tasks/done/`；
+> 并修正其 `TASK.md:13` 滞后括注、补 `Current State` 合并事实与防腐注。
+>
+> **人类裁定（本任务设计前，三项）：** ① 强制层级 = 表单 + API 入参；
+> ② 历史 `null` 保留、编辑时补填；③ 另立 TASK-041。
+>
+> **防腐注：** 本节的 head / CI run / 通过数为**撰写时点快照**（尚未推送、尚无 CI run）。
+> 合并门禁以**合并时点 head 的 run** 为准；最终权威事实由下一个任务回填的 `Merge Record` 承载。
+>
+> **Next Action：** 由**不携带实现上下文的新实例**执行 AC-14 的两轮独立审查 →
+> 推送 → 创建交付请求 → CI 双绿 → **人类显式授权** rebase-merge（由主控位执行）。
 
 ---
 
 ## Changed Files
 
-> 设计阶段（主控位，未提交）：4 个文件 —— 2 份 docs + 本档案 + 1 份 handoff。
-> 实施阶段的代码改动由执行位在本表补充。
+> 设计阶段（主控位，`f750f4b`）：4 个文件；实施阶段（执行位，`b14e097` + `0ccd79a`）：9 个文件。
+> **路径注记：** 下表与本档案其余处出现的 `tasks/active/TASK-041-…` 为**提交时**路径；
+> 随 `Status → REVIEW` 已 `git mv` 至 **`tasks/review/TASK-041-…`**。
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| `docs/technical/customer-expire-required.md` | 新增 | 客户到期时间必填设计（权威实现依据） |
+| `docs/technical/customer-expire-required.md` | 新增（设计）→ 修改（回填 §11 实现结果） | 客户到期时间必填设计（权威实现依据）；§11 为实施结果 |
 | `docs/decisions/ADR-005-customer-expire-required.md` | 新增 | 强制层级与历史数据决策（`Accepted`，逐项授权记录） |
-| `tasks/active/TASK-041-customer-expire-required/TASK.md` | 新增 | 本任务档案 |
-| `tasks/active/TASK-041-customer-expire-required/handoffs/HANDOFF-001-coordinator-to-implementer.md` | 新增 | 主控位 → 执行位派遣交接 |
+| `tasks/review/TASK-041-customer-expire-required/TASK.md` | 新增 → 回填 | 本任务档案 |
+| `tasks/review/TASK-041-customer-expire-required/handoffs/HANDOFF-001-coordinator-to-implementer.md` | 新增 | 主控位 → 执行位派遣交接 |
+| `tasks/review/TASK-041-customer-expire-required/handoffs/HANDOFF-002-implementer-to-coordinator.md` | 新增 | 执行位 → 主控位实施交付交接 |
+| `shared/src/schema/entities.ts` | 修改 | 入参 `expireAt` 必填 + 输出 schema 显式覆写保持可空 |
+| `src/features/customers/data/schema.ts` | 修改 | 表单字段级 refine（显式 `: boolean`）+ `toCustomerInput` 类型断言与注释 |
+| `src/features/customers/components/customers-action-dialog.tsx` | 修改 | 占位文案 / 移除「清除到期时间」/ 日历 `required` |
+| `src/features/customers/components/customers-columns.tsx` | 修改 | `null` 文案「长期」→「未设置」（D-3） |
+| `src/features/customers/data/schema.test.ts` | 修改 | +5 用例；既有 `null → null` 映射断言加注释 |
+| `src/features/customers/components/customers-action-dialog.test.tsx` | 修改 | +6 用例；3 个既有「新建保存」用例改为先选日期 |
+| `server/scripts/smoke.ts` | 修改 | 10 处补远期 `expireAt` + 3 条契约检查 |
+| `docs/technical/api-contract.md` | 修改 | `expireAt` 行更新（**与代码同一次提交**） |
+| `docs/technical/customer-renewal.md` | 修改 | F13 / §3.4 / L8 各 1 行跨任务注记（**仅注记**） |
+| `tasks/done/TASK-040-customer-renewal/**` | 迁入 + 回写 | D13-C 第七实例（仅 `tasks/**`） |
 
 ---
 
 ## Known Issues
 
-> 设计阶段已知限制（与设计文档 §8 的 L1–L5 一一对应）。实施完成后由执行位更新状态
-> （保持为「已披露的接受项」或标注「已解决」）。
+> 设计阶段已知限制（与设计文档 §8 的 L1–L5 一一对应）。
+> **实施完成后状态：L1–L5 全部维持「已披露的接受项」，未当作缺陷修，亦未放宽校验。**
+> 另登记 X1 / X2 两项**实施期发现**（均已就地处理，非缺陷）与 1 项基线固有的冒烟失败。
 
 - **L1 编辑历史 `null` 客户必须补填（刻意代价）**：即使只想改备注，也必须先设一个到期时间。
   这是「必填」的固有含义，**不是缺陷**；**不得**为「放行」而放宽校验或恢复 `null` 路径。
@@ -401,6 +438,18 @@ Non-Scope (files):
   上游可能不返回。**刻意**不改，两实体语义不同；**不得**顺手统一（越界）。
 - **L5 无「禁止清空」的专门服务端守卫**：保证仅来自 zod schema。schema 是唯一写入入口
   （`crud.ts`），不为单一字段增设旁路判断。
+
+**实施期新增（均已处理，非缺陷）：**
+
+- **X1 TypeScript 5.5「推断类型谓词」**：`.refine((v) => v !== null)` 会让输出类型
+  **收窄为 `Date`**（内联箭头函数被推成 `(v) => v is Date`），令 `emptyCustomerForm()` /
+  `toCustomerForm()` 的 `null` 初值类型报错。⇒ 已用**显式返回类型注解** `(v): boolean =>`
+  禁用该推断，输出保持 `Date | null`（与 D5 一致）。后续若有人删掉该注解，类型会再次收窄。
+- **X2 `toCustomerInput` 的类型冲突**：入参必填后 `CustomerInput.expireAt` 为 `number`，
+  而该纯函数保留 `null → null` 映射 ⇒ 已加类型断言 + 注释，标明该分支**不再由表单触达**
+  （表单侧由字段级 refine 保证非空）、仅作防御性映射；**运行时行为未变**（§7.1 的断言保留）。
+- **X3 冒烟 7 项失败为基线固有**：经**基线对照**（还原改动后同一环境跑同一脚本）确认失败项
+  逐行一致 ⇒ 与本任务无关；未在本次改动中处置，亦不属本任务范围。
 
 ---
 
@@ -426,25 +475,26 @@ Non-Scope (files):
 
 ## D13-C 回填指引（TASK-040，第七实例 —— 由本任务承载）
 
-> 本任务分支须同时完成 **TASK-040（客户续期）** 的归档回写，**范围仅限 `tasks/**`**。
-> **前置条件：TASK-040 必须先合并**，否则无 Merge Record 可回填 ⇒ 执行位须以 `gh` **实查**后落笔，
-> 不得照抄本表（本表在 TASK-040 合并前无法填出真实值）。
+> ✅ **本项已于 2026-10-17 完成**（提交 `8062818`，footer `Refs: TASK-040`，范围仅限 `tasks/**`）。
+> 全部要素均由执行位以 `gh` / `git` **实查**后落笔（非照抄本表）。
+> **权威值已落在 `tasks/done/TASK-040-customer-renewal/TASK.md` 的 `Merge Record` 节**（含 11 对 SHA 映射）。
 
-| 要素 | 值（待执行位在 TASK-040 合并后实查） |
-|------|--------------------------------------|
-| PR | 待实查（`gh pr view`） |
-| 合并策略 | 预期 rebase-merge（以 `gh pr view --json mergedAt,mergeCommit` 为准） |
-| 提交数 | 待实查（`gh pr view --json commits`） |
-| merged_at | 待实查 |
-| merge_commit_sha | 待实查 |
-| 合并后 CI | 待实查（合并后 push run 的 `install-lint-build` + `audit`） |
-| D8 解耦 | 待实查（该 head 是否有 Docker 运行） |
-| 独立审查 | 待实查（读 `tasks/review/TASK-040-…/handoffs/` 的审查记录） |
-| SHA 映射 | 待实查（rebase-merge 后逐对 `%t` tree 比对） |
+| 要素 | 实测值 |
+|------|--------|
+| PR | **#12** |
+| 合并策略 | **rebase-merge**（`origin/main` `34d9d69 → 3d37b4a`） |
+| 提交数 | **11** |
+| merged_at | **2026-10-16T15:57:43Z** |
+| merge_commit_sha | **`3d37b4aadc5ba3ca80ab231391c991ee1253f7fe`**（pre-rebase head `c0777db`） |
+| 合并后 CI | run **`38928137184`** `success`，`headSha = 3d37b4a` |
+| D8 解耦 | **第 11 次复现**（`docker.yml` 最新运行仍为 2026-10-13） |
+| 独立审查 | `handoffs/2026-10-16-review.md`，两轮，结论 **PASS / 无阻断** |
+| SHA 映射 | **11 对**，逐对验证：两侧均为 `commit`、`%t` **tree 相同**、`git merge-base --is-ancestor <post> origin/main` 通过 |
 
-**回写动作：** ① `tasks/review/TASK-040-…/TASK.md`：`Status: REVIEW → DONE`、填 Merge Record；
-② 目录 `git mv tasks/review/TASK-040-… tasks/done/TASK-040-…`；
-③ 该回写作为**独立提交**（footer `Refs: TASK-040`）随本任务分支推送。
+**已执行的回写动作：** ① `Status: REVIEW → DONE`、填 Merge Record 九项 + SHA 映射表；
+② `git mv tasks/review/TASK-040-… tasks/done/TASK-040-…`；
+③ **独立提交** `8062818`（footer `Refs: TASK-040`）随本任务分支推送；
+④ 附带修正其 `TASK.md:13` 滞后括注、`Current State` 合并事实与防腐注、`Changed Files` 路径注记。
 
 ---
 
@@ -454,11 +504,13 @@ Non-Scope (files):
 |---|------|----|------|------|
 | 001 | 主控位 | 执行位 | 2026-10-16 | 设计定稿并派遣：交付设计文档 + ADR-005 + 本档案；指令为「先确认 TASK-040 已合并，再派生分支」，从共享 schema 改起 |
 | 001r | 主控位 | 执行位 | 2026-10-16 | **D-3 追认同轮同步（仍在同一交接）**：人类追认「列表 `null` 文案改『未设置』」⇒ 撤销分支取消，相关条件式表述（Requirements / AC-7 / Plan 步骤 6 / Notes）全部改为确定项 |
+| 002 | 执行位 | 主控位 | 2026-10-17 | **实施交付**：共享 schema 入参必填 + 输出覆写、表单字段级 refine、界面三处、列表文案、冒烟 10 处补远期 + 3 条契约检查、测试 +11；**D13-C 第七实例**（TASK-040 归档回写）已完成；登记 X1/X2 与 AC-5 实测结论；请主控位安排独立审查与人类授权合并 |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-coordinator-to-implementer.md`
-**Next Action：** 执行位确认 TASK-040 已合并（`gh pr view` + `git merge-base --is-ancestor`），
-自最新 `main` 派生 `refactor/TASK-041-customer-expire-required`，显式 `git add` 本目录与两份 docs
-后提交（footer `Refs: TASK-041`），随后按 Implementation Plan 步骤 3 改共享 schema。
+**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
+**Next Action：** 由**不携带实现上下文的新实例**执行 AC-14 的两轮独立审查
+（记录另起 `handoffs/2026-10-17-review.md`，**不得**写入 `HANDOFF-002`，
+也不得与主控位复审记录混淆）→ 关闭阻断项 → 推送并创建交付请求 → CI 双绿 →
+**人类显式授权**后由**主控位**执行 rebase-merge。
 
 ---
 

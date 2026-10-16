@@ -199,4 +199,5 @@ Superseded by: 无
 - [客户续期设计](../technical/customer-renewal.md) — TASK-040；其 `null` 分支与本 ADR 的 D-2 相互作用（§5.4）
 - [接口契约](../technical/api-contract.md) — `customers` 字段类型表（本 ADR 落地后须更新 `expireAt` 行）
 - [ADR-004 续期时长口径与基准语义](./ADR-004-renewal-duration-semantics.md) — 「没有长期有效的选项 不需要」原始裁定出处
-- `tasks/active/TASK-041-customer-expire-required/TASK.md` — 任务档案（唯一事实来源）
+- `tasks/review/TASK-041-customer-expire-required/TASK.md` — 任务档案（唯一事实来源；
+  实施完成后随 `Status → REVIEW` 由 `tasks/active/` 迁入 `tasks/review/`）
