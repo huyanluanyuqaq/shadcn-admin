@@ -18,6 +18,11 @@ type DataTableToolbarProps<TData> = {
       icon?: React.ComponentType<{ className?: string }>
     }[]
   }[]
+  /**
+   * 可选操作插槽：渲染在「视图」按钮（`DataTableViewOptions`）左侧（TASK-040）。
+   * 缺省（`undefined`）时**不渲染任何包裹元素**，其余调用方 DOM 与行为完全不变。
+   */
+  actions?: React.ReactNode
 }
 
 export function DataTableToolbar<TData>({
@@ -25,6 +30,7 @@ export function DataTableToolbar<TData>({
   searchPlaceholder = '筛选...',
   searchKey,
   filters = [],
+  actions,
 }: DataTableToolbarProps<TData>) {
   const isFiltered =
     table.getState().columnFilters.length > 0 || table.getState().globalFilter
@@ -79,7 +85,14 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
-      <DataTableViewOptions table={table} />
+      {actions ? (
+        <div className='flex items-center gap-2'>
+          {actions}
+          <DataTableViewOptions table={table} />
+        </div>
+      ) : (
+        <DataTableViewOptions table={table} />
+      )}
     </div>
   )
 }

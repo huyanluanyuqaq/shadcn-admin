@@ -1,5 +1,13 @@
+import { planTiers, type PlanTier } from '@shared/index'
 import { describe, expect, it } from 'vitest'
-import { formatDateTime, formatPlanCycleRange, splitPlanCycles } from './utils'
+import {
+  RENEW_PRESET_DAYS,
+  computeRenewedExpireAt,
+  formatDateTime,
+  formatPlanCycleRange,
+  parseRenewDaysInput,
+  splitPlanCycles,
+} from './utils'
 
 /** 本地时区构造时间戳，避免 UTC 解析差一天 */
 function ts(y: number, m: number, day: number, h = 9, min = 0): number {
@@ -164,5 +172,147 @@ describe('formatDateTime', () => {
     expect(formatDateTime(null)).toBe('-')
     expect(formatDateTime(undefined)).toBe('-')
     expect(formatDateTime(ts(2026, 10, 24, 9, 5))).toBe('2026-10-24 09:05')
+  })
+})
+
+// ---------- 客户续期纯函数（TASK-040，设计文档 §5.2 / §5.3 / §7.1） ----------
+
+describe('parseRenewDaysInput', () => {
+  it('合法：1–3650 的纯数字（允许前后空格，trim 后判定）', () => {
+    expect(parseRenewDaysInput('1')).toBe(1)
+    expect(parseRenewDaysInput('45')).toBe(45)
+    expect(parseRenewDaysInput('3650')).toBe(3650)
+    expect(parseRenewDaysInput(' 30 ')).toBe(30)
+    expect(parseRenewDaysInput('1 ')).toBe(1)
+  })
+
+  it('非法：空 / 非数字 / 科学计数 / 符号 / 小数 / 负数 / 0 / 超上限 / 全角 → null', () => {
+    const invalid = [
+      '',
+      '   ',
+      'abc',
+      '1e3',
+      '+1',
+      '1.5',
+      '-3',
+      '0',
+      '3651',
+      '１２',
+      '3天',
+      '0x10',
+    ]
+    for (const raw of invalid) {
+      expect(
+        parseRenewDaysInput(raw),
+        `应拒绝 ${JSON.stringify(raw)}`
+      ).toBeNull()
+    }
+  })
+})
+
+describe('RENEW_PRESET_DAYS 与套餐档位对齐（tier-aligned，ADR-004 D-1）', () => {
+  const tierDays = (tier: PlanTier) =>
+    planTiers.find((t) => t.value === tier)?.days
+
+  it('快捷项天数与 planTiers 逐一相等（档位若变更，此用例失败并阻断 CI，强制显式决策）', () => {
+    expect(RENEW_PRESET_DAYS).toEqual({
+      m1: tierDays('monthly'),
+      m3: tierDays('quarterly'),
+      m6: tierDays('semiannual'),
+      m12: tierDays('yearly'),
+    })
+    // 字面量锁定当前契约（12 个月 = 360 天，不是 365 天）
+    expect(RENEW_PRESET_DAYS).toEqual({ m1: 30, m3: 90, m6: 180, m12: 360 })
+  })
+})
+
+describe('computeRenewedExpireAt（§5.3 边界全表，注入固定 now）', () => {
+  /** 固定基准时刻：全部用例与运行时钟无关 */
+  const NOW = ts(2026, 10, 16, 9, 0)
+
+  it('未来到期 · 1 个月（30 天）→ 原到期 + 30 天，时刻不变', () => {
+    expect(computeRenewedExpireAt(ts(2027, 1, 22), 30, NOW)).toBe(
+      ts(2027, 2, 21)
+    )
+  })
+
+  it('未来到期 · 3 个月（90 天）→ 原到期 + 90 天', () => {
+    expect(computeRenewedExpireAt(ts(2027, 1, 22), 90, NOW)).toBe(
+      ts(2027, 4, 22)
+    )
+  })
+
+  it('未来到期 · 12 个月（360 天，刻意 tier-aligned：比自然年短 5 天）→ 2028-01-17', () => {
+    expect(computeRenewedExpireAt(ts(2027, 1, 22), 360, NOW)).toBe(
+      ts(2028, 1, 17)
+    )
+    // 档位口径是 360 天，而非 365 天（自然年）——刻意行为，不是缺陷
+    expect(computeRenewedExpireAt(ts(2027, 1, 22), 360, NOW)).not.toBe(
+      ts(2028, 1, 22)
+    )
+  })
+
+  it('未来到期 · 自定义 365 天 → 可精确回到自然年', () => {
+    expect(computeRenewedExpireAt(ts(2027, 1, 22), 365, NOW)).toBe(
+      ts(2028, 1, 22)
+    )
+  })
+
+  it('已过期 → 以 now 为基准（不补回已过去的空窗期）', () => {
+    expect(computeRenewedExpireAt(ts(2025, 5, 20), 30, NOW)).toBe(
+      ts(2026, 11, 15)
+    )
+  })
+
+  it('已过期 · 极值 3650 天 → now + 3650 天，不溢出', () => {
+    const result = computeRenewedExpireAt(ts(2025, 5, 20), 3650, NOW)
+    expect(result).toBe(ts(2036, 10, 13))
+    expect(Number.isSafeInteger(result)).toBe(true)
+  })
+
+  it('null（未设置到期时间）→ 与已过期同基准 now（rev3 可达路径，不得抛错）', () => {
+    expect(computeRenewedExpireAt(null, 30, NOW)).toBe(ts(2026, 11, 15))
+    expect(computeRenewedExpireAt(null, 30, NOW)).toBe(
+      computeRenewedExpireAt(ts(2025, 5, 20), 30, NOW)
+    )
+    expect(computeRenewedExpireAt(undefined, 30, NOW)).toBe(ts(2026, 11, 15))
+  })
+
+  // 以下「刻意」行的基准均须为**未过期的原到期时刻**（注入早于到期的 now），
+  // 否则会被 max(expireAt, now) 转为今日基准，测到的就不是漂移本身了。
+  it('月末漂移（刻意，rev2 tier-aligned）：2026-01-31 + 30 天 = 2026-03-02，不是 addMonths 的 02-28', () => {
+    const now = ts(2026, 1, 1)
+    const result = computeRenewedExpireAt(ts(2026, 1, 31), 30, now)
+    expect(result).toBe(ts(2026, 3, 2))
+    expect(result).not.toBe(ts(2026, 2, 28))
+  })
+
+  it('月末漂移（刻意，rev2 tier-aligned）：2026-08-31 + 180 天 = 2027-02-27，不是 02-28', () => {
+    const now = ts(2026, 7, 1)
+    const result = computeRenewedExpireAt(ts(2026, 8, 31), 180, now)
+    expect(result).toBe(ts(2027, 2, 27))
+    expect(result).not.toBe(ts(2027, 2, 28))
+  })
+
+  it('闰年基准（刻意，按天数推进）：2024-02-29 + 360 天 = 2025-02-23，不是 2025-02-28', () => {
+    const now = ts(2024, 1, 1)
+    const result = computeRenewedExpireAt(ts(2024, 2, 29), 360, now)
+    expect(result).toBe(ts(2025, 2, 23))
+    expect(result).not.toBe(ts(2025, 2, 28))
+  })
+
+  it('跨年 12 个月（刻意，360 天 tier-aligned）：2026-10-16 + 360 天 = 2027-10-11', () => {
+    const now = ts(2026, 9, 1)
+    expect(computeRenewedExpireAt(ts(2026, 10, 16), 360, now)).toBe(
+      ts(2027, 10, 11)
+    )
+  })
+
+  it('极值：任意基准 + 3650 天不溢出（仍 < Number.MAX_SAFE_INTEGER）', () => {
+    const now = ts(1999, 6, 1)
+    const result = computeRenewedExpireAt(ts(2000, 1, 1), 3650, now)
+    expect(result).toBe(ts(2009, 12, 29))
+    expect(Number.isSafeInteger(result)).toBe(true)
+    expect(result).toBeLessThan(Number.MAX_SAFE_INTEGER)
   })
 })

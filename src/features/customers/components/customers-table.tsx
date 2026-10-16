@@ -14,7 +14,7 @@ import {
   useReactTable,
 } from '@tanstack/react-table'
 import type { Customer } from '@shared/index'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { AlertTriangle, CalendarPlus, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert'
 import { Button } from '@/components/ui/button'
@@ -39,6 +39,7 @@ import { useDebouncedValue } from '../hooks'
 import { getErrorMessage } from '../utils'
 import { CustomerDetailPanel } from './customer-detail-panel'
 import { getCustomersColumns } from './customers-columns'
+import { useCustomers } from './customers-provider'
 import { DataTableBulkActions } from './data-table-bulk-actions'
 
 function readArrayFilter(
@@ -50,6 +51,7 @@ function readArrayFilter(
 }
 
 export function CustomersTable() {
+  const { setOpen, setCurrentRow } = useCustomers()
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: 10,
@@ -161,6 +163,30 @@ export function CustomersTable() {
 
   const columnCount = table.getVisibleLeafColumns().length
 
+  /**
+   * 续期按钮的选中行解析（设计 §3.3 / R2）：
+   * 「选中一行」以 `getFilteredSelectedRowModel()` 为唯一事实来源 ——
+   * **不得**改用 `rowSelection` 字典长度判定（翻页/筛选/刷新后的残留 id 会误判为可用）。
+   */
+  const selectedRows = table.getFilteredSelectedRowModel().rows
+  const selectedCustomer =
+    selectedRows.length === 1 ? selectedRows[0].original : null
+
+  /**
+   * 禁用矩阵（设计 §3.4，恰好 3 条；`expireAt === null` 不设第 4 条 —— 人类裁定 rev3）。
+   * 可用/禁用与目标行**只**由 `selectedRows`（上式）决定；
+   * `rowSelection` 字典仅用于区分第 1 条（未选中）与第 3 条（残留 id）的**提示文案**，
+   * 不参与「是否可用」判定。
+   */
+  const renewDisabledReason =
+    selectedRows.length > 1
+      ? `一次只能续期一个客户（当前已选 ${selectedRows.length} 行）`
+      : selectedRows.length === 1
+        ? null
+        : Object.keys(table.getState().rowSelection).length > 0
+          ? '选中的客户不在当前数据中，请重新选择'
+          : '请先在列表中选择一行客户'
+
   /** 点击行：选中该客户并切换其延伸面板（再次点击同一行则收起） */
   function toggleRow(row: Row<Customer>) {
     setRowSelection({ [row.id]: true })
@@ -178,6 +204,30 @@ export function CustomersTable() {
         <DataTableToolbar
           table={table}
           searchPlaceholder='搜索客户名称或邮箱…'
+          actions={
+            <Button
+              variant='outline'
+              size='sm'
+              className='h-8'
+              disabled={renewDisabledReason !== null}
+              aria-disabled={renewDisabledReason !== null}
+              title={
+                renewDisabledReason ?? `续期：${selectedCustomer?.name ?? ''}`
+              }
+              aria-label={
+                renewDisabledReason ?? `续期：${selectedCustomer?.name ?? ''}`
+              }
+              onClick={() => {
+                // 双保险（设计 §3.5）：无选中行或任一禁用条件成立时不打开对话框
+                if (!selectedCustomer || renewDisabledReason) return
+                setCurrentRow(selectedCustomer)
+                setOpen('renew')
+              }}
+            >
+              <CalendarPlus className='size-4' />
+              续期
+            </Button>
+          }
           filters={[
             {
               columnId: 'status',

@@ -2,6 +2,7 @@ import { CustomersActionDialog } from './customers-action-dialog'
 import { CustomersArchiveDialog } from './customers-archive-dialog'
 import { CustomersDeleteDialog } from './customers-delete-dialog'
 import { useCustomers } from './customers-provider'
+import { CustomersRenewDialog } from './customers-renew-dialog'
 
 export function CustomersDialogs() {
   const { open, setOpen, currentRow, setCurrentRow } = useCustomers()
@@ -32,6 +33,18 @@ export function CustomersDialogs() {
             open={open === 'archive'}
             onOpenChange={() => {
               setOpen('archive')
+              setTimeout(() => {
+                setCurrentRow(null)
+              }, 500)
+            }}
+            currentRow={currentRow}
+          />
+
+          <CustomersRenewDialog
+            key={`customer-renew-${currentRow.id}`}
+            open={open === 'renew'}
+            onOpenChange={() => {
+              setOpen('renew')
               setTimeout(() => {
                 setCurrentRow(null)
               }, 500)

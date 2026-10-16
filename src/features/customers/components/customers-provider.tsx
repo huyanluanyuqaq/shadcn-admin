@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import type { Customer } from '@shared/index'
 import useDialogState from '@/hooks/use-dialog-state'
 
-type CustomersDialogType = 'add' | 'edit' | 'delete' | 'archive'
+type CustomersDialogType = 'add' | 'edit' | 'delete' | 'archive' | 'renew'
 
 type CustomersContextType = {
   open: CustomersDialogType | null

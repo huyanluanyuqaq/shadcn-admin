@@ -42,6 +42,66 @@ export function daysLeft(expireAt: number | null | undefined): number | null {
   return Math.ceil((expireAt - Date.now()) / 86_400_000)
 }
 
+// ---------- 客户续期（TASK-040） ----------
+
+/**
+ * 续期快捷项天数：1/3/6/12 个月 = 30/90/180/360 天。
+ *
+ * 口径与套餐档位 `planTiers`（`shared/src/schema/entities.ts`）一致（ADR-004 D-1），
+ * 并由 `utils.test.ts` 的对齐用例锁定：档位若变更会阻断 CI，强制一次显式决策
+ * （同步修改本常量与文档），而非静默漂移。用**字面量**而非从 `planTiers` 派生 ——
+ * 派生会让档位调整静默改变续期语义，索引式派生还有档位重排后错配的风险。
+ *
+ * ★ 月末/闰年的日历漂移（如 01-31 + 30 天 = 03-02、12 个月 = 360 天）是
+ * 「与档位统一为固定天数」口径的**刻意结果，不是缺陷**，不得改回 `addMonths`
+ * （那属于 ADR-004 方案 A 的重议范围，见设计文档 §8 L5）。
+ */
+export const RENEW_PRESET_DAYS = { m1: 30, m3: 90, m6: 180, m12: 360 } as const
+
+/** 快捷项键：`m1` = 1 个月 … `m12` = 12 个月 */
+export type RenewPresetKey = keyof typeof RENEW_PRESET_DAYS
+
+/** 续期时长的单一事实来源：四个快捷项或自定义天数（设计文档 §4.3，互斥） */
+export type RenewChoice = RenewPresetKey | 'custom'
+
+/** 单次续期天数上限（含）：3650 天 ≈ 10 年 */
+export const RENEW_MAX_DAYS = 3650
+
+/**
+ * 解析「自定义天数」输入。
+ *
+ * 合法（`trim` 后为 1..3650 的纯数字）→ 返回整数天数；否则返回 `null`。
+ * 纯字符串判定、不做隐式数值转换：`1e3`、`+1`、`1.5`、全角 `１２` 一律拒绝。
+ * 提示文案（`请输入天数` 等）留在组件层，纯函数只回答合法性（设计文档 §4.4）。
+ */
+export function parseRenewDaysInput(raw: string): number | null {
+  const trimmed = raw.trim()
+  if (!/^\d+$/.test(trimmed)) return null
+  const days = Number(trimmed)
+  return days >= 1 && days <= RENEW_MAX_DAYS ? days : null
+}
+
+/**
+ * 计算续期后的到期时间（epoch ms）。
+ *
+ * - 基准 `base = max(expireAt, now)`：未过期客户自**原到期时刻**顺延
+ *   （客户已付的剩余时间不被吞掉）；已过期客户自 `now` 起算（不补空窗期）；
+ *   `expireAt` 为 `null`（未设置到期时间）同样取 `now` —— 与已过期共用同一表达式，
+ *   该路径 UI 可达（ADR-004 D-2 / D-3，rev3）。
+ * - 唯一推进方式是 `addDays`（保留基准的时分秒），**不存在「月」的算法分支**（rev2）。
+ *
+ * @param days 续期天数：快捷项取 `RENEW_PRESET_DAYS`，自定义取 `parseRenewDaysInput` 的结果（1..3650）
+ * @param now  基准时刻，便于测试注入固定值，默认 `Date.now()`
+ */
+export function computeRenewedExpireAt(
+  expireAt: number | null | undefined,
+  days: number,
+  now: number = Date.now()
+): number {
+  const base = expireAt == null ? now : Math.max(expireAt, now)
+  return addDays(base, days).getTime()
+}
+
 // ---------- 套餐周期 ----------
 
 /** 套餐周期（按整月粒度拆分出的一个计费周期） */
