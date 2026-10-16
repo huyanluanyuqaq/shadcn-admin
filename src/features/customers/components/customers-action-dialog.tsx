@@ -684,7 +684,7 @@ export function CustomersActionDialog({
                                   format(field.value, 'yyyy-MM-dd')
                                 ) : (
                                   <span className='text-muted-foreground'>
-                                    长期有效（留空）
+                                    请选择到期时间
                                   </span>
                                 )}
                                 <CalendarIcon className='ms-auto h-4 w-4 opacity-50' />
@@ -696,6 +696,10 @@ export function CustomersActionDialog({
                               mode='single'
                               captionLayout='dropdown'
                               selected={field.value ?? undefined}
+                              // TASK-041：到期时间必填 ⇒ 禁止在日历内取消选择。
+                              // 实测结论见交付说明：`required` 只阻止「再次点击已选日期以取消」，
+                              // 不作为唯一保证 —— 字段级 refine（schema.ts）才是最终拦截。
+                              required
                               onSelect={(date) => {
                                 field.onChange(date ?? null)
                                 setExpireOpen(false)
@@ -1029,14 +1033,8 @@ export function CustomersActionDialog({
           </Form>
         </div>
         <DialogFooter>
-          {!autoExpireAt && (
-            <Button
-              variant='ghost'
-              onClick={() => form.setValue('expireAt', null)}
-            >
-              清除到期时间
-            </Button>
-          )}
+          {/* TASK-041：到期时间改为必填，「清除到期时间」按钮已移除 ——
+              它是 `null` 的唯一写入入口，与必填直接冲突。 */}
           <Button type='submit' form='customer-form' disabled={isPending}>
             {isPending && <Loader2 className='animate-spin' />}
             保存

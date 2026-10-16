@@ -141,7 +141,7 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `purchasedAt` | number \| null | 购买时间（epoch ms） |
-| `expireAt` | number \| null | 到期时间；**选了购买时间且套餐有档位时按「购买时间 + 档位天数」自动计算并物化**，否则手动选择 |
+| `expireAt` | number（**必填，不可为 null**） | 到期时间；**选了购买时间且套餐有档位时按「购买时间 + 档位天数」自动计算并物化**，否则手动选择。**TASK-041 起写入必填**：`POST` 缺此字段 → 400；`PATCH` 可**省略**（部分更新不受影响），但传 `{ expireAt: null }` → 400（不允许清空）。**读取仍可能为 `null`** —— 历史数据中已存在的空值保留不回填（ADR-005），故输出类型维持 `number \| null`。`purchasedAt` / `subscriptionExpireAt` 仍可空 |
 | `trafficTotal` | number \| null | **月流量**（字节），null 表示不限 |
 | `trafficManualCap` | number \| null | 手动流量上限（字节），**优先级高于月流量**；null 表示未设置 |
 | `subscriptionUrl` | string \| null | 订阅链接 |

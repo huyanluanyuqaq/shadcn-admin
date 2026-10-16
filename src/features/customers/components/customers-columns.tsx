@@ -144,7 +144,10 @@ export function getCustomersColumns({
         const expireAt = row.original.expireAt
         const days = daysLeft(expireAt)
         if (days === null) {
-          return <span className='text-muted-foreground'>长期</span>
+          // TASK-041（D-3，人类追认）：`expireAt === null` 自本任务起仅由**历史数据**产生，
+          // 不再由任何界面产生 ⇒ 展示文案由「长期」改为「未设置」。
+          // `daysLeft` 的实现（utils.ts）**不得**改动。
+          return <span className='text-muted-foreground'>未设置</span>
         }
         if (days < 0) {
           return (

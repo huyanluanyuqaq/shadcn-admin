@@ -83,8 +83,26 @@ export const customerFormSchema = customerInputSchema
      * '' 或 '0' 表示不设置。
      */
     plan: z.string(),
-    /** 到期时间（epoch ms 的 Date 形态）；选了购买时间与套餐档位时自动计算 */
-    expireAt: z.date().nullable(),
+    /**
+     * 到期时间（epoch ms 的 Date 形态）；选了购买时间与套餐档位时自动计算。
+     *
+     * **TASK-041（ADR-005）：必填。** 保留 `.nullable()` 是为了让类型与初值忠实
+     * （`emptyCustomerForm()` / `toCustomerForm()` 仍产出 `null`，历史 null 客户打开编辑即
+     * 处于**无效初值**），由**字段级** refine 拦住提交 —— **不得**改用「给默认日期」绕过，
+     * 那会把「未设置」静默变成「今天到期」。
+     *
+     * 注：**只能**是字段级校验。共享的 `customerInputSchema` 会被 `crud.ts` 调 `.partial()`，
+     * 对象级 refine 会令其「调用即抛错」（zod 4 实测）⇒ 每一次 PATCH 都会失败。
+     */
+    // 注：`(v): boolean =>` 的**显式返回类型注解不可省略** —— TypeScript 5.5 起会为
+    // 「返回 boolean 的内联箭头函数」自动推断类型谓词，把 `(v) => v !== null` 推成
+    // `(v) => v is Date`，从而使本字段的输出类型**收窄为 `Date`**
+    // （`emptyCustomerForm()` / `toCustomerForm()` 的 `null` 初值随之类型报错）。
+    // 显式注解 `boolean` 即禁用该推断，输出类型保持 `Date | null`。
+    expireAt: z
+      .date()
+      .nullable()
+      .refine((v): boolean => v !== null, { error: '请选择到期时间' }),
     /** 购买时间；到期时间 = 购买时间 + 套餐档位周期时长 */
     purchasedAt: z.date().nullable(),
     /** 月流量，单位 GB，留空表示不限 */
@@ -269,7 +287,12 @@ export function toCustomerInput(
     planId,
     planTier,
     status: values.status,
-    expireAt: values.expireAt ? values.expireAt.getTime() : null,
+    // TASK-041：入参 `expireAt` 已是必填 `number`，但本函数是**纯数据映射**契约
+    // （与 UI 校验无关，`schema.test.ts` 保留了 `null → null` 的断言）。
+    // 表单侧由**字段级 refine** 保证提交时非空 ⇒ 此处的 `null` 分支自 TASK-041 起
+    // **不再由表单触达**，仅作防御性映射保留；类型断言由该校验保证成立。
+    // 若将来有非表单路径调用本函数，须先自行保证 `expireAt` 非空（否则服务端会返回 400）。
+    expireAt: (values.expireAt ? values.expireAt.getTime() : null) as number,
     purchasedAt: values.purchasedAt ? values.purchasedAt.getTime() : null,
     trafficUsed: current?.trafficUsed ?? 0,
     trafficTotal:
