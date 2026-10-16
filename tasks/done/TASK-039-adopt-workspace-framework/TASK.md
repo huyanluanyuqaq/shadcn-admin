@@ -10,13 +10,13 @@
 Task ID: TASK-039
 Title: 接入 Workspace 模板仓库双 Agent 协作框架（.agents/ + templates/ 入仓）
 Workflow: chore
-Status: REVIEW（2026-10-15T16:05:00Z；归档回写按 D13-C 待下一个任务补记）
+Status: DONE（2026-10-16；PR #11 已于 2026-10-15 合并 —— 归档回写由 TASK-040 承载，D13-C 第六实例）
 Priority: P2
 Owner: 主控位（本会话）
 Owner Since: 2026-10-15
 Assigned Role: architect（口径判定）+ developer（落实）；审查由新实例 Reviewer 承担
 Created: 2026-10-15
-Updated: 2026-10-15T16:52:00Z
+Updated: 2026-10-16（D13-C 归档回写，由 TASK-040 分支承载）
 Branch: chore/TASK-039-adopt-workspace-framework
 Requires Human Approval: false
 ```
@@ -152,7 +152,11 @@ Requires Human Approval: false
       （两轮均由不携带实现上下文的新实例执行、记录逐字归档于 `handoffs/2026-10-15-review.md`：
       第 1 轮全量「可合并，无阻断」+ O1–O4 已整改并经第 2 轮实跑复核到位；
       第 2 轮定向「可合并，无阻断」+ N1–N3 提示已顺手更正）
-- [ ] AC-8: rebase-merge 合并后 `main` 含 TASK-037 回写与本任务交付；D8 复现（合并后无 docker run）；两个仓库 `git status` 干净。
+- [x] AC-8: rebase-merge 合并后 `main` 含 TASK-037 回写与本任务交付；D8 复现（合并后无 docker run）；两个仓库 `git status` 干净。
+      （2026-10-16 实查：PR #11 `merged_at = 2026-10-15T16:55:49Z`、`merge_commit_sha = 34d9d69`
+      = `main` HEAD（11 个 rebase 提交，含 TASK-037 回写两笔）；push run `38773072232` 双绿；
+      head `34d9d69` 的 actions runs `total_count = 1` 仅 CI ⇒ 无 docker run（D8 第 10 次）；
+      `_workspace-template` 仓库 `git status` 干净；本仓库回写时点除本次回写与 TASK-040 在途文件外干净）
 
 ---
 
@@ -254,8 +258,8 @@ Non-Scope (files):
 > 序列截至本档案 Meta `Updated` 时点；如后续仍有提交（含审查整改），
 > 以 `git log --oneline main..HEAD` 实查为准。
 >
-> **本任务自身亦演示 D13-C：** 合并后的归档回写（`Status → DONE` + 移 `tasks/done/` +
-> `Merge Record` 七要素）待下一个任务补记（见 `Merge Record` 区空白）。
+> **本任务自身亦演示 D13-C：** 合并后的归档回写已由 TASK-040（第六实例，2026-10-16）承载完成 ——
+> `Status → DONE`、`Merge Record` 七要素实查回填、目录迁 `tasks/done/`。
 >
 > **合并前整改（第 1 轮独立审查后续）：** 第 1 轮全量独立审查（新实例 Reviewer，I2）
 > 结论「**可合并，无阻断项**」（完整记录逐字归档于 `handoffs/2026-10-15-review.md`），
@@ -334,21 +338,23 @@ Non-Scope (files):
 
 ## Merge Record
 
-> 由下一个任务的交付请求按 D13-C 回填（七要素）。合并前留空。
+> 2026-10-16 由 TASK-040（D13-C 第六实例）**实查回填**：七要素均先经 `gh` / `git` 复核后落笔
+> （`gh api repos/…/pulls/11`、`gh run view 38773072232`、`gh api .../actions/runs?head_sha=34d9d69…`、
+> `git log --oneline main`、SHA 映射表见 Workspace 根 `.workbuddy/memory/2026-10-15.md`）。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（预期） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI | 待回填 |
-| D8 解耦 | 待回填 |
-| 独立审查 | 待回填 |
-| SHA 映射 | 待回填 |
+| PR | #11（`chore(TASK-039): 接入 Workspace 模板仓库双 Agent 协作框架（.agents/ + templates/ 入仓，F7 门禁，D13-C 承载 TASK-037 回写）`） |
+| 合并策略 | rebase-merge |
+| 提交数 | 11 |
+| merged_at | `2026-10-15T16:55:49Z` |
+| merge_commit_sha | `34d9d69`（= 合并后 `main` HEAD `34d9d69218e2324a912460aeeb38755d9d7c77f0`） |
+| 合并后 CI | push run `38773072232` 双绿（`install-lint-build` + `audit` 均 `success`，2026-10-16 `gh run view` 实查） |
+| D8 解耦 | 第 10 次复现：head `34d9d69` 的 actions runs `total_count = 1`（仅 `Continuous Integration` push run），无 docker run |
+| 独立审查 | 两轮（第 1 轮全量 + 第 2 轮定向），O1–O4 / N1–N3 均整改关闭（`handoffs/2026-10-15-review.md`） |
+| SHA 映射 | 11 对（`6d8c731→5d89dfe` / `da98560→40dfc79` / `27c4528→29665dd` / `12bb509→92baa2a` / `13078a7→098855d` / `fca3e57→1b5bb79` / `4d55549→7b4dcef` / `4f9c0af→40071ea` / `5f14c97→fc2d9a7` / `a0979bf→09da485` / `732ce22→34d9d69`，逐对 tree + subject 相同、is-ancestor 全部 NOT-ANCESTOR；映射来源 `.workbuddy/memory/2026-10-15.md`） |
 
-**D13-C 第六实例★注：** 本 Merge Record 由下一个任务（D13-C 第六实例）承载回填。
+**D13-C 第六实例★注：** 本回填由 TASK-040 的交付请求承载（2026-10-16），按 D13-C 未单独开回写专用请求。
 
 ---
 
