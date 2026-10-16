@@ -335,7 +335,7 @@ base = now（当 expireAt === null）
 ## References
 
 - [客户续期设计](../technical/customer-renewal.md) — 交互、算法、边界、测试要求（实现依据；rev3）
-- `tasks/active/TASK-040-customer-renewal/TASK.md` — 任务档案（唯一事实来源）
+- `tasks/review/TASK-040-customer-renewal/TASK.md` — 任务档案（唯一事实来源）
 - [ADR-001 后端技术栈选型](./ADR-001-backend-stack.md) — `epoch ms` 时间口径的由来
 - [ADR-003 订阅同步设计](./ADR-003-subscription-sync-design.md) — 订阅到期时间由同步引擎维护，
   与客户到期是两个独立字段（本 ADR 不涉及）
