@@ -10,7 +10,7 @@
 Task ID: TASK-040
 Title: 客户管理页新增「续期」功能（选中单行 → 1/3/6/12 个月 = 30/90/180/360 天，或自定义天数）
 Workflow: feature
-Status: DESIGN
+| Status: REVIEW（2026-10-16 实施完成，已推送；待独立审查后合并）
 Revision: rev4（2026-10-16，人类裁定 D-2 确认 ⇒ ADR-004 转 Accepted，**无设计内容变更**；rev2 = 时长口径 = 档位固定天数；rev3 = 撤销「未设置到期时间」的禁用规则）
 Priority: P2
 Owner: 主控位（定义与设计已由本会话完成，待执行位认领）
@@ -320,59 +320,26 @@ Non-Scope (files):
 
 ## Current State
 
-> **2026-10-16 —— 设计阶段完成（主控位 / Architect），经人类两轮裁定后修订至 rev3，尚未实施。**
+> **2026-10-16 —— 实施阶段完成（执行位 / Implementer），提交 e572da3。**
 >
-> **已完成（本会话）：**
-> ① 实查并为设计依据定盘 13 项事实（设计文档 §2 的 F1–F13），其中决定性的是
-> 「`PATCH /api/customers/:id` 已支持仅更新 `expireAt`」⇒ 本任务**服务端零改动**；
-> ② 产出设计文档 `docs/technical/customer-renewal.md`（§3 按钮禁用矩阵（3 条）、
-> §4 对话框交互与确认逻辑、§5 计算与更新方式、§7 测试要求、§8 八项已知限制、§9 决策 D1–D11+D5b+D6b）；
-> ③ 产出 ADR-004（初稿 `Proposed`，经人类三轮裁定后转 **`Accepted`**：**固定天数（与档位统一）** + 原到期顺延 + `null` 不设特例；
-> 含方案 A–E 的取舍与被否理由，其中方案 A（自然月）、方案 E（`null` 禁用）为本轮被否项）；
-> ④ 登记本档案与派遣交接 `handoffs/HANDOFF-001-coordinator-to-implementer.md`。
+> **本地验证（全绿）：** `pnpm build:shared` ✅ / `pnpm lint` ✅ / `pnpm format:check` ✅ /
+> `pnpm build` ✅ / **`pnpm test` 334 passed** ✅ / **`python3 scripts/audit-repo.py` 7 PASS** ✅。
 >
-> **★ 修订记录 rev2（2026-10-16，人类裁定）：**
-> 人类指令「一个月不等于自然月，主张与档位统一」⇒ 快捷项「N 个月」改为**套餐档位固定天数**
-> （30/90/180/360），**本功能内部只有「天」一种单位**，首轮设计稿的「自然月（`addMonths`）」作废。
-> 受影响并已改写的部分：设计文档 §1/§2(F9,F11)/§4.2/§4.3/§4.5/§4.6/§5.1/§5.2/§5.3/§6/§7.1/§7.2/
-> §8(L5)/§9(D6,D6b)、ADR-004 全文、本档案 Objective/Background/Scope/Non-Scope/R4/R5/R7/R8/
-> Constraints/AC-3/AC-4/AC-5/Known Issues(L5)/Notes、HANDOFF-001。
-> **新增的强制项：** ① 快捷项天数以「字面量 + 对齐 `planTiers` 的单测」锁定；
-> ② UI 每个快捷项必须显示对应天数、预览与 toast 增量恒以「天」表述；
-> ③ 月末/闰年漂移登记为**刻意行为**，并声明不得改回 `addMonths`。
-> **未随 rev2 改变：** D-2（`base = max(expireAt, now)`）、载荷范围、写入路径与全部 Non-Scope
-> （D-3 与按钮矩阵随后由 rev3 改变）。
+> **代码改动（9 文件，与 File Scope 逐项吻合）：**
+> `src/features/customers/utils.ts`（6 个导出：`RENEW_PRESET_DAYS` / `RenewPresetKey` / `RenewChoice` /
+> `RENEW_MAX_DAYS` / `parseRenewDaysInput` / `computeRenewedExpireAt`）+ `utils.test.ts`（§5.3 全表）；
+> `src/components/data-table/toolbar.tsx`（可选 `actions` 插槽）；`src/features/customers/components/`
+> `customers-table.tsx`（按钮 + `renewDisabledReason`）+ `customers-provider.tsx`（`'renew'`）+
+> `customers-dialogs.tsx`（注册）+ `customers-renew-dialog.tsx`（完整交互）+ `customers-renew-dialog.test.tsx`
+> + `customers-renew-button.test.tsx`。
 >
-> **★ 修订记录 rev3（2026-10-16，人类裁定）：**
-> 人类指令「没有长期有效的选项 不需要」⇒ **撤销**首轮设计的「`expireAt === null` 则禁用续期」规则：
-> 该类客户**正常参与续期**，基准取 `now`（与已过期共用 `max(expireAt, now)`，无非特例分支），
-> 对话框只读行显示 `未设置`、预览追加 `（自今日起算）`。**禁用矩阵 4 条 → 3 条**。
-> 受影响并已改写的部分：设计文档 头部/§2(F1,F2,+F13)/§3.4/§4.2/§4.5/§5.1/§5.3/§7.1/§7.2/§7.3/
-> §8(+L8)/§9(D5,+D5b)、ADR-004 全文（D-3 改写、方案 C 转采纳、方案 E 新增为被否项）、
-> 本档案 Objective/Background/R2/R4/R7/R8/AC-2/AC-3/AC-5/Verification Plan/Current State/
-> Known Issues(+L8)/Notes、HANDOFF-001。
-> **同时登记的实证（未按主张采信，已实跑核验）：** `expireAt === null` **是可达状态** ——
-> 新建客户表单默认 `expireAt: null`、编辑表单留空显示「长期有效（留空）」、列表显示「长期」
-> ⇒ 本裁定的实际效果是「这类客户续期后由无约束变为有限期」，故新增强制项：
-> **对话框必须在提交前呈现基准与具体新到期时间**（否则即成为静默改写），并登记 L8 与 ADR-004 实现约束 3。
-> **未随 rev3 改变：** D-1 的固定天数口径、D-2 的 `base = max(expireAt, now)`、载荷范围、
-> 写入路径、其余 Known Issues 与全部 Non-Scope。
+> **TASK-039 D13-C 第六实例（已完成，提交 `1183145`）：**
+> `Status → DONE` + Merge Record 七要素实查（PR #11 / rebase-merge / 11 提交 /
+> merged_at `2026-10-15T16:55:49Z` / merge_commit `34d9d69` / push run `38773072232` 双绿 /
+> D8 第 10 次复现 / 两轮审查 O1–O4 / N1–N3 均已整改关闭 / 11 对 SHA 映射）+
+> `git mv` → `tasks/done/TASK-039-adopt-workspace-framework/`（footer `Refs: TASK-039`）。
 >
-> **★ 修订记录 rev4（2026-10-16，人类裁定 D-2）：**
-> 人类指令（原话）「ADR-004 的 D-2 确认」⇒ 三项决策齐备，ADR-004 的 `Status` 由 `Proposed`
-> 转 **`Accepted`**。**本次无设计内容变更** —— 算法（`base = max(expireAt, now)` + `addDays`）、
-> 交互、禁用矩阵 3 条、载荷范围、验收标准与 Known Issues 一律不变，仅状态项与相关引用同步。
-> 同轮人类另追认了 **TASK-041 / ADR-005 的 D-3**（客户列表 `null` 文案「长期」→「未设置」）：
-> 该改动属 **TASK-041 范围**，本任务的 F2 / F13 可达性证据与 L8 缓解方式均不受影响，
-> 但本任务实施时**不得**顺手改动列表文案（越界）。
->
-> **设计产物以工作区未提交状态交付**（主控位不创建分支、不提交、不推送——分支创建与提交属执行位职责）。
-> 执行位第一步即为派生分支并显式 `git add` 这些路径（Implementation Plan 步骤 2）。
->
-> **未开始：** 全部代码改动、测试落地、本地验证、推送、审查、合并。
->
-> **Next Action（执行位）：** 派生 `feature/TASK-040-customer-renewal` 并提交设计产物，
-> 随后从 `src/features/customers/utils.ts` 的纯函数与测试开始实施。
+> **本档案修订后 Next Action：** 推送远端 → 创建交付请求（PR 待审）。
 
 ---
 
@@ -380,14 +347,24 @@ Non-Scope (files):
 
 > 设计阶段（主控位，未提交）：4 个文件 —— 2 份 docs + 本档案 + 1 份 handoff。
 > **rev2 / rev3 修订均在这 4 个文件内就地完成，未增减文件**（File Scope 与 D13-C 回写范围均未变）。
-> 实施阶段的代码改动由执行位在本表补充。
+> **实施阶段（e572da3）：9 个文件，与 File Scope 逐项吻合。**
 
-| 文件 | 变更类型 | 说明 |
+|| 文件 | 变更类型 | 说明 |
 |------|---------|------|
 | `docs/technical/customer-renewal.md` | 新增（rev2） | 客户续期功能设计（权威实现依据；时长口径改为与档位统一的固定天数） |
 | `docs/decisions/ADR-004-renewal-duration-semantics.md` | 新增（rev2） | 时长口径与基准语义决策（现为 **`Accepted`**；D-1 / D-2 / D-3 均已由人类裁定） |
 | `tasks/active/TASK-040-customer-renewal/TASK.md` | 新增（rev2） | 本任务档案 |
 | `tasks/active/TASK-040-customer-renewal/handoffs/HANDOFF-001-coordinator-to-implementer.md` | 新增（rev2） | 主控位 → 执行位派遣交接 |
+| `src/features/customers/utils.ts` | 新增常量与纯函数 | `RENEW_PRESET_DAYS` / `RenewPresetKey` / `RenewChoice` / `RENEW_MAX_DAYS` / `parseRenewDaysInput` / `computeRenewedExpireAt` |
+| `src/features/customers/utils.test.ts` | 增补用例 | §5.3 边界全表 + `parseRenewDaysInput` 全表 + `planTiers` 对齐断言 |
+| `src/components/data-table/toolbar.tsx` | 新增可选插槽 | `actions?: React.ReactNode`（缺省行为不变，其余 5 处列表页无影响） |
+| `src/features/customers/components/customers-table.tsx` | 新增按钮与插槽 | `selectedRows` / `selectedCustomer` / `renewDisabledReason`；向 `DataTableToolbar` 传 `actions` 插槽 |
+| `src/features/customers/components/customers-provider.tsx` | 对话类型 + `'renew'` | `open` 联合类型新增 `'renew'` |
+| `src/features/customers/components/customers-dialogs.tsx` | 注册对话框 | `CustomersRenewDialog`（按既有编排范式注册，key = `customer-renew-${id}`） |
+| `src/features/customers/components/customers-renew-dialog.tsx` | 新增 | 续期对话框（完整交互：快捷项 + 手动天数 + 实时预览 + 校验 + 确认/失败路径） |
+| `src/features/customers/components/customers-renew-dialog.test.tsx` | 新增 | 对话框 9 条交互与校验用例 |
+| `src/features/customers/components/customers-renew-button.test.tsx` | 新增 | 按钮禁用矩阵 3 条 + `expireAt: null` 可用 + 打开路径 |
+| `docs/technical/customer-renewal.md` | 补实现状态 | 补「已实现」状态与提交锚点（e572da3） |
 
 ---
 
