@@ -223,30 +223,30 @@ Requires Human Approval: false   # 普通变更：无 DB 迁移、无生产部�
 
 ## Acceptance Criteria
 
-- [ ] AC-1: 按钮位于「视图」左侧且常驻显示；`DataTableToolbar` 的 `actions` 插槽缺省时
+- [x] AC-1: 按钮位于「视图」左侧且常驻显示；`DataTableToolbar` 的 `actions` 插槽缺省时
       其余 5 处列表页（plans / emails / logs / notifications / subscriptions）DOM 与行为不变。
-- [ ] AC-2: 禁用矩阵 **3 条**全部成立且有对应提示文本；「选中 1 行但该行已不在当前数据集」
+- [x] AC-2: 禁用矩阵 **3 条**全部成立且有对应提示文本；「选中 1 行但该行已不在当前数据集」
       被判定为禁用（不得因读取 `rowSelection` 长度而误判为可用）；
       **`expireAt === null` 的客户按钮为可用**（rev3，不得出现第 4 条禁用条件）。
-- [ ] AC-3: 对话框具备 4 个快捷项 + 手动天数输入；默认选中 1 个月；**每个快捷项显示对应天数**
+- [x] AC-3: 对话框具备 4 个快捷项 + 手动天数输入；默认选中 1 个月；**每个快捷项显示对应天数**
       （`1 个月 30 天`）；快捷项与手动输入互斥（选择快捷项清空输入；键入即切自定义）；
       到期时间为空的客户打开对话框时只读行显示 `未设置`、预览含 `（自今日起算）`。
-- [ ] AC-4: 手动天数校验覆盖 空 / 0 / 负数 / 小数 / 非数字（含 `1e3`、`+1`、全角）/ >3650，
+- [x] AC-4: 手动天数校验覆盖 空 / 0 / 负数 / 小数 / 非数字（含 `1e3`、`+1`、全角）/ >3650，
       全部无效并禁用确认；输入框为文本型（非 `type='number'`）。
-- [ ] AC-5: 到期时间计算严格符合 `base = max(expireAt, now)` + `addDays(base, days)`；
+- [x] AC-5: 到期时间计算严格符合 `base = max(expireAt, now)` + `addDays(base, days)`；
       快捷项天数 = 档位天数 30/90/180/360（单测对齐 `planTiers`）；设计文档 §5.3 的边界全表
       （含标注「刻意」的 4 行、已过期基准、`null`（未设置）基准、极值）全部有单测锁定，且**未**引入
       `addMonths` 续期路径（`utils.ts` 的 `addMonths` 仅服务于 `splitPlanCycles`）。
-- [ ] AC-6: 提交载荷**仅含 `expireAt`**；成功后 `toast.success` + 关闭 + 保留选中 + 列表刷新；
+- [x] AC-6: 提交载荷**仅含 `expireAt`**；成功后 `toast.success` + 关闭 + 保留选中 + 列表刷新；
       失败后 `toast.error` 且对话框保持打开；`isPending` 期间无重复提交路径。
-- [ ] AC-7: 未改动 `server/**`、`shared/src/**`、`package.json`、`pnpm-lock.yaml`、
+- [x] AC-7: 未改动 `server/**`、`shared/src/**`、`package.json`、`pnpm-lock.yaml`、
       `src/components/ui/**`、`src/routes/**`、`routeTree.gen.ts`（以 diff 为空为证）。
-- [ ] AC-8: `pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm test` 全部本地通过
+- [x] AC-8: `pnpm lint`、`pnpm format:check`、`pnpm build`、`pnpm test` 全部本地通过
       （若浏览器不可用则如实披露由 CI 执行）；`python3 scripts/audit-repo.py` 全 PASS。
-- [ ] AC-9: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit`
+- [x] AC-9: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit`
       双绿（run id 留痕，含「合并门禁以合并时点 head 的 run 为准」防腐注）。
-- [ ] AC-10: 两轮独立审查记录落 `handoffs/`，阻断项关闭并经实跑复核；实现者未自我批准。
-- [ ] AC-11: TASK-039 归档回写完成（`Status = DONE` + Merge Record 七要素 + 迁 `tasks/done/`），
+- [x] AC-10: 两轮独立审查记录落 `handoffs/`，阻断项关闭并经实跑复核；实现者未自我批准。
+- [x] AC-11: TASK-039 归档回写完成（`Status = DONE` + Merge Record 七要素 + 迁 `tasks/done/`），
       且本任务 `Merge Record` 已标注「待下一个任务回填（D13-C 第七实例）」。
 
 ---
@@ -342,9 +342,20 @@ Non-Scope (files):
 > **本任务 PR #12（2026-10-16）：**
 > PR https://github.com/huyanluanyuqaq/shadcn-admin/pull/12（rebase-merge），head `f8264f3`；
 > CI run `38908188715`（`audit` + `install-lint-build` 双绿）。
-> 已执行两轮整改（`300c28d` 7 项 + `f8264f3` 4 项），状态：交付完整性缺陷全部关闭，待独立审查。
+> 已执行五轮整改（`300c28d` 7 项 + `f8264f3` 4 项 + `aa0a8a8` R1-R4 + `a2af804` R6-R8 +
+> `1cce4fc` R8+A4），状态：交付完整性缺陷全部关闭。
 >
-> **本档案修订后 Next Action：** 独立审查（不携带实现上下文的新实例）→ 整改（如有）→ 人类授权 rebase-merge。
+> **AC-10 独立审查（2026-10-16，两轮）：**
+> 第 1 轮全量 + 第 2 轮定向，记录 `handoffs/2026-10-16-review.md`；
+> **结论：PASS，无阻断项**（代码层 / 门禁层 / 交付完整性层均通过；Notes 五个易错点全部有测试锁定）。
+>
+> **当前 head：** `b4aa45a`（AC-10 记录入库，2026-10-16 23:24）。
+>
+> **防腐注：** head / CI run 为**撰写时点快照**；合并门禁以**合并时点 head 的 run** 为准；
+> 最终权威事实由 `Merge Record`（D13-C 第七实例回填）承载。
+>
+> **本档案修订后 Next Action：** 人类显式授权 rebase-merge → 合并后 CI 验证 +
+> 由下一个任务按 D13-C 第七实例回填 Merge Record。
 
 ---
 
