@@ -91,7 +91,17 @@ export const customerInputSchema = z.object({
   /** 选定的套餐档位（月付/季付/半年/年付），null 表示未指定 */
   planTier: planTierSchema.nullable().optional(),
   status: customerStatusSchema.default('active'),
-  expireAt: z.number().int().nullable().optional(),
+  /**
+   * 到期时间（epoch ms）。**必填且不可为 null**（TASK-041，ADR-005）。
+   *
+   * - POST 缺此字段或传 `null` → 400；PATCH 经 `.partial()` 后仍可**省略**，但传 `null` 被拒
+   *   ⇒「不允许清空已有到期时间」成为接口契约保证。
+   * - **不得**在本 schema 上加**对象级** `.refine()`：`server/src/lib/crud.ts` 会对同一 schema
+   *   调 `.partial()`，zod 4 实测「调用即抛错」⇒ 每一次 PATCH 都会失败。校验只加在字段级。
+   * - 历史数据中已存在的 `null` 行**保留不回填**（人类裁定）⇒ 输出 schema 侧仍为可空，
+   *   见下方 `customerSchema` 对 `expireAt` 的显式覆写。
+   */
+  expireAt: z.number({ error: '请选择到期时间' }).int(),
   /** 购买时间（epoch ms）；到期时间 = 购买时间 + 套餐档位周期时长 */
   purchasedAt: z.number().int().nullable().optional(),
   trafficUsed: z.number().int().nonnegative().default(0),
@@ -109,6 +119,13 @@ export const customerSchema = customerInputSchema.extend({
   id: idSchema,
   createdAt: z.number().int(),
   updatedAt: z.number().int(),
+  /**
+   * **显式覆写**（TASK-041）：入参侧 `expireAt` 已改为必填非空，但**历史数据**中仍存在
+   * `expireAt === null` 的行（人类裁定保留、不回填、不迁移）。若不覆写，`Customer.expireAt`
+   * 会被派生为 `number`，类型即**说谎**（声称非空而运行时为 null）。
+   * ⇒ 覆写保持 `number | null`，让类型忠实表达历史数据；**不得**因「入参必填」就默认输出必填。
+   */
+  expireAt: z.number().int().nullable(),
 })
 export type CustomerInput = z.infer<typeof customerInputSchema>
 export type Customer = z.infer<typeof customerSchema>
