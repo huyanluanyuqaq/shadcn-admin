@@ -344,7 +344,7 @@ Non-Scope (files):
 > CI run `38908188715`（`audit` + `install-lint-build` 双绿）。
 > 已执行两轮整改（`300c28d` 7 项 + `f8264f3` 4 项），状态：交付完整性缺陷全部关闭，待独立审查。
 >
-> **本档案修订后 Next Action：** 独立审查（新实例，I2）→ 整改（如有）→ 人类授权 rebase-merge。
+> **本档案修订后 Next Action：** 独立审查（不携带实现上下文的新实例）→ 整改（如有）→ 人类授权 rebase-merge。
 
 ---
 
