@@ -10,7 +10,7 @@
 Task ID: TASK-040
 Title: 客户管理页新增「续期」功能（选中单行 → 1/3/6/12 个月 = 30/90/180/360 天，或自定义天数）
 Workflow: feature
-| Status: REVIEW（2026-10-16 实施完成，已推送；待独立审查后合并）
+Status: REVIEW（2026-10-16 实施完成，已推送；待独立审查后合并）
 Revision: rev4（2026-10-16，人类裁定 D-2 确认 ⇒ ADR-004 转 Accepted，**无设计内容变更**；rev2 = 时长口径 = 档位固定天数；rev3 = 撤销「未设置到期时间」的禁用规则）
 Priority: P2
 Owner: 主控位（定义与设计已由本会话完成，待执行位认领）
@@ -32,8 +32,8 @@ Requires Human Approval: false   # 普通变更：无 DB 迁移、无生产部�
 > | `REVIEW` | `review/` |
 > | `DONE` | `done/` |
 >
-> **本任务当前为 `DESIGN`（`active/`）：** 设计阶段（Architect）产物已定稿并落盘，
-> 尚未进入实施。执行位认领后应转为 `ACTIVE`（仍在 `active/`，无需移动目录）。
+> **本任务当前为 `REVIEW`（`review/`）：** 实施阶段已完成（提交 e572da3），本地验证全绿，
+> 已推送并创建 PR #12（CI 双绿），待独立审查通过后由人类授权 rebase-merge。
 
 > **编号说明：** 本仓库序号 001–037 已占用，**038 由模板仓库任务占用**，
 > **039 为框架接入任务**（在 `tasks/review/`，待本任务承载归档回写）。
@@ -353,8 +353,8 @@ Non-Scope (files):
 |------|---------|------|
 | `docs/technical/customer-renewal.md` | 新增（rev2） | 客户续期功能设计（权威实现依据；时长口径改为与档位统一的固定天数） |
 | `docs/decisions/ADR-004-renewal-duration-semantics.md` | 新增（rev2） | 时长口径与基准语义决策（现为 **`Accepted`**；D-1 / D-2 / D-3 均已由人类裁定） |
-| `tasks/active/TASK-040-customer-renewal/TASK.md` | 新增（rev2） | 本任务档案 |
-| `tasks/active/TASK-040-customer-renewal/handoffs/HANDOFF-001-coordinator-to-implementer.md` | 新增（rev2） | 主控位 → 执行位派遣交接 |
+| `tasks/review/TASK-040-customer-renewal/TASK.md` | 新增（rev2） | 本任务档案 |
+| `tasks/review/TASK-040-customer-renewal/handoffs/HANDOFF-001-coordinator-to-implementer.md` | 新增（rev2） | 主控位 → 执行位派遣交接 |
 | `src/features/customers/utils.ts` | 新增常量与纯函数 | `RENEW_PRESET_DAYS` / `RenewPresetKey` / `RenewChoice` / `RENEW_MAX_DAYS` / `parseRenewDaysInput` / `computeRenewedExpireAt` |
 | `src/features/customers/utils.test.ts` | 增补用例 | §5.3 边界全表 + `parseRenewDaysInput` 全表 + `planTiers` 对齐断言 |
 | `src/components/data-table/toolbar.tsx` | 新增可选插槽 | `actions?: React.ReactNode`（缺省行为不变，其余 5 处列表页无影响） |
