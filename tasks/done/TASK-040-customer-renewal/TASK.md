@@ -10,7 +10,7 @@
 Task ID: TASK-040
 Title: 客户管理页新增「续期」功能（选中单行 → 1/3/6/12 个月 = 30/90/180/360 天，或自定义天数）
 Workflow: feature
-Status: REVIEW（2026-10-16 实施完成，已推送；待独立审查后合并）
+Status: DONE（2026-10-16 已合并，PR #12）
 Revision: rev4（2026-10-16，人类裁定 D-2 确认 ⇒ ADR-004 转 Accepted，**无设计内容变更**；rev2 = 时长口径 = 档位固定天数；rev3 = 撤销「未设置到期时间」的禁用规则）
 Priority: P2
 Owner: 主控位（定义与设计已由本会话完成，待执行位认领）
@@ -32,8 +32,12 @@ Requires Human Approval: false   # 普通变更：无 DB 迁移、无生产部�
 > | `REVIEW` | `review/` |
 > | `DONE` | `done/` |
 >
-> **本任务当前为 `REVIEW`（`review/`）：** 实施阶段已完成（提交 e572da3），本地验证全绿，
-> 已推送并创建 PR #12（CI 双绿），待独立审查通过后由人类授权 rebase-merge。
+> **本任务当前为 `DONE`（`done/`）：** PR #12 已于 2026-10-16T15:57:43Z 以 rebase-merge 合入 `main`
+> （merge commit `3d37b4a`），合并后 CI run `38928137184` 双绿，D8 解耦第 11 次复现。
+> 本档案的 `Status → DONE` + Merge Record 由 **TASK-041** 按 D13-C 第七实例回写（2026-10-17）。
+> **注：** 档案正文 `Current State` / 各节中出现的 `f8264f3` / `b4aa45a` / `c0777db` 等均为
+> **合并前 head 体系**，在 `main` 上不可复现（rebase-merge 的既定后果，非缺陷）；
+> 权威映射见本文末「Merge Record → SHA 映射」。
 
 > **编号说明：** 本仓库序号 001–037 已占用，**038 由模板仓库任务占用**，
 > **039 为框架接入任务**（已完成归档回写并迁入 `tasks/done/`，提交 `1183145`）。
@@ -349,13 +353,18 @@ Non-Scope (files):
 > 第 1 轮全量 + 第 2 轮定向，记录 `handoffs/2026-10-16-review.md`；
 > **结论：PASS，无阻断项**（代码层 / 门禁层 / 交付完整性层均通过；Notes 五个易错点全部有测试锁定）。
 >
-> **当前 head：** `b4aa45a`（AC-10 记录入库，2026-10-16 23:24）。
+> **已合并（2026-10-17 回写，D13-C 第七实例）：** 人类显式授权后由**主控位**执行
+> `gh pr merge 12 --rebase`；`state = MERGED`、`mergedAt 2026-10-16T15:57:43Z`、
+> merge commit **`3d37b4a`**（pre-rebase head `c0777db`）；合并后 `main` push run
+> **`38928137184`** 双绿；D8 解耦第 11 次复现；工作分支远端 + 本地均已删除
+> （`delete_branch_on_merge = false`，故为显式删除）。
 >
-> **防腐注：** head / CI run 为**撰写时点快照**；合并门禁以**合并时点 head 的 run** 为准；
-> 最终权威事实由 `Merge Record`（D13-C 第七实例回填）承载。
+> **防腐注（历史快照限定）：** 上文的 `f8264f3` / run `38908188715` / 当前 head `b4aa45a`
+> 均为**合并前 head 体系**，在 `main` 上不可复现。合并后应引用 **main `3d37b4a` +
+> run `38928137184`**，并参见文末 Merge Record 的 **SHA 映射（11 对）**。
 >
-> **本档案修订后 Next Action：** 人类显式授权 rebase-merge → 合并后 CI 验证 +
-> 由下一个任务按 D13-C 第七实例回填 Merge Record。
+> **本任务至此结束（Next Action：无）。** D13-C 第七实例回写由 TASK-041 承载完成；
+> 本任务自身为第八实例的待回写方（其内容由**再下一个**任务承载）。
 
 ---
 
@@ -364,6 +373,10 @@ Non-Scope (files):
 > 设计阶段（主控位，未提交）：4 个文件 —— 2 份 docs + 本档案 + 1 份 handoff。
 > **rev2 / rev3 修订均在这 4 个文件内就地完成，未增减文件**（File Scope 与 D13-C 回写范围均未变）。
 > **实施阶段（e572da3）：9 个文件，与 File Scope 逐项吻合。**
+>
+> **路径注记（2026-10-17，D13-C 第七实例）：** 下表与本档案其余处出现的
+> `tasks/review/TASK-040-customer-renewal/**` 均为**合并前**路径；随本任务 `Status → DONE`
+> 已 `git mv` 至 **`tasks/done/TASK-040-customer-renewal/**`（由 TASK-041 承载）。查阅时请以实际目录为准。
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
@@ -421,21 +434,46 @@ Non-Scope (files):
 
 ## Merge Record
 
-> **本任务的合并后回写由下一个任务按 D13-C 承载（第七实例）。**
-> 合并前留空；本任务合并后应保持 `Status = REVIEW`、留在 `tasks/review/`，
-> 并在下一个任务的交付请求中回填下表（七要素）。
+> **本表由 TASK-041 按 D13-C 第七实例回填（2026-10-17，执行位实查，非照抄）。**
+> 判据：`gh pr view 12 --json state,mergedAt,mergeCommit,commits` + `gh run list --branch main`
+> + `git merge-base --is-ancestor <post> origin/main` + 逐对 `git log -1 --format=%t` tree 比对。
+> 合并执行记录（主控位）见 `handoffs/2026-10-16-coordinator-recheck.md` 附录 F。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（预期） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI | 待回填 |
-| D8 解耦 | 待回填 |
-| 独立审查 | 待回填 |
-| SHA 映射 | 待回填 |
+| PR | **#12**（`feat(TASK-040): 客户管理页新增「续期」功能`）|
+| 合并策略 | **rebase-merge**（`main` 线性；`origin/main` `34d9d69 → 3d37b4a`）|
+| 提交数 | **11**（`gh pr view 12 --json commits \| length`）|
+| merged_at | **2026-10-16T15:57:43Z** |
+| merge_commit_sha | **`3d37b4aadc5ba3ca80ab231391c991ee1253f7fe`**（pre-rebase head `c0777db`）|
+| 合并后 CI | run **`38928137184`** `conclusion: success`，`headSha = 3d37b4a`（`audit` + `install-lint-build` 双绿）|
+| D8 解耦 | **第 11 次复现** —— `docker.yml` 最新运行仍为 2026-10-13（`38412561363`），本次合并**未触发任何 Docker 运行** |
+| 独立审查 | `handoffs/2026-10-16-review.md`（两轮：第 1 轮全量 + 第 2 轮定向，不携带实现上下文的新实例出具），结论 **PASS / 无阻断项**；合批修正（A1/A2/B1/B2）入库于 `c0777db` → `3d37b4a` |
+| SHA 映射 | 见下表（11 对，rebase-merge 改写全部 SHA）|
+
+### SHA 映射（rebase-merge 前后，11 对）
+
+> **实测判据（逐对）：** `git cat-file -t <pre>` 与 `<post>` 均为 `commit`；
+> `git log -1 --format=%t <pre>` == `%t <post>`（**tree 相同**）；
+> `git merge-base --is-ancestor <post> origin/main` 通过 ⇒ post-rebase 侧在 `main` 上可复现。
+
+| # | pre-rebase（feature 分支） | post-rebase（main） | 提交主题 |
+|---|---|---|---|
+| 1 | `5d74064` | `df202f7` | 设计与任务档案 |
+| 2 | `e572da3` | `6df3b8c` | feat：续期功能 |
+| 3 | `4f6c94c` | `bcf77d3` | 档案回填 |
+| 4 | `300c28d` | `d445f5b` | 整改 7 项 |
+| 5 | `f8264f3` | `1cab4be` | 第二轮整改 |
+| 6 | `aa0a8a8` | `237d10c` | 第三轮 R1–R4 |
+| 7 | `a2af804` | `65c5029` | R6–R8 |
+| 8 | `1cce4fc` | `dee1ef5` | 补完 R8 + A4 |
+| 9 | `b4aa45a` | `02ce61c` | AC-10 记录入库 |
+| 10 | `c0777db` | `3d37b4a` | 合批修正（A1/A2/B1/B2） |
+| 11 | `1183145` | `d8d16c2` | TASK-039 D13-C 第六实例回写 |
+
+⇒ 档案正文中出现的 `f8264f3` / `aa0a8a8` / `1cce4fc` / `b4aa45a` / `c0777db` 等为**合并前 head 体系**，
+在 `main` 上不可复现（仍在本地对象库中，可 `git cat-file -t` 验证）。**这不是缺陷**，
+是 rebase-merge 的既定后果；权威事实以本表为准。
 
 ---
 
