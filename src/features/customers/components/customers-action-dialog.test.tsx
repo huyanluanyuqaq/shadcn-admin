@@ -120,7 +120,12 @@ function makePlan(id: number, trafficLimit: number | null): Plan {
   }
 }
 
-function makeCustomer(id: number): Customer {
+/**
+ * TASK-041 起客户 `expireAt` **必填**，故夹具默认给一个**远期**到期时间：
+ * 否则所有「保存类」用例都会被必填校验拦死，产生与被测行为无关的**假失败**。
+ * 需要「历史 null 客户」的用例通过 `overrides` 显式传 `expireAt: null`。
+ */
+function makeCustomer(id: number, overrides?: Partial<Customer>): Customer {
   return {
     id,
     name: `customer-${id}`,
@@ -129,7 +134,7 @@ function makeCustomer(id: number): Customer {
     planId: null,
     planTier: null,
     status: 'active',
-    expireAt: null,
+    expireAt: Date.now() + 3650 * 86400000,
     purchasedAt: null,
     trafficUsed: 0,
     trafficTotal: null,
@@ -139,7 +144,27 @@ function makeCustomer(id: number): Customer {
     remark: null,
     createdAt: 1,
     updatedAt: 1,
+    ...overrides,
   }
+}
+
+/**
+ * 在打开的日历里点选第一个**属于当前月**的日期。
+ *
+ * react-day-picker 未为日期单元格提供可访问名称，只能按 DOM 选取：
+ * `td[role="gridcell"][data-day]`（带 `rdp-outside` 的是上下月的补位日期，跳过）。
+ * 返回该格的 `data-day`（`YYYY-MM-DD`），供断言核对。
+ */
+function pickFirstAvailableDay(): string {
+  const cells = Array.from(
+    document.querySelectorAll('td[role="gridcell"][data-day]')
+  )
+  const target = cells.find((c) => !c.classList.contains('rdp-outside'))
+  if (!target) throw new Error('日历未渲染出可用日期单元格')
+  const button = target.querySelector('button')
+  if (!button) throw new Error('日期单元格内没有可点击的按钮')
+  button.click()
+  return target.getAttribute('data-day') as string
 }
 
 async function renderDialog(currentRow?: Customer) {
@@ -176,6 +201,10 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
 
     await userEvent.type(getByLabelText('名称', { exact: true }), '新客户')
     await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
+    // TASK-041：到期时间已必填 ⇒ 新建保存前须先选一个日期，否则被校验拦住
+    // （那会掩盖本用例真正要测的「建订阅 + 触发同步」链路）
+    await userEvent.click(getByLabelText('到期时间', { exact: true }))
+    pickFirstAvailableDay()
     await userEvent.click(getByRole('button', { name: '保存' }))
 
     await vi.waitFor(() => {
@@ -194,6 +223,9 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
     const { getByLabelText, getByRole } = await renderDialog()
 
     await userEvent.type(getByLabelText('名称', { exact: true }), '无链接客户')
+    // TASK-041：到期时间已必填 ⇒ 新建保存前须先选一个日期
+    await userEvent.click(getByLabelText('到期时间', { exact: true }))
+    pickFirstAvailableDay()
     await userEvent.click(getByRole('button', { name: '保存' }))
 
     await vi.waitFor(() => {
@@ -227,6 +259,9 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
 
     await userEvent.type(getByLabelText('名称', { exact: true }), '新客户')
     await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
+    // TASK-041：到期时间已必填 ⇒ 新建保存前须先选一个日期
+    await userEvent.click(getByLabelText('到期时间', { exact: true }))
+    pickFirstAvailableDay()
     await userEvent.click(getByRole('button', { name: '保存' }))
 
     await vi.waitFor(() => {
@@ -466,5 +501,155 @@ describe('CustomersActionDialog 月流量始终跟随套餐（TASK-023）', () =
     await userEvent.clear(monthly)
     await userEvent.type(monthly, '30')
     expect((monthly.element() as HTMLInputElement).value).toBe('30')
+  })
+})
+
+/**
+ * TASK-041（ADR-005）：客户到期时间 `expireAt` 改为**必填**。
+ *
+ * 覆盖 AC-4（占位文案 / 无「清除到期时间」按钮）、AC-5（日历 `required` 的**实测**行为）、
+ * AC-6（历史 `null` 客户编辑即无效初值，必须补填）。
+ *
+ * **防假阳性提醒：** 字段的占位文案与校验提示**同为「请选择到期时间」**，
+ * 因此「提示可见」不能用文本查询断言（占位始终在，会恒真）。
+ * 校验提示一律按 `FormMessage` 的 `data-slot="form-message"` 定位，
+ * 并以「保存未被调用」作为拦截的行为证据。
+ */
+describe('CustomersActionDialog 到期时间必填（TASK-041，AC-4/AC-5/AC-6）', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    subscriptionOptions.data = { items: [] }
+    createCustomer.mutateAsync.mockResolvedValue({ id: 7, name: '新客户' })
+    updateCustomer.mutateAsync.mockImplementation((vars: { id: number }) =>
+      Promise.resolve(makeCustomer(vars.id))
+    )
+    createSubscription.mutateAsync.mockResolvedValue(makeSubscription(42, 7))
+    updateSubscription.mutateAsync.mockResolvedValue(undefined)
+    syncSubscriptionUsage.mutateAsync.mockResolvedValue({ id: 42, ok: true })
+    syncEmailBinding.mutateAsync.mockResolvedValue(undefined)
+  })
+
+  /** 读取当前所有字段级校验提示（`FormMessage`）的文本 */
+  function formMessages(): string[] {
+    return Array.from(
+      document.querySelectorAll('[data-slot="form-message"]')
+    ).map((el) => el.textContent ?? '')
+  }
+
+  it('新建：未选到期时间 → 保存被拦，且提示来自 FormMessage（非占位文案）', async () => {
+    const { getByLabelText, getByRole } = await renderDialog()
+
+    await userEvent.type(getByLabelText('名称', { exact: true }), '新客户')
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(formMessages()).toContain('请选择到期时间')
+    })
+    // 行为证据：根本没有发起创建
+    expect(createCustomer.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('历史 null 客户（遗留数据）：打开编辑直接保存被拦 —— 必须补填（刻意代价 L1）', async () => {
+    const legacy = makeCustomer(9, { expireAt: null })
+    const { getByRole } = await renderDialog(legacy)
+
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(formMessages()).toContain('请选择到期时间')
+    })
+    expect(updateCustomer.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('历史 null 客户（遗留数据）：补填到期时间后可保存，且载荷含新的 expireAt', async () => {
+    const legacy = makeCustomer(9, { expireAt: null })
+    const { getByLabelText, getByRole } = await renderDialog(legacy)
+
+    await userEvent.click(getByLabelText('到期时间', { exact: true }))
+    const pickedDay = pickFirstAvailableDay()
+
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(updateCustomer.mutateAsync).toHaveBeenCalledOnce()
+    })
+    const payload = updateCustomer.mutateAsync.mock.calls[0][0] as {
+      id: number
+      input: { expireAt?: number }
+    }
+    expect(payload.id).toBe(9)
+    expect(typeof payload.input.expireAt).toBe('number')
+    // 与日历所选日期一致（日历产出当日 00:00 的本地时间）
+    const isoDay = new Date(payload.input.expireAt as number)
+      .toISOString()
+      .slice(0, 10)
+    expect(
+      Math.abs(new Date(isoDay).getTime() - new Date(pickedDay).getTime())
+    ).toBeLessThanOrEqual(24 * 3600 * 1000)
+  })
+
+  it('「清除到期时间」按钮已移除 —— 不再存在把字段置回 null 的入口', async () => {
+    await renderDialog()
+    // 注：vitest-browser-react 的 render 结果**没有** `queryByRole`，改按 DOM 扫描
+    const hasClearButton = Array.from(document.querySelectorAll('button')).some(
+      (b) => (b.textContent ?? '').trim() === '清除到期时间'
+    )
+    expect(hasClearButton).toBe(false)
+  })
+
+  it('AC-5 实测：到期时间日历再次点击已选日期**不会**被清空', async () => {
+    const { getByLabelText } = await renderDialog()
+
+    const trigger = getByLabelText('到期时间', { exact: true })
+    await userEvent.click(trigger)
+    const pickedDay = pickFirstAvailableDay()
+    await vi.waitFor(() => {
+      expect((trigger.element() as HTMLElement).textContent).toContain(
+        pickedDay
+      )
+    })
+
+    // 再次打开并点击**同一个**日期
+    await userEvent.click(trigger)
+    const same = Array.from(
+      document.querySelectorAll('td[role="gridcell"][data-day]')
+    ).find((c) => c.getAttribute('data-day') === pickedDay)
+    expect(same, `未找到已选中的日期 ${pickedDay}`).toBeTruthy()
+    same!.querySelector('button')!.click()
+
+    await vi.waitFor(() => {
+      expect((trigger.element() as HTMLElement).textContent).toContain(
+        pickedDay
+      )
+    })
+  })
+
+  it('AC-5 对照：购买时间日历（**无** required）再次点击已选日期**会**被清空', async () => {
+    // 对照实验的意义：证明上一条「不会清空」确由 `required` 带来，
+    // 而不是「single 模式本来就不能取消选择」——购买时间字段刻意保持可空
+    // （TASK-041 Non-Scope），其日历**未**加 required，是天然的对照组。
+    const { getByLabelText } = await renderDialog()
+
+    const trigger = getByLabelText('购买时间', { exact: true })
+    await userEvent.click(trigger)
+    const pickedDay = pickFirstAvailableDay()
+    await vi.waitFor(() => {
+      expect((trigger.element() as HTMLElement).textContent).toContain(
+        pickedDay
+      )
+    })
+
+    await userEvent.click(trigger)
+    const same = Array.from(
+      document.querySelectorAll('td[role="gridcell"][data-day]')
+    ).find((c) => c.getAttribute('data-day') === pickedDay)
+    expect(same, `未找到已选中的日期 ${pickedDay}`).toBeTruthy()
+    same!.querySelector('button')!.click()
+
+    await vi.waitFor(() => {
+      expect((trigger.element() as HTMLElement).textContent).not.toContain(
+        pickedDay
+      )
+    })
   })
 })

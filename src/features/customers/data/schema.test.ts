@@ -5,6 +5,7 @@ import { effectiveTrafficTotal } from '../utils'
 import {
   buildSubscriptionInput,
   computeExpireAt,
+  customerFormSchema,
   emptyCustomerForm,
   formatTrafficTotalGb,
   GB,
@@ -113,6 +114,11 @@ describe('toCustomerInput', () => {
     ).toBe(20 * GB)
   })
 
+  // TASK-041 注：本用例断言的是 `toCustomerInput` 这个**纯函数映射**的独立契约，
+  // 与 UI 校验无关 —— 到期时间自 TASK-041 起改为必填后，**表单路径不再产生 `null`**
+  // （打开历史 null 客户或直接新建时，保存会先被字段级 refine 拦住），
+  // 故 `null → null` 这条分支**不再由表单触达**，仅作**防御性映射**保留。
+  // 请勿因「必填了就没人传 null」而删除本用例：它锁定的是映射函数自身的行为。
   it('到期时间：Date 转 epoch 毫秒，null 保持 null', () => {
     const date = new Date('2026-10-14T00:00:00Z')
     expect(toCustomerInput({ ...base, expireAt: date }).expireAt).toBe(
@@ -565,6 +571,63 @@ describe('emptyCustomerForm 同步周期预填（TASK-020）', () => {
         /^(\d{1,2}) (\d{1,2}) \* \* \*$/
       )
     }
+  })
+})
+
+describe('customerFormSchema.expireAt 必填（TASK-041，AC-1）', () => {
+  it('expireAt 为 null 时被拒，且提示文案为「请选择到期时间」', () => {
+    const result = customerFormSchema.safeParse({
+      ...emptyCustomerForm(),
+      name: '新客户',
+      expireAt: null,
+    })
+    expect(result.success).toBe(false)
+    expect(result.error?.issues[0]?.message).toBe('请选择到期时间')
+  })
+
+  it('expireAt 为合法 Date 时通过校验', () => {
+    const expire = new Date('2027-01-01T00:00:00Z')
+    const result = customerFormSchema.safeParse({
+      ...emptyCustomerForm(),
+      name: '新客户',
+      expireAt: expire,
+    })
+    expect(result.success).toBe(true)
+    expect(result.data?.expireAt?.getTime()).toBe(expire.getTime())
+  })
+
+  it('新建默认表单处于「无效初值」——未选到期时间即不可提交', () => {
+    // 刻意代价 L1 的下界：初值仍是 `null`（类型诚实），而不是被悄悄填成某个日期
+    expect(emptyCustomerForm().expireAt).toBeNull()
+    expect(
+      customerFormSchema.safeParse({
+        ...emptyCustomerForm(),
+        name: '新客户',
+      }).success
+    ).toBe(false)
+  })
+
+  it('过期时间（过去时刻）仍合法 —— 必填只约束非空，不要求晚于今天', () => {
+    const past = new Date('2020-01-01T00:00:00Z')
+    expect(
+      customerFormSchema.safeParse({
+        ...emptyCustomerForm(),
+        name: '老客户',
+        expireAt: past,
+      }).success
+    ).toBe(true)
+  })
+
+  it('其余可空日期字段未被波及：purchasedAt / subscriptionExpireAt 仍可为 null', () => {
+    const result = customerFormSchema.safeParse({
+      ...emptyCustomerForm(),
+      name: '新客户',
+      expireAt: new Date('2027-01-01T00:00:00Z'),
+      purchasedAt: null,
+      subscriptionExpireAt: null,
+    })
+    expect(result.success).toBe(true)
+    expect(result.data?.purchasedAt).toBeNull()
   })
 })
 

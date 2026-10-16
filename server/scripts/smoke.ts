@@ -28,6 +28,14 @@ const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:3000'
 const USERNAME = process.env.SMOKE_USERNAME ?? 'admin'
 const PASSWORD = process.env.SMOKE_PASSWORD ?? 'admin123'
 
+/**
+ * TASK-041 起客户 `expireAt` **必填**（ADR-005），本脚本内创建客户的载荷一律带上此值。
+ *
+ * 取**远期**（10 年）而非近期：到期时间落在提醒时间窗内会注入 `customer.expire` 提醒，
+ * 从而扰动「提醒扫描」与「仪表盘统计」类断言；远期可保证零注入。
+ */
+const FAR_FUTURE_EXPIRE_AT = Date.now() + 3650 * 86400000
+
 let passed = 0
 let failed = 0
 
@@ -613,6 +621,43 @@ async function main() {
   })
   check('非法入参返回 400', invalid.status === 400, invalid.json)
 
+  // 8b. TASK-041（ADR-005）：客户 `expireAt` 必填 —— 端到端契约证据
+  // ① 创建缺 `expireAt` → 400；② PATCH 传 `{ expireAt: null }` → 400（不允许清空）；
+  // ③ PATCH **省略** `expireAt` 仍须成功（部分更新未被 `.partial()` 破坏）。
+  const missingExpire = await req('/api/customers', {
+    method: 'POST',
+    token,
+    body: { name: `smoke-no-expire-${suffix}` },
+  })
+  check(
+    '创建客户缺 expireAt 返回 400',
+    missingExpire.status === 400,
+    missingExpire.json
+  )
+
+  const nullExpire = await req(`/api/customers/${customer.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { expireAt: null },
+  })
+  check(
+    '更新客户传 expireAt=null 返回 400',
+    nullExpire.status === 400,
+    nullExpire.json
+  )
+
+  // 用幂等的 `status` 而非 `remark`，避免覆盖上一步「部分更新」所写的值
+  const partialOk = await req(`/api/customers/${customer.json?.id}`, {
+    method: 'PATCH',
+    token,
+    body: { status: 'active' },
+  })
+  check(
+    '更新客户省略 expireAt 仍成功（.partial() 未失效）',
+    partialOk.status === 200 && partialOk.json?.status === 'active',
+    partialOk.json
+  )
+
   const badPage = await req('/api/customers?pageSize=9999', { token })
   check('越界分页参数返回 400', badPage.status === 400, badPage.status)
 
@@ -662,6 +707,7 @@ async function main() {
     token,
     body: {
       name: `smoke-threshold-a-${suffix}`,
+      expireAt: FAR_FUTURE_EXPIRE_AT,
       trafficTotal: 100 * 1024 ** 3,
       trafficUsed: 60 * 1024 ** 3,
     },
@@ -736,6 +782,7 @@ async function main() {
     token,
     body: {
       name: `smoke-threshold-b-${suffix}`,
+      expireAt: FAR_FUTURE_EXPIRE_AT,
       trafficTotal: 100 * 1024 ** 3,
       trafficUsed: 30 * 1024 ** 3,
     },
@@ -764,6 +811,7 @@ async function main() {
     token,
     body: {
       name: `smoke-threshold-c-${suffix}`,
+      expireAt: FAR_FUTURE_EXPIRE_AT,
       trafficTotal: 100 * 1024 ** 3,
       trafficManualCap: 50 * 1024 ** 3,
       trafficUsed: 30 * 1024 ** 3,
@@ -785,6 +833,7 @@ async function main() {
     token,
     body: {
       name: `smoke-threshold-d-${suffix}`,
+      expireAt: FAR_FUTURE_EXPIRE_AT,
       planId: plan.json?.id,
       trafficTotal: 100 * 1024 ** 3,
       trafficUsed: Math.round(0.9 * 1024 ** 3),
@@ -907,7 +956,7 @@ async function main() {
     const wbCustomer = await req('/api/customers', {
       method: 'POST',
       token,
-      body: { name: `smoke-writeback-${suffix}` },
+      body: { name: `smoke-writeback-${suffix}`, expireAt: FAR_FUTURE_EXPIRE_AT },
     })
     check('创建回写验证客户', wbCustomer.status === 201, wbCustomer.json)
 
@@ -960,7 +1009,10 @@ async function main() {
     const wbCustomer2 = await req('/api/customers', {
       method: 'POST',
       token,
-      body: { name: `smoke-writeback2-${suffix}` },
+      body: {
+        name: `smoke-writeback2-${suffix}`,
+        expireAt: FAR_FUTURE_EXPIRE_AT,
+      },
     })
     const wbSub2 = await req('/api/subscriptions', {
       method: 'POST',
@@ -1005,7 +1057,10 @@ async function main() {
     const wbFailCustomer = await req('/api/customers', {
       method: 'POST',
       token,
-      body: { name: `smoke-writeback-fail-${suffix}` },
+      body: {
+        name: `smoke-writeback-fail-${suffix}`,
+        expireAt: FAR_FUTURE_EXPIRE_AT,
+      },
     })
     const wbFailSub = await req('/api/subscriptions', {
       method: 'POST',
@@ -1044,7 +1099,10 @@ async function main() {
     const wbNoInfoCustomer = await req('/api/customers', {
       method: 'POST',
       token,
-      body: { name: `smoke-writeback-nouserinfo-${suffix}` },
+      body: {
+        name: `smoke-writeback-nouserinfo-${suffix}`,
+        expireAt: FAR_FUTURE_EXPIRE_AT,
+      },
     })
     const wbNoInfoSub = await req('/api/subscriptions', {
       method: 'POST',
@@ -1080,7 +1138,10 @@ async function main() {
     const wb403Customer = await req('/api/customers', {
       method: 'POST',
       token,
-      body: { name: `smoke-writeback-403-${suffix}` },
+      body: {
+        name: `smoke-writeback-403-${suffix}`,
+        expireAt: FAR_FUTURE_EXPIRE_AT,
+      },
     })
     const wb403Sub = await req('/api/subscriptions', {
       method: 'POST',
@@ -1116,7 +1177,7 @@ async function main() {
   const archiveCustomer = await req('/api/customers', {
     method: 'POST',
     token,
-    body: { name: `smoke-archive-${suffix}` },
+    body: { name: `smoke-archive-${suffix}`, expireAt: FAR_FUTURE_EXPIRE_AT },
   })
   check('创建待归档客户', archiveCustomer.status === 201, archiveCustomer.json)
 
