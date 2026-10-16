@@ -141,7 +141,8 @@ Requires Human Approval: true   # 破坏性接口变更：POST /api/customers �
   （并实测其是否阻止取消选择；不生效则退化为校验兜底且**如实披露**）。
 - 列表：`null` 的文案由「长期」改为「未设置」（决策 D-3，**已由人类于 2026-10-16 追认**）。
 - 契约与脚本：`api-contract.md` 更新 `expireAt` 行；冒烟脚本 10 处载荷补**远期** `expireAt`，
-  并新增两条契约检查（缺字段 → 400；`{ expireAt: null }` → 400）。
+  并新增**两条负向契约检查**（缺字段 → 400；`{ expireAt: null }` → 400）
+  与**一条正向对照**（`PATCH` 省略 `expireAt` → 200，证 `.partial()` 未被破坏），合计 3 条。
 - 测试：表单 schema 用例、对话框用例（历史客户补填 / 新建拦截 / 无清除按钮），
   并**调整**其余保存类用例的夹具（否则被必填拦死，产生假失败）。
 - 跨任务文档同步：`docs/technical/customer-renewal.md` 补 **1 行**注记（范围严格限于注记）。
@@ -260,8 +261,9 @@ Requires Human Approval: true   # 破坏性接口变更：POST /api/customers �
       `mutateAsync` 载荷含新的 `expireAt`（有对应用例）。
 - [x] AC-7: 列表 `null` 文案为「**未设置**」（D-3，已由人类追认）；`daysLeft` 实现与
       `splitPlanCycles` 的判空逻辑**未改**。
-- [x] AC-8: `server/scripts/smoke.ts` 10 处载荷补**远期** `expireAt`；新增两条契约检查
-      （缺字段 400 / 传 `null` 400）；`pnpm --filter server smoke` 全绿。
+- [x] AC-8: `server/scripts/smoke.ts` 10 处载荷补**远期** `expireAt`；新增契约检查
+  （两条负向：缺字段 400 / 传 `null` 400；一条正向对照：省略仍 200 —— 合计 **3 条**）；
+  `pnpm --filter server smoke` 全绿（7 项失败为基线固有，见 Known Issues X3）。
 - [x] AC-9: 测试按设计文档 §7 落地并实测通过；**未**放宽校验（以用例名与断言行核对，非通过率）。
 - [x] AC-10: `api-contract.md` 的 `expireAt` 行已更新（与代码同提交）；
       `customer-renewal.md` 的跨任务注记已补且**仅有注记**（以 diff 为证）。
@@ -269,9 +271,9 @@ Requires Human Approval: true   # 破坏性接口变更：POST /api/customers �
       `src/components/ui/**`、`package.json`、`pnpm-lock.yaml`（以 diff 为空为证）。
 - [x] AC-12: `pnpm build:shared && pnpm lint && pnpm format:check && pnpm build && pnpm test`
       全部本地通过（若浏览器不可用则如实披露由 CI 执行）；`python3 scripts/audit-repo.py` 全 PASS。
-- [ ] AC-13: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit`
+- [x] AC-13: 分支已推远端；交付请求创建且描述覆盖模板全部字段；CI `install-lint-build` + `audit`
       双绿（run id 留痕，含「合并门禁以合并时点 head 的 run 为准」防腐注）。
-- [ ] AC-14: 两轮独立审查记录落 `handoffs/`，阻断项关闭并经实跑复核；实现者未自我批准。
+- [x] AC-14: 两轮独立审查记录落 `handoffs/`，阻断项关闭并经实跑复核；实现者未自我批准。
 - [x] AC-15: TASK-040 归档回写完成（`Status = DONE` + Merge Record 七要素 + 迁 `tasks/done/`），
       且本任务 `Merge Record` 已标注「待下一个任务回填（D13-C 第八实例）」。
 
@@ -321,7 +323,7 @@ Non-Scope (files):
 | 4 | `src/features/customers/data/schema.ts`：字段级 refine | 表单层 |
 | 5 | `customers-action-dialog.tsx`：占位文案、移除清除按钮、日历 `required`（并实测其行为） | 界面 |
 | 6 | `customers-columns.tsx`：`null` 文案改「未设置」（D-3，已由人类追认） | 列表 |
-| 7 | `server/scripts/smoke.ts`：10 处补**远期** `expireAt` + 新增两条契约检查；跑 `pnpm --filter server smoke` | 契约证据 |
+| 7 | `server/scripts/smoke.ts`：10 处补**远期** `expireAt` + 新增 3 条契约检查（2 负向 + 1 正向对照）；跑 `pnpm --filter server smoke` | 契约证据 |
 | 8 | 测试：表单 schema 用例 + 对话框用例（历史客户 / 新建 / 无清除按钮）+ **调整其余保存类夹具** | 测试 |
 | 9 | 本地验证：`pnpm build:shared && pnpm lint && pnpm format:check && pnpm build && pnpm test` + `python3 scripts/audit-repo.py` | 原始输出 |
 | 10 | 文档：`api-contract.md` 更新 + `customer-renewal.md` 1 行注记；回填档案（Current State / Changed Files / Known Issues）→ 迁 `tasks/review/`（`Status = REVIEW`）→ 推送 → 创建交付请求（含 D13-C 回写提交） | PR |
@@ -343,7 +345,7 @@ Non-Scope (files):
 | AC-10 | 命令 | `git diff --stat -- docs/technical/`；确认 `customer-renewal.md` 的改动仅 1 行注记 |
 | AC-11 | 命令 | `git diff origin/main --stat -- server/src server/drizzle src/features/subscriptions src/components/ui package.json pnpm-lock.yaml`（预期无输出） |
 | AC-12 | 命令 | `pnpm build:shared && pnpm lint && pnpm format:check && pnpm build && pnpm test`；`python3 scripts/audit-repo.py` |
-| AC-13 | 命令 | `gh pr checks <n>`；run id 记入 handoff |
+| AC-13 | 命令 | `gh pr checks 13` ⇒ **`install-lint-build` + `audit` 双绿**；CI run **`38936077572`**（`headSha = ee0bf64`，`conclusion: success`） |
 | AC-14 | 人工 | 读 `handoffs/` 两份审查记录，核对其中的**实跑**输出 |
 | AC-15 | 命令 + 人工 | `git log --oneline -5`（回写提交在场）；读 `tasks/done/TASK-040-…/TASK.md` 的 Merge Record 七要素 |
 
@@ -388,11 +390,22 @@ Non-Scope (files):
 > **人类裁定（本任务设计前，三项）：** ① 强制层级 = 表单 + API 入参；
 > ② 历史 `null` 保留、编辑时补填；③ 另立 TASK-041。
 >
-> **防腐注：** 本节的 head / CI run / 通过数为**撰写时点快照**（尚未推送、尚无 CI run）。
-> 合并门禁以**合并时点 head 的 run** 为准；最终权威事实由下一个任务回填的 `Merge Record` 承载。
+> **防腐注（2026-10-17 更正，原写「尚未推送、尚无 CI run」已反向失真）：**
+> 分支**已推送**，交付请求 **PR #13** 已创建，**CI run `38936077572`**（`headSha = ee0bf64`）
+> 的 `install-lint-build` + `audit` **双绿**。
+> 本节的 head / CI run / 通过数为**撰写时点快照**；**合并门禁以合并时点 head 的 run 为准**
+> （其后仍有整改提交 ⇒ run 会刷新）；最终权威事实由下一个任务回填的 `Merge Record` 承载。
 >
-> **Next Action：** 由**不携带实现上下文的新实例**执行 AC-14 的两轮独立审查 →
-> 推送 → 创建交付请求 → CI 双绿 → **人类显式授权** rebase-merge（由主控位执行）。
+> **独立审查（AC-14，2026-10-17）：** 由**不携带实现上下文的新实例**出具，两轮记录落
+> `handoffs/2026-10-17-review.md`。**结论：无阻断项；14 项 AC ✅ / 0 ❌**；五个易错点全部未犯；
+> 冒烟的 7 项失败经其**自建基线源码树**对照复现（133/7 vs 130/7，`diff` 为空；指向 mock 后
+> 本分支 153/4、基线 150/4，差值恒等于新增的 3 条检查）⇒ 确认为基线固有。
+> 其提出 N1–N4 四项**非阻断**建议，N1–N3 已在本轮整改，N4（冒烟脚本自身的顺序缺陷）
+> **不属本任务范围**，建议另立任务。
+>
+> **Next Action：** **人类显式授权** → 由**主控位**执行 rebase-merge（PR #13）
+> → 合并后 CI 验证 + D8 复现 → 本任务按 D13-C 保持 `Status = REVIEW`、留在 `tasks/review/`，
+> 其 `Merge Record` 由**下一个任务**（第八实例）回填。
 
 ---
 
@@ -450,6 +463,10 @@ Non-Scope (files):
   （表单侧由字段级 refine 保证非空）、仅作防御性映射；**运行时行为未变**（§7.1 的断言保留）。
 - **X3 冒烟 7 项失败为基线固有**：经**基线对照**（还原改动后同一环境跑同一脚本）确认失败项
   逐行一致 ⇒ 与本任务无关；未在本次改动中处置，亦不属本任务范围。
+- **X4 冒烟脚本自身的顺序缺陷（审查 N4，建议另立任务）**：`smoke.ts` 第 13 段删除了
+  `pool` / `plan`，而第 17.9.1 段（富格式验证）仍引用二者 ⇒ 产生 4 项 `FOREIGN KEY` 失败。
+  该缺陷在**基线中同样存在**（已由两轮基线对照证明），**不属本任务范围**，
+  **不得**借本任务顺手修改脚本结构（越界）。建议另立任务修复。
 
 ---
 
@@ -505,8 +522,10 @@ Non-Scope (files):
 | 001 | 主控位 | 执行位 | 2026-10-16 | 设计定稿并派遣：交付设计文档 + ADR-005 + 本档案；指令为「先确认 TASK-040 已合并，再派生分支」，从共享 schema 改起 |
 | 001r | 主控位 | 执行位 | 2026-10-16 | **D-3 追认同轮同步（仍在同一交接）**：人类追认「列表 `null` 文案改『未设置』」⇒ 撤销分支取消，相关条件式表述（Requirements / AC-7 / Plan 步骤 6 / Notes）全部改为确定项 |
 | 002 | 执行位 | 主控位 | 2026-10-17 | **实施交付**：共享 schema 入参必填 + 输出覆写、表单字段级 refine、界面三处、列表文案、冒烟 10 处补远期 + 3 条契约检查、测试 +11；**D13-C 第七实例**（TASK-040 归档回写）已完成；登记 X1/X2 与 AC-5 实测结论；请主控位安排独立审查与人类授权合并 |
+| 003 | 独立审查实例 | 主控位 / 执行位 | 2026-10-17 | **AC-14 两轮独立审查**（不携带实现上下文的新实例，记录 `handoffs/2026-10-17-review.md`）：**无阻断项，14 项 AC ✅ / 0 ❌**；五个易错点全部未犯；冒烟 7 项失败经其自建基线源码树复现为基线固有；提出 N1–N4 四项非阻断建议 |
 
 **最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
+**独立审查记录（AC-14）：** `handoffs/2026-10-17-review.md`（两轮；**非**主控位复审，实现者未自我批准）
 **Next Action：** 由**不携带实现上下文的新实例**执行 AC-14 的两轮独立审查
 （记录另起 `handoffs/2026-10-17-review.md`，**不得**写入 `HANDOFF-002`，
 也不得与主控位复审记录混淆）→ 关闭阻断项 → 推送并创建交付请求 → CI 双绿 →
