@@ -1,9 +1,9 @@
 # 客户续期（Customer Renewal）设计
 
-> **状态：设计已定稿（rev4），待实施**（TASK-040）
+> **状态：已实现（rev4，e572da3）**（TASK-040）
 > 设计者：主控位 / Architect · 2026-10-16
 > 关联：`docs/decisions/ADR-004-renewal-duration-semantics.md`（时长口径与基准语义）、
-> `tasks/active/TASK-040-customer-renewal/TASK.md`（任务档案，唯一事实来源）
+> `tasks/review/TASK-040-customer-renewal/TASK.md`（任务档案，唯一事实来源）
 >
 > **★ 修订 rev2（2026-10-16，人类裁定）：** 快捷项的「N 个月」**不再按自然月计算**，
 > 改为**与套餐档位统一为固定天数**（1/3/6/12 个月 = 30/90/180/360 天）⇒

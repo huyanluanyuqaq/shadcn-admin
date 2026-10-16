@@ -266,7 +266,7 @@ File Scope:
   - src/components/data-table/toolbar.tsx                               # 新增可选 actions 插槽
   - docs/technical/customer-renewal.md                                  # 设计文档（补实现状态）
   - docs/decisions/ADR-004-renewal-duration-semantics.md                # D-1 已裁定；D-2/D-3 确认后转 Accepted
-  - tasks/active/TASK-040-customer-renewal/**                           # 任务档案与交接
+  - tasks/review/TASK-040-customer-renewal/**                           # 任务档案与交接（已迁移至 review）
   - tasks/review/TASK-039-adopt-workspace-framework/**                  # D13-C 回写（Range 仅 tasks/**）
   - tasks/done/TASK-039-adopt-workspace-framework/**                    # D13-C 归档迁入
 Non-Scope (files):
@@ -349,7 +349,7 @@ Non-Scope (files):
 > **rev2 / rev3 修订均在这 4 个文件内就地完成，未增减文件**（File Scope 与 D13-C 回写范围均未变）。
 > **实施阶段（e572da3）：9 个文件，与 File Scope 逐项吻合。**
 
-|| 文件 | 变更类型 | 说明 |
+| 文件 | 变更类型 | 说明 |
 |------|---------|------|
 | `docs/technical/customer-renewal.md` | 新增（rev2） | 客户续期功能设计（权威实现依据；时长口径改为与档位统一的固定天数） |
 | `docs/decisions/ADR-004-renewal-duration-semantics.md` | 新增（rev2） | 时长口径与基准语义决策（现为 **`Accepted`**；D-1 / D-2 / D-3 均已由人类裁定） |
@@ -455,9 +455,11 @@ Non-Scope (files):
 | 001r2 | 主控位 | 执行位 | 2026-10-16 | **rev3 修订（仍在同一交接）**：人类裁定「不存在长期有效选项、不需要该规则」⇒ 撤销 `expireAt === null` 的禁用条件（矩阵 4→3 条），改为「不禁用 + 显示 `未设置`/`（自今日起算）`」；登记可达性实证与新 Known Issue L8 |
 | 001r3 | 主控位 | 执行位 | 2026-10-16 | **rev4 状态确认（仍在同一交接）**：人类裁定「ADR-004 的 D-2 确认」⇒ 三项决策齐备、ADR-004 由 `Proposed` 转 `Accepted`；**无设计内容变更**，仅同步两份 ADR、两份设计文档与两份档案中的状态引用 |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-coordinator-to-implementer.md`
-**Next Action：** 执行位派生 `feature/TASK-040-customer-renewal`，显式 `git add` 本目录与两份 docs 后提交
-（footer `Refs: TASK-040`），随后按 Implementation Plan 步骤 3 实施纯函数与测试。
+| 002 | 执行位 | 主控位 | 2026-10-16 | 实施完成：e572da3 已提交（9 文件），本地验证全绿（334 test + audit 7 PASS）；档案回填 + HANDOFF-002 已写；PR #12 已创建，待独立审查后合并 |
+| 002r | 执行位 | 主控位 | 2026-10-16 | **整改交付完整性缺陷（7 项）**：目录迁移 active→review / 档案自洽修正（Meta/Changed Files/File Scope/Handoff） / 设计文档状态更新 / PR #12 描述按模板重渲染 / gitignore 覆盖临时文件 / HANDOFF-002 补提交 |
+
+**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
+**Next Action：** 独立审查（新实例，I2）→ 整改（如有）→ 人类授权 → rebase-merge → D13-C 第七实例回填 Merge Record。
 
 ---
 

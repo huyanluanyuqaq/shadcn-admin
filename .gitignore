@@ -41,3 +41,6 @@ dist-ssr
 
 # agent 临时文件 / PR 描述草稿（TASK-032 D2 主控位裁决纳入 ignore）
 .workbuddy/
+
+# TASK-040 temporary files
+.task040-*
