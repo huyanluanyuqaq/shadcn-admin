@@ -462,9 +462,11 @@ Non-Scope (files):
 
 | 002 | 执行位 | 主控位 | 2026-10-16 | 实施完成：e572da3 已提交（9 文件），本地验证全绿（334 test + audit 7 PASS）；档案回填 + HANDOFF-002 已写；PR #12 已创建，待独立审查后合并 |
 | 002r | 执行位 | 主控位 | 2026-10-16 | **整改交付完整性缺陷（7 项）**：目录迁移 active→review / 档案自洽修正（Meta/Changed Files/File Scope/Handoff） / 设计文档状态更新 / PR #12 描述按模板重渲染 / gitignore 覆盖临时文件 / HANDOFF-002 补提交 |
+| 002r2 | 执行位 | 主控位 | 2026-10-16 | **整改交付完整性缺陷（第二轮，4 项）**：Meta YAML 行首冗余竖线去除 / DESIGN→REVIEW 状态映射段改写 / Changed Files 2 行路径 active→review / ADR-004 路径同步 / 磁盘临时文件清理（提交 `f8264f3`） |
+| 002r3 | 执行位 | 主控位 | 2026-10-16 | **整改交付完整性缺陷（第三轮，R1-R4）+ 主控位阶段 9 复审记录**：设计文档 §3.4 实现注记细化（`===1`→`>0`）/ TASK-039 归档状态更新 / Current State 补记 PR/CI/Next Action / PR #12 提交引用补全 / 2026-10-16-coordinator-recheck.md 入库（提交 `aa0a8a8`） |
 
-**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
-**Next Action：** 独立审查（新实例，I2）→ 整改（如有）→ 人类授权 → rebase-merge → D13-C 第七实例回填 Merge Record。
+**最新 Handoff：** `handoffs/2026-10-16-coordinator-recheck.md`
+**Next Action：** 独立审查（不携带实现上下文的新实例）→ 整改（如有）→ 人类授权 rebase-merge → D13-C 第七实例回填 Merge Record。
 
 ---
 
