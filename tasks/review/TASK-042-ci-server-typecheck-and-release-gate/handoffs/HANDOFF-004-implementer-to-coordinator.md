@@ -39,10 +39,11 @@ Previous Handoff: HANDOFF-003-coordinator-to-implementer.md
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| `tasks/review/TASK-042-ci-server-typecheck-and-release-gate/TASK.md` | 修改 | AC-1～AC-8 回填 + Merge Record + File Scope 修正 + Current State + KI-4/KI-5 + Handoff 索引更新 |
+| `tasks/review/TASK-042-ci-server-typecheck-and-release-gate/TASK.md` | 修改 | AC-1～AC-9 回填 + Merge Record + File Scope 修正 + Current State + KI-4/KI-5 + Handoff 索引更新 |
 | `tasks/review/TASK-042-ci-server-typecheck-and-release-gate/handoffs/HANDOFF-002-implementer-to-coordinator.md` | 新增 | 补录（P1–P3 实施报告 + 审查结论） |
 | `tasks/review/TASK-042-ci-server-typecheck-and-release-gate/handoffs/HANDOFF-003-coordinator-to-implementer.md` | 新增 | AC-9 归档指派 |
 | `tasks/review/TASK-042-ci-server-typecheck-and-release-gate/handoffs/HANDOFF-004-implementer-to-coordinator.md` | 新增 | 本文件 |
+| `tasks/review/TASK-042-ci-server-typecheck-and-release-gate/artifacts/ac9-audit-repo.txt` | 新增 | `audit-repo.py` 运行输出（PASS=7 FAIL=0 WARN=0） |
 
 > **未改动**任何 `.github/`、`src/`、`server/`、`shared/`、`package.json`、`tsconfig*`、`AGENTS.md`、`docs/` 文件。
 
@@ -87,7 +88,7 @@ Previous Handoff: HANDOFF-003-coordinator-to-implementer.md
 ## Next Action
 
 **接收方（主控位）：**
-1. 审查 PR [XX](https://github.com/huyanluanyuqaq/shadcn-admin/pull/XX) 的档案回写 diff。
+1. 审查 PR [#15](https://github.com/huyanluanyuqaq/shadcn-admin/pull/15) 的档案回写 diff。
 2. PASS 后执行 `rebase-merge`。
 3. 合并后确认任务目录已在 `tasks/review/`、`TASK.md` `Status = REVIEW`。
 4. 后续任务中按 D13-C 完成归档回写（移至 `tasks/done/`）。
@@ -97,8 +98,9 @@ Previous Handoff: HANDOFF-003-coordinator-to-implementer.md
 ## References
 
 - 本 PR 分支：`docs/TASK-042-archive`
+- PR #15（本归档 PR）：https://github.com/huyanluanyuqaq/shadcn-admin/pull/15
 - `TASK.md`：`tasks/review/TASK-042-ci-server-typecheck-and-release-gate/TASK.md`
 - HANDOFF 链：`HANDOFF-001` → `HANDOFF-002` → `HANDOFF-003` → `HANDOFF-004`
-- PR #14：https://github.com/huyanluanyuqaq/shadcn-admin/pull/14
+- PR #14（代码合并）：https://github.com/huyanluanyuqaq/shadcn-admin/pull/14
 - run `39006433376`：https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/39006433376
 - run `39007059836`：https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/39007059836
