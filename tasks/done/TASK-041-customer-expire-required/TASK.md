@@ -10,9 +10,9 @@
 Task ID: TASK-041
 Title: 客户到期时间改为必填（表单 + API 入参双重强制；历史 null 保留、编辑时补填）
 Workflow: refactor          # 非新增能力，而是收紧既有字段的契约与校验
-Status: REVIEW
+Status: DONE
 Priority: P2
-Owner: 主控位（定义与设计已完成）→ 执行位（实施已完成，待审查）
+Owner: 主控位（定义与设计已完成）→ 执行位（实施已完成，已审查，已合并）
 Owner Since: 2026-10-16
 Assigned Role: architect（设计，已完成）→ developer（实施，已完成）；审查由不携带实现上下文的新实例承担
 Created: 2026-10-16
@@ -31,11 +31,13 @@ Requires Human Approval: true   # 破坏性接口变更：POST /api/customers �
 > | `REVIEW` | `review/` |
 > | `DONE` | `done/` |
 >
-> **本任务当前为 `REVIEW`（`review/`）：** 实施阶段已完成（提交 `b14e097` + `0ccd79a`），
-> 本地验证全绿（`pnpm test` **345 passed**），待独立审查通过后由人类授权 rebase-merge。
+> **本任务当前为 `DONE`（`done/`）：** 实施阶段已完成（提交 `b14e097` + `0ccd79a`），
+> 本地验证全绿（`pnpm test` **345 passed**），两轮独立审查无阻断项，
+> 已由人类授权 rebase-merge 合入 `main`（PR #13，merge commit `72d8f28`）。
 >
-> **注（D13-C 既定形态，非缺陷）：** 本任务合并后**仍保持 `Status = REVIEW`、留在 `tasks/review/`**，
-> 其 `Merge Record` 由**下一个任务**按 D13-C **第八实例**回填。
+> **D13-C 第八实例已完成（2026-10-17，由 TASK-043 承载）：** 本任务 `Status → DONE`、
+> `git mv` 至 `tasks/done/`，`Merge Record` 九项 + **6 对 SHA 映射**已由 TASK-043 实查回填
+> （见下方 `Merge Record` 节）。
 >
 > **历史注记：** 本任务曾因 `blocks` 依赖（TASK-040 未合并）被限制在 `DESIGN`、不得进入 `ACTIVE`；
 > 该依赖已于 2026-10-16 解除（TASK-040 以 PR #12 合入 `main`，merge commit `3d37b4a`）。
@@ -353,6 +355,15 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-17 —— D13-C 第八实例归档回写完成（由 TASK-043 承载，`Refs: TASK-041`）。**
+> `Status: REVIEW → DONE`、`git mv` → `tasks/done/`、`Merge Record` 九项 + **6 对 SHA 映射**
+> 全部由 TASK-043 以 `gh pr view 13` / `git` **实查**后落笔（PR #13 / rebase-merge / 6 提交 /
+> `2026-10-16T18:09:53Z` / `72d8f28` / run `38945222696` 双绿 / D8 第 12 次复现 /
+> `handoffs/2026-10-17-review.md` 两轮无阻断 / 6 对映射 tree 逐对相同）。
+> 同步修正本档案 Meta 的 `Status` 与 `Owner`、顶部状态括注、`Next Action` 等滞后指针（R5）。
+>
+> **下文为实施阶段的历史记录（执行位 / Implementer），按原样保留：**
+>
 > **2026-10-17 —— 实施阶段完成（执行位 / Implementer），提交 `b14e097`（代码 + 契约文档）与
 > `0ccd79a`（测试 + 冒烟）；分支 `refactor/TASK-041-customer-expire-required`，基线 `origin/main = 3d37b4a`。**
 >
@@ -403,9 +414,9 @@ Non-Scope (files):
 > 其提出 N1–N4 四项**非阻断**建议，N1–N3 已在本轮整改，N4（冒烟脚本自身的顺序缺陷）
 > **不属本任务范围**，建议另立任务。
 >
-> **Next Action：** **人类显式授权** → 由**主控位**执行 rebase-merge（PR #13）
-> → 合并后 CI 验证 + D8 复现 → 本任务按 D13-C 保持 `Status = REVIEW`、留在 `tasks/review/`，
-> 其 `Merge Record` 由**下一个任务**（第八实例）回填。
+> **Next Action：** **无待办。** 本任务已合并（PR #13，`72d8f28`）并经 D13-C 第八实例
+> 归档回写（`Status = DONE`、`tasks/done/`、Merge Record 九项 + 6 对 SHA 映射已实查回填）。
+> 后续唯一遗留动作由 D13-C 选项 C 的固有形态决定：本档案自身即为「已回写方」，无需再回写。
 
 ---
 
@@ -472,21 +483,35 @@ Non-Scope (files):
 
 ## Merge Record
 
-> **本任务的合并后回写由下一个任务按 D13-C 承载（第八实例）。**
-> 合并前留空；本任务合并后应保持 `Status = REVIEW`、留在 `tasks/review/`，
-> 并在下一个任务的交付请求中回填下表（七要素）。
+> **本表由 TASK-043 按 D13-C 第八实例于 2026-10-17 实查回填**（`gh pr view 13` +
+> `git` 逐对验证）。合并前留空的「待回填」已全部替换为实测值。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（预期） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI | 待回填 |
-| D8 解耦 | 待回填 |
-| 独立审查 | 待回填 |
-| SHA 映射 | 待回填 |
+| PR | **#13** |
+| 合并策略 | **rebase-merge**（`origin/main` `3d37b4a → 72d8f28`） |
+| 提交数 | **6** |
+| merged_at | **2026-10-16T18:09:53Z** |
+| merge_commit_sha | **`72d8f28f09df689fdf3d0156118eeb40d54af525`**（pre-rebase head `b66ab74`） |
+| 合并后 CI | run **`38945222696`** `success`，`headSha = 72d8f28` |
+| D8 解耦 | **第 12 次复现**（`docker.yml` 最新运行仍为 2026-10-13；`72d8f28` 上 actions runs `total_count = 1`，仅 CI） |
+| 独立审查 | `handoffs/2026-10-17-review.md`，两轮，结论 **无阻断项 / 14 项 AC ✅** |
+| SHA 映射 | **6 对**，逐对验证通过：两侧均为 `commit` 对象、`%t` **tree 相同**、`git merge-base --is-ancestor <post> origin/main` 通过 |
+
+**SHA 映射逐对验证（2026-10-17 实测，pre = PR #13 head 侧，post = `origin/main` 侧）：**
+
+| # | pre（PR 侧 commit） | post（main 侧 commit） | `%t` 相同 | post 在 `origin/main` |
+|---|---------------------|------------------------|-----------|----------------------|
+| 1 | `f750f4bce4bb750633f7e311a40987c7c73c8652` | `ad34c33` | ✅ `874fbc6` | ✅ |
+| 2 | `8062818851ebd6c0975bcc203b0ef76f8b55f2bb` | `fe1d94e` | ✅ `d143283` | ✅ |
+| 3 | `b14e0974ba6d378de6117496bbd142b5b43e4dd3` | `10fd84e` | ✅ `d524c07` | ✅ |
+| 4 | `0ccd79af9df8d0513cc9ae5ba476db191af6e024` | `f7453ae` | ✅ `a135983` | ✅ |
+| 5 | `ee0bf64e9eaf2c5c3bd575b297ebeec25559bd60` | `9d794c7` | ✅ `fa48db3` | ✅ |
+| 6 | `b66ab745f6627cad6455f3102ce8be8ab7262b09` | `72d8f28` | ✅ `d788b4a` | ✅ |
+
+> **映射说明：** rebase-merge 会把 PR 侧提交重写为新的 SHA，故 pre/post **SHA 不同但 tree 相同**。
+> 上表按提交主题一一对应（`git log --oneline` 与 `gh pr view 13 --json commits` 双向核对），
+> **共 6 对**。任一对不成立即应停止上报；本次 6/6 全部通过。
 
 ---
 

@@ -2493,14 +2493,51 @@ async function main() {
       )
 
       // 17.9.1 已绑定客户的订阅：通知里显示客户名称（TASK-028）
+      //
+      // 第 5 段创建的 pool / plan 已在第 13 段被删除，此处不能再引用
+      // （否则外键失败）。故在本段内创建**独立的**供应商与套餐，
+      // 并随本段末尾的清理块一并删除。
+      const richPool = await req('/api/subscription-pools', {
+        method: 'POST',
+        token,
+        body: { name: `smoke-pool2-${suffix}`, url: 'https://example.com/sub' },
+      })
+      check(
+        '富格式验证：创建供应商（已绑定客户段专用）',
+        richPool.status === 201 && typeof richPool.json?.id === 'number',
+        richPool.json
+      )
+
+      const richPlan = await req('/api/plans', {
+        method: 'POST',
+        token,
+        body: {
+          name: `smoke-plan2-${suffix}`,
+          priceMonthly: 99,
+          priceQuarterly: 260,
+          priceSemiannual: 480,
+          priceYearly: 880,
+          trafficLimit: 1073741824,
+        },
+      })
+      check(
+        '富格式验证：创建套餐（已绑定客户段专用）',
+        richPlan.status === 201 &&
+          richPlan.json?.priceMonthly === 99 &&
+          richPlan.json?.priceQuarterly === 260 &&
+          richPlan.json?.priceSemiannual === 480 &&
+          richPlan.json?.priceYearly === 880,
+        richPlan.json
+      )
+
       const richCustomer = await req('/api/customers', {
         method: 'POST',
         token,
         body: {
           name: `smoke-customer2-${suffix}`,
           email: `smoke2${suffix}@example.com`,
-          poolId: pool.json?.id,
-          planId: plan.json?.id,
+          poolId: richPool.json?.id,
+          planId: richPlan.json?.id,
           planTier: 'monthly',
           expireAt: Date.now() + 3 * 86400000,
           purchasedAt: Date.now() - 86400000,
@@ -2523,7 +2560,7 @@ async function main() {
           name: `smoke-notify2-${suffix}`,
           url: `http://127.0.0.1:${upstream2.port}/ok`,
           customerId: richCustomer.json?.id,
-          poolId: pool.json?.id,
+          poolId: richPool.json?.id,
           cronExpr: '0 */6 * * *',
           userAgent: 'clash.meta',
           headers: '{"Authorization":"Bearer x"}',
@@ -2579,6 +2616,14 @@ async function main() {
         token,
       })
       await req(`/api/customers/${richCustomer.json?.id}`, {
+        method: 'DELETE',
+        token,
+      })
+      await req(`/api/subscription-pools/${richPool.json?.id}`, {
+        method: 'DELETE',
+        token,
+      })
+      await req(`/api/plans/${richPlan.json?.id}`, {
         method: 'DELETE',
         token,
       })
