@@ -1,14 +1,20 @@
 # ---------------------------------------------------------------------------
 # 自动构建并推送 Docker 镜像到 DockerHub
 #
-# 触发条件（**tag-only**）：
-#   - 推送 Git tag（形如 v1.2.3）后执行
+# 触发条件：
+#   - 合并/推送到 main 分支后执行 —— 每次合并自动构建并推送一个带提交号的
+#     sha-* 镜像（便于追溯「这次合并对应的镜像」），但不推进 latest / 版本号。
+#   - 推送 Git tag（形如 v1.2.3）后执行 —— 对外发布，推进 latest + 版本号 + sha。
 #   - 也可在 GitHub Actions 页面手动触发（workflow_dispatch）
 #
-#   ⚠️ 本工作流**不再**由 push 到 main 触发。
-#   原因：合并（merge）与「对外发布镜像」必须解耦——否则任何一次普通合并
-#   都会立刻产生对外可见的镜像版本，使「合并」这一动作带上不可撤销的发布后果。
-#   发布改为显式的打 tag 动作，属需要授权的高风险操作。
+#   ⚠️ 「合并即构建」与「对外发布」是两件事（TASK-045 甲方案）：
+#   合并只产出 sha-* 镜像；latest 与版本号标签仍只在打版本 tag 时前进
+#   （enable=${{ github.ref_type == 'tag' }} 门禁，见下方 tags 段，本任务未改动）。
+#   这样「合并」保持低风险，而「把某版本推成 latest」仍是需授权的打 tag 动作。
+#
+#   注：本工作流不含任何自动打 tag 逻辑。GitHub 的递归防护使工作流内推送的
+#   tag 不触发它自身，故「合并→自动打 tag→构建」需引入额外长期凭据（PAT），
+#   人类已否决该方案，tag 仍由人工按需打。
 #
 # 前置配置（在仓库 Settings → Secrets and variables → Actions 中添加）：
 #   DOCKERHUB_USERNAME  : 你的 DockerHub 用户名
@@ -16,6 +22,9 @@
 #                         在 DockerHub → Account Settings → Security → Access Tokens 生成）
 #
 # 推送后的镜像：
+#   - 合并/推送到 main 分支：
+#       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:<短commit-sha>   ← 仅 sha，不推进 latest
+#
 #   - 推送 Git tag（形如 v1.2.3）：
 #       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:v1.2.3
 #       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:latest      ← 每次发布都更新
@@ -37,7 +46,11 @@ name: Build and Push Docker Image
 
 on:
   push:
-    # 仅版本 tag 触发；不再跟随 main 分支
+    # main 分支推送（含合并）触发：每次合并自动构建并推送一个 sha-* 镜像，
+    # 便于追溯「这次合并对应的镜像」，但不推进 latest / 版本号（TASK-045 甲方案）。
+    # 与下方 tags 为「或」关系：任一匹配即触发。
+    branches: ["main"]
+    # 版本 tag 触发：对外发布，推进 latest + 版本号 + sha。
     tags: ["v*"]
   workflow_dispatch:
 
@@ -74,8 +87,8 @@ jobs:
         with:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/subscription-admin
           tags: |
-            # 发布时同步更新 latest（触发已改为 tag-only，因此 latest 只在打版本 tag 时前进，
-            # 不再随 main 分支的每次合并变化）。
+            # 发布时同步更新 latest。注意：本工作流现也由 main 分支合并触发（TASK-045），
+            # 但 latest 仍只在 ref 为 tag 时前进——由下方 enable 门禁保证，合并不影响它。
             # enable 门禁：工作流保留 workflow_dispatch，而它允许在 Actions 页面任选
             # 分支/tag 手动触发；若无此门禁，从任意分支手动触发都会把该分支构建成
             # latest 推送，绕开「只有打 tag 才发布」的约束（TASK-042）。
@@ -89,15 +102,66 @@ jobs:
             # 而 type=semver 本身只在 ref 是 semver tag 时产出标签，故无需 enable 限制。
             type=semver,pattern=v{{version}}
 
-      - name: Build and push（多架构）
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          # 同时构建 amd64 与 arm64
-          platforms: linux/amd64,linux/arm64
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          # 利用 GitHub Actions 缓存层，显著加速重复构建
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      # build-push-action@v6 无原生 retry 输入，故用「包裹步骤 + for 循环」实现退避重试
+      # （TASK-045 加固三）。下方 docker buildx 等价还原了 build-push-action 的全部参数：
+      # context=./push=true/platforms/tags/labels/cache-from/cache-to。
+      # --provenance=false：多架构镜像显式关闭来源证明，避免 attestation 清单索引干扰
+      # docker pull（本 app 镜像不需要 SLSA 证明）。
+      - name: Build and push（多架构 · 带退避重试）
+        run: |
+          set -euo pipefail
+
+          # metadata-action 的 tags/labels 为换行分隔；逐行转成 --tag/--label 参数
+          TAG_ARGS=()
+          while IFS= read -r line; do
+            [ -n "$line" ] && TAG_ARGS+=(--tag "$line")
+          done <<< "${{ steps.meta.outputs.tags }}"
+
+          LABEL_ARGS=()
+          while IFS= read -r line; do
+            [ -n "$line" ] && LABEL_ARGS+=(--label "$line")
+          done <<< "${{ steps.meta.outputs.labels }}"
+
+          MAX_ATTEMPTS=3            # 1 次首发 + 2 次重试（总尝试 ≥3）
+          BACKOFFS=(30 60)          # 递增退避：第 1 次重试等 30s，第 2 次等 60s
+
+          attempt=1
+          while [ "$attempt" -le "$MAX_ATTEMPTS" ]; do
+            log="/tmp/buildx-attempt-${attempt}.log"
+            echo "::group::构建+推送 第 ${attempt}/${MAX_ATTEMPTS} 次尝试"
+            if docker buildx build \
+              --push \
+              --platform linux/amd64,linux/arm64 \
+              "${TAG_ARGS[@]}" \
+              "${LABEL_ARGS[@]}" \
+              --cache-from type=gha \
+              --cache-to type=gha,mode=max \
+              --provenance=false \
+              . 2>&1 | tee "$log"; then
+              echo "::endgroup::"
+              echo "✅ 第 ${attempt} 次尝试成功，镜像已推送"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "❌ 第 ${attempt} 次尝试失败"
+            if [ "$attempt" -lt "$MAX_ATTEMPTS" ]; then
+              wait_s="${BACKOFFS[$((attempt - 1))]}"
+              echo "⏳ ${wait_s}s 后重试（递增退避，避免连续撞同一故障）"
+              sleep "$wait_s"
+            fi
+            attempt=$((attempt + 1))
+          done
+
+          # 重试耗尽：输出失败阶段标识 + 末尾错误摘要，区分「构建失败」与「推送失败」
+          echo "::error::连续 ${MAX_ATTEMPTS} 次构建+推送均失败"
+          echo "===== 最后一次尝试的末尾日志 ====="
+          tail -n 40 "/tmp/buildx-attempt-${MAX_ATTEMPTS}.log" || true
+          echo "===== 失败阶段判定 ====="
+          if grep -Eiq 'failed to solve|did not complete successfully|returned a non-zero code|executor failed running|failed to compute cache key' "/tmp/buildx-attempt-${MAX_ATTEMPTS}.log"; then
+            echo "::error::失败阶段=构建（编译/依赖安装）：非网络抖动，重试通常无法解决，需修代码或 Dockerfile"
+          elif grep -Eiq 'failed to push|unauthorized|authentication required|denied|dial tcp|connection (refused|reset)|TLS handshake|i/o timeout|no such host|failed to (do request|authorize)|unexpected EOF' "/tmp/buildx-attempt-${MAX_ATTEMPTS}.log"; then
+            echo "::error::失败阶段=推送（网络/认证）：可能是 DockerHub 网络抖动或 DOCKERHUB_* 凭据问题，可重跑或检查 secret"
+          else
+            echo "::error::失败阶段=未能自动归类，请人工查看上方日志"
+          fi
+          exit 1

@@ -10,7 +10,10 @@
 FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@10.29.3 --activate
+# pnpm 版本与 .github/workflows/ci.yml 对齐（12.10.1）：pnpm 12 起不再读取
+# package.json 的 pnpm 字段，且 onlyBuiltDependencies 列表语法已改为
+# pnpm-workspace.yaml 的 allowBuilds 映射语法，版本漂移会导致安装行为不一致。
+RUN corepack enable && corepack prepare pnpm@12.10.1 --activate
 WORKDIR /app
 
 # ---- 依赖层：先装依赖，利用 Docker 缓存 ----
