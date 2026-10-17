@@ -23,8 +23,11 @@ jobs:
 
       # 与本地开发环境对齐（本机为 Node 22）。版本不一致会让本地通过、
       # CI 失败（或反之），削弱检查的可信度。
+      # v5：v4 仍以 Node 20 为 action 运行时，平台已发弃用告警
+      # （实测 warning：「Node.js 20 is deprecated … forced to run on Node.js 24」），
+      # 且 v4 在新 runner 上可能出现意外行为。与 actions/checkout 保持同为 v5。
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
           node-version: 22
 
