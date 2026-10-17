@@ -1,0 +1,17 @@
+# TASK-042 实证留档
+# 目录: E:/NDLDSN-WORKSPACE/projects/shadcn-admin
+# HEAD: 72d8f28f09df689fdf3d0156118eeb40d54af525 (= origin/main)
+# 时间(UTC): 2026-10-17T04:47:52Z
+# 命令: pnpm build:shared
+# 状态: 阻塞判定点之前（.github/ 未修改）
+# 退出码: 0
+# ---- 原始输出开始 ----
+
+> shadcn-admin@2.2.1 build:shared E:\NDLDSN-WORKSPACE\projects\shadcn-admin
+> pnpm --filter @repo/shared build
+
+
+> @repo/shared@0.1.0 build E:\NDLDSN-WORKSPACE\projects\shadcn-admin\shared
+> tsc -p tsconfig.json
+
+# ---- 原始输出结束 ----

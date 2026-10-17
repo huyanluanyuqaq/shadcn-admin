@@ -1,0 +1,20 @@
+# TASK-042 实证留档
+# 目录: E:/NDLDSN-WORKSPACE/projects/shadcn-admin
+# HEAD: 72d8f28f09df689fdf3d0156118eeb40d54af525 (= origin/main)
+# 时间(UTC): 2026-10-17T04:47:52Z
+# 命令: python3 scripts/audit-repo.py
+# 状态: ci.yml/docker.yml 修改前基线
+# 退出码: 0
+# ---- 原始输出开始 ----
+�ֿ⼶������ @ E:/NDLDSN-WORKSPACE/projects/shadcn-admin
+
+[PASS] F1  ����ȫ�� 10 �������ֶ�
+[PASS] F2  ȫ�� 3 ���������������� on �� permissions
+[PASS] F3  ��ռλ������������� 8 ���ļ���
+[PASS] F4  δ����������Կ������� 9 ���ļ���
+[PASS] F5  5 ������ĵ����ڡ���������������Ч
+[PASS] F6  2 �����������빤������ҵ��һ��
+[PASS] F7  ˫ Agent ����ʲ���λ��.agents/ ��Ŀ¼ + templates/ ��ģ�� + shared/scripts �Լ�ű���
+
+PASS=7 FAIL=0 WARN=0
+# ---- 原始输出结束 ----
