@@ -10,9 +10,9 @@
 Task ID: TASK-045
 Title: handoff.md 补「审查记录命名」子节（填补规范空白）+ 同步项目快照
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
-Owner: 主控位（设计/实测/裁决，已完成）→ 执行位（实施已完成，待审查）
+Owner: 主控位（设计/实测/裁决，已完成）→ 执行位（实施已完成，已审查，已合并）
 Owner Since: 2026-10-17
 Assigned Role: coordinator（设计）→ developer（实施，已完成）；审查由主控位承担
 Created: 2026-10-17
@@ -22,8 +22,12 @@ Requires Human Approval: true   # 裁决一（存量重命名）与裁决二（�
                                  # 均由人类于 2026-10-17 19:5x 作出；本 PR 不得由执行位自行合并
 ```
 
-> **编号说明：** 001–044 已占用（044 未占用则取 045）；043 已合并 `main` 但仍留
-> `tasks/review/`（D13-C 第十实例待回写），本任务取 **045**。
+> **编号说明：** 001–044 已占用（044 未占用则取 045）；043 已合并 `main`，
+> 其 D13-C 第十实例回写**已由 TASK-044 完成**，本任务取 **045**。
+>
+> **本任务自身为 D13-C 第十二实例的待回写方（2026-10-17 补记）：** 本任务合并后，
+> 其 `Merge Record` 由**下一个任务（第十二实例）**回写 —— 这是 D13-C 选项 C 的
+> 固有代价，不是缺陷。**不得在本任务内自我回写**（那将造成档案与提交历史不一致）。
 
 > **本任务是跨仓改动（Cross-Repository Change）。** 唯一事实来源的修改发生在
 > **框架模板仓库** `projects/_workspace-template`（**无远端**），本仓库只承接
@@ -179,6 +183,89 @@ find tasks -path "*/handoffs/*" -name "*-review*.md" | grep -v "to-reviewer" \
 
 ---
 
+## Merge Record
+
+> **本节由 TASK-044 按 D13-C 第十一实例于 2026-10-17 从零新建并实查回填。**
+> 本任务为**跨仓改动**，`Merge Record` 须同时记录两侧的合并事实：
+> ① **项目仓库** PR #18 的合并事实（九要素，见下表）；
+> ② **框架模板仓库** `projects/_workspace-template` 的提交 `aa38119`
+> （**无远端、仅本地**，见下文专节）。
+>
+> ⚠️ **本节的 SHA 映射验证口径与 TASK-043 不同，此处如实分别说明，不统一套用：**
+> TASK-043 的两对可用 **`%t` tree 相同**验证（其合并时 `main` 未被其他 PR 推进过）；
+> 本任务的两对**不能**用 tree 验证 —— 原因见下方「树哈希为何不同（已解释，非疑点）」。
+
+### 项目仓库（`huyanluanyuqaq/shadcn-admin`）PR #18
+
+| 要素 | 值 |
+|------|-----|
+| PR | **#18** |
+| 合并策略 | **rebase-merge**（`AGENTS.md` §14.2 项目约定；`origin/main` `3eebdae → 37214de → 887c2ab → a0e7d3f`） |
+| 提交数 | **2** |
+| merged_at | **2026-10-17T12:24:35Z** |
+| merge_commit_sha | **`a0e7d3fd70d139ac378b98641b3bb86a8e72f319`**（pre-rebase head `9264dfb`） |
+| 合并后 CI | run **`39032405115`** `success`，`headSha = a0e7d3f`，作业名 **`Continuous Integration`**（`ci.yml`，event `push`） |
+| D8 解耦 | **成立**。`gh api ".../actions/runs?head_sha=a0e7d3f…"` 实测 `total_count = 1`，且该唯一 run 即 `Continuous Integration` ⇒ 普通合并**未触发** `docker.yml`，`:latest` 未随合并前进 |
+| 独立审查 | **无独立审查记录** —— 本任务由**主控位（coordinator）**审查，框架基线级。`handoffs/` 内仅 `HANDOFF-002`（执行→主控）一份交接记录，**无审查记录文件** |
+| SHA 映射 | **2 对**，以 **patch-id 一致**为验证基准（**非** tree，原因见下），另以 `git diff --stat` 证明 tree 差异可解释 |
+
+**SHA 映射逐对验证（2026-10-17 实测；pre = PR 侧 commit，post = `origin/main` 侧 commit）：**
+
+| # | pre（PR 侧） | post（main 侧） | patch-id 一致 | post 在 `origin/main` |
+|---|--------------|-----------------|---------------|----------------------|
+| 1 | `9264dfbe6fcc7f1d971ebb01e4b3810640f165f7` | `887c2abc8258971170734310fe149bbffb194681` | ✅ `05971f63301f7df1b5dddb00de5c71b252e73ed7` | ✅ |
+| 2 | `83cdf357a5f4cdf374590dcfe2df6dc589650756` | `a0e7d3fd70d139ac378b98641b3bb86a8e72f319` | ✅ `7b75c923b7ffc773ceadb1d4476ea2012ac611c6` | ✅ |
+
+**树哈希为何不同（已解释，非疑点）：**
+
+树哈希确实不同 —— pre `9264dfb` 树 `b10e0404b1811837bfa7313a1a7fe03ea503943c` /
+post `887c2ab` 树 `f7c862eefe767b1988a1d98aba8432e076895207`；
+pre `83cdf35` 树 `e4279d6500d88a96f66e9f57bdd9fce7e4b61897` /
+post `a0e7d3f` 树 `526272bb6444d6cad8b7c937615fa45af84b030b`。
+**原因非内容差异：** PR #17 于 PR #18 合并前 **103 秒**（`12:22:52Z` → `12:24:35Z`）
+推进了 `main`，rebase 基点不同，两侧提交链被重写
+（pre parent = `9264dfb`、post parent = `887c2ab`）。
+
+经 `git diff <pre> <post> --stat` 实测，两侧差异**恰为 PR #17 的 `.github/workflows/ci.yml` 1 个文件**：
+
+```text
+$ git diff 9264dfb 887c2ab --stat
+ .github/workflows/ci.yml | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+$ git diff 83cdf35 a0e7d3f --stat
+ .github/workflows/ci.yml | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+```
+
+⇒ 该文件即 PR #17（`37214de`，setup-node v4 → v5）的改动，**与本任务无关**。
+TASK-045 自身改动在两侧**完全一致**：`git diff 3eebdae 83cdf35 --stat` 与
+`git diff 37214de a0e7d3f --stat` **均为 5 files / 1077 insertions**。
+
+> **映射方法说明（防止复踩）：** 「按 `%t` tree 在 `git log main` 反查 post」法
+> 只在「PR 基点 == 被 rebase 上去的 main head」时成立。本任务不满足该前提
+> （PR #17 中途合入），故 awk 匹配为空；而 `git show -s --format=%h` 省略参数时
+> **默认取 HEAD**，会把两对都误打印成 `-> a0e7d3f`（静默错值）。
+> 已改用 **patch-id + `--stat`** 定位。**PR #18 共 2 对，全部通过。**
+
+### 框架模板仓库（`projects/_workspace-template`）
+
+| 要素 | 值 |
+|------|-----|
+| 提交 | **`aa381199c22cabf1ed5b24eb034af20dbb491b83`**（短 `aa38119`） |
+| 树 | `300e406b3306d4939f34ca5a87e97d52368e3910` |
+| 提交信息 | `docs(protocol): handoff.md 补「审查记录命名」子节（填补规范空白）` |
+| 作者时间 | **2026-10-17 20:05:57 +0800** |
+| 分支 | `feat/TASK-045-review-record-naming` |
+| 远端 | **无**（`git remote -v` 为空）⇒ **仅本地提交，未推送、未走 PR 审查** |
+| 改动 | `.agents/protocols/handoff.md` §3 → §3.1 + §3.2（+28 行，无删除） |
+
+> **如实标注：** `aa38119` 是**仅存在于本地**的提交，**不是**「已推送」。
+> 模板仓库无远端 ⇒ 其框架规范修改**无法走 PR 审查流程**，正确性依赖
+> 执行位 `cmp` 字节级自证 + 主控位人工核对（本档案 KI-3 登记的结构性缺口）。
+
+---
+
 ## File Scope
 
 ```yaml
@@ -245,6 +332,13 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-17 —— D13-C 第十一实例归档回写完成（由 TASK-044 承载）。**
+> `Status: REVIEW → DONE`、`git mv` → `tasks/done/`、`Merge Record` 节**由无到有新建**
+> 并回填九要素（含跨仓两节：项目仓库 PR #18 + 模板仓库 `aa38119`）。
+> 已补记「本任务自身为第十二实例待回写方」标注（原档案缺失，B2 疏漏）。
+>
+> **下文为实施阶段的历史记录（执行位 / Implementer），按原样保留：**
+>
 **实施已完成，等待主控位审查与人类授权。**
 
 - 段一（模板仓库）已完成：提交 `aa381199c22cabf1ed5b24eb034af20dbb491b83`，
@@ -255,6 +349,9 @@ Non-Scope (files):
 - 段三（归档）已完成：本档案已补齐并移入 `tasks/review/`。
 - **Next Action**：主控位审查 PR #18 → PASS 后由**人类显式授权**才可合并；
   合并后需由下一个任务回写本任务的 `Merge Record` 九要素。
+  > **以上为实施时点快照。** PR #18 **已于 2026-10-17T12:24:35Z 由人类授权、
+  > 主控位 rebase-merge 合入**（`a0e7d3f`），上述「未合并 / OPEN / MERGEABLE」
+  > 等表述**已失效**；`Merge Record` 九要素**已由 TASK-044 回填**（见该节）。
 
 ---
 
@@ -302,8 +399,10 @@ Non-Scope (files):
 | 002 | developer（执行位） | coordinator（主控位） | 2026-10-17 | 两段式实施完成：模板 `aa38119` + 项目 `9264dfb` + PR #18，七项 AC 全过，存量零重命名 |
 
 **最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
-**Next Action：** 主控位审查 PR #18；PASS 后由人类显式授权方可合并；
-合并后由下一个任务回写本任务的 `Merge Record` 九要素。
+**Next Action：** **无待办。** PR #18 **已于 2026-10-17T12:24:35Z 由人类授权、主控位
+rebase-merge 合入 `main`**（`a0e7d3f`）；`Merge Record` 九要素**已由 TASK-044
+（第十一实例）回填**，本档案 `Status → DONE` 并迁入 `tasks/done/`。
+本任务自身为**第十二实例**的待回写方（见顶部标注与 `Merge Record` 节）。
 
 ---
 
@@ -325,4 +424,6 @@ Non-Scope (files):
   均按指派单原文执行，未作改写。
 - 项目仓库中存在一个**与本任务无关**的未合并 PR #17（setup-node v5）
   与未切换分支 `chore/setup-node-v5`，全程未触碰。
-- 本任务的 `Merge Record` 九要素尚未回填（需待 PR #18 合并后由下一个任务处理）。
+- 本任务的 `Merge Record` 九要素**已由 TASK-044 于 2026-10-17 回填**
+  （第十一实例；含跨仓两节：项目仓库 PR #18 + 模板仓库 `aa38119`）。
+  本任务自身为**第十二实例**的待回写方，按 D13-C 选项 C 留给下一个任务。
