@@ -10,7 +10,7 @@
 Task ID: TASK-042
 Title: CI 增加后端编译门禁 + Docker `:latest` 加 tag 门禁，并受控发布 v1.0.1
 Workflow: chore
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: implementer-devops（执行位实施）
 Owner Since: 2026-10-17
@@ -130,26 +130,53 @@ Requires Human Approval: true   # 含对外发布动作（打 tag → DockerHub 
 
 > 每条必须能用「是 / 否」回答，且**必须附原始输出**，不接受「已通过」式陈述。
 
-- [ ] **AC-1（前置阻塞判定）** 在**未做任何修改**的 `main` 上执行 `pnpm typecheck:server`，原始输出贴入手账。
-      若失败 → 本任务转 `BLOCKED` 并按五要素上报主控位，**不得**修改 `ci.yml`。
-- [ ] **AC-2** `ci.yml` 的 `install-lint-build` 作业内新增后端 typecheck 步骤，命令为 `pnpm typecheck:server`；
-      工作流顶层作业名集合**仍为** `install-lint-build` + `audit`（未新增 job）。
-- [ ] **AC-3** `python3 scripts/audit-repo.py` 本地运行**全部 PASS**（含 F6 必需检查名一致性）。
-- [ ] **AC-4** `docker.yml` 中 `:latest` 带有 `enable=${{ github.ref_type == 'tag' }}`；
-      `type=sha,format=short` 与 `type=semver,pattern=v{{version}}` 两行**行为不变**；
-      文件头注释已同步说明该门禁的存在与原因。
-- [ ] **AC-5** 改动经 PR 合入 `main`（`rebase-merge`），PR 上 `install-lint-build` 与 `audit` 均 success，
-      合并后 push 事件上两作业再次 success（附 run ID 与 URL）。
-- [ ] **AC-6（门禁实证 · 已授权）** 在 `main` 上执行一次 `workflow_dispatch`，确认：
-      ① run 的 metadata 步骤产出的 tags **不含** `latest`、只含 `sha-*`；
-      ② DockerHub `latest` 的 digest 与该次运行前**完全一致**（未被被动过）。
-      *已记录的副作用：DockerHub 会多一个 `sha-<main-sha>` 镜像 tag，无害。*
-      **若 ① 或 ② 不成立 → 立即停止，不得执行 AC-7，上报主控位。**
-- [ ] **AC-7（受控发布 · 已授权）** 从合并后的 `main` 打 annotated tag `v1.0.1` 并 `git push origin v1.0.1`；
-      docker.yml run `success`；DockerHub 出现 `v1.0.1` tag。
-- [ ] **AC-8** DockerHub 上 `v1.0.1` 与 `latest` 的 digest **相同**（证明门禁未误伤 tag 发布路径）。
-- [ ] **AC-9** `TASK.md` 的 `Changed Files` / `Known Issues` / `Merge Record` 如实填写；
+- [x] **AC-1（前置阻塞判定）** 在**未做任何修改**的 `main`（HEAD=`72d8f28` = `origin/main`）上执行
+      `pnpm typecheck:server`，退出码 0；`.github/` 未修改；未触发 R6。
+      证据：`artifacts/ac1-typecheck-server.txt`
+- [x] **AC-2** `ci.yml` 的 `install-lint-build` 作业内第 7 步 "Typecheck server" → success
+      （run `39004353067`、`39005264346`、`39005551732` 三次均见该步骤）；
+      作业名集合仍为 `['install-lint-build','audit']`
+      证据：PR #14 的 `statusCheckRollup` + `gh run view` 三次 run 日志
+- [x] **AC-3** `scripts/audit-repo.py` 本地 `PASS=7 FAIL=0 WARN=0`（主控位独立复跑一致）
+      证据：`artifacts/ac3-audit-p2.txt`
+- [x] **AC-4** `docker.yml:84` 为 `type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}`；
+      `type=sha` 与 `type=semver` 两行未动；文件头已同步说明
+      证据：`.github/workflows/docker.yml` 当前版本
+- [x] **AC-5** PR #14 rebase-merge，main `72d8f28..b62e981`，提交 `ffad602` / `29f8dbe` / `9534983` / `b62e981`；
+      PR 上两必需检查 SUCCESS；合并后 main push run `39005551732` 两作业 success
+      证据：`gh pr view 14 --json statusCheckRollup` + `gh run list --branch main --limit 5`
+- [x] **AC-6（门禁实证 · 已授权）** run `39006433376`（workflow_dispatch / main，success）——
+      metadata 只产出 `sha-b62e981`，不含 `latest`、不含版本号；
+      DockerHub `latest` digest 仍为 `sha256:19e2d1ea9464da1d2da8316b885393e03330282df3dbb678b1840672979abe2d`、
+      `last_updated` 仍 `2026-10-13T14:21:23Z`，与运行前完全一致
+      证据：run `39006433376` 日志 + DockerHub Tags API 运行前后两次调用
+- [x] **AC-7（受控发布 · 已授权）** annotated tag `v1.0.1` → `31b670a`（= `b62e981`），已推送；
+      run `39007059836`（push / v1.0.1）success
+      证据：`git show v1.0.1 --no-patch --format="%H %D"` + `gh run view 39007059836`
+- [x] **AC-8** `v1.0.1` 与 `latest` digest 完全相同：
+      `sha256:13bbf2d989dfe4428d46d8be23c985e8a6104851e924149e05faf7a6c101eed3`；
+      三者（`latest` / `v1.0.1` / `sha-b62e981`）`updated` 均为 `2026-10-17T05:40:11~16Z`
+      证据：DockerHub Tags API 三次调用（各 tag 的 digest + last_updated）
+- [x] **AC-9** `TASK.md` 的 `Changed Files` / `Known Issues` / `Merge Record` 如实填写；
       handoff 中落盘：tag 名、run ID 与 URL、各镜像 tag 的 digest、UTC 时间戳、`workflow_dispatch` 验证结论。
+
+---
+
+## Merge Record
+
+| 字段 | 值 |
+|------|----|
+| PR 编号 | #14 |
+| 合并策略 | rebase-merge |
+| 合并后 main | `b62e981`（= `31b670a`，即 tag `v1.0.1` 指向） |
+| 合并前门禁 | `install-lint-build` SUCCESS（run `39005264346`）、`audit` SUCCESS（同 run）；`mergeState=CLEAN` |
+| 合并后 main push CI | run `39005551732`（`Continuous Integration`），两作业均 success |
+| 发布实证 | run `39006433376`（workflow_dispatch / main，门禁实证）、run `39007059836`（push tag `v1.0.1`，受控发布） |
+| 三 tag 同 digest | `latest` / `v1.0.1` / `sha-b62e981` digest 均为 `sha256:13bbf2d989dfe4428d46d8be23c985e8a6104851e924149e05faf7a6c101eed3`，`updated` 均为 `2026-10-17T05:40:11~16Z` |
+
+> **D13-C 归档回写：** 本记录由 AC-9 补记，合并时尚未回写；按 D13-C 选项 C，归档回写（移入 `done/`）待下一个任务补记。
+
+---
 
 ---
 
@@ -159,7 +186,7 @@ Requires Human Approval: true   # 含对外发布动作（打 tag → DockerHub 
 File Scope:
   - .github/workflows/ci.yml
   - .github/workflows/docker.yml
-  - tasks/backlog/TASK-042-ci-server-typecheck-and-release-gate/**
+  - tasks/**/TASK-042-ci-server-typecheck-and-release-gate/**
 Non-Scope (files):
   - src/**
   - server/**
@@ -249,9 +276,7 @@ Non-Scope (files):
 
 ## Current State
 
-**ACTIVE（active/）—— Phase 1–2 已实施完毕并开 PR；等待主控位审查与 `rebase-merge`。**
-
-已完成：
+**REVIEW（review/）—— 全部 AC 已完成，任务移交 `review/` 待归档回写。**
 
 - **AC-1** 阻塞判定点：在 `origin/main`（`72d8f28`）未修改任何文件的前提下执行
   `pnpm build:shared` 与 `pnpm typecheck:server`，**均退出码 0**。原始输出见
@@ -261,15 +286,26 @@ Non-Scope (files):
 - **AC-2** `ci.yml` 的 `install-lint-build` 作业内、`Build shared package` 之后新增
   `Typecheck server` 步骤（`run: pnpm typecheck:server`）。作业名集合仍为
   `['install-lint-build', 'audit']`（`yaml.safe_load` 实测）。
+  三次 CI run（`39004353067`、`39005264346`、`39005551732`）均见该步骤 success。
 - **AC-3** `python3 scripts/audit-repo.py` 修改后复跑，`PASS=7 FAIL=0 WARN=0`，退出码 0
   （`artifacts/ac3-audit-p2.txt`；修改前基线见 `artifacts/ac1-audit.txt`）。
 - **AC-4** `docker.yml` 的 `:latest` 行改为
   `type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}`；
   `type=sha,format=short` 与 `type=semver,pattern=v{{version}}` 两行未动；
   文件头「推送后的镜像」小节已同步说明该门禁。
-
-待主控位合并后执行：AC-5（合并与合并后 CI）、AC-6（门禁实证，已授权）、AC-7/AC-8
-（受控发布 `v1.0.1`，已授权）、AC-9（本文件回填 + HANDOFF-002）。
+- **AC-5** PR #14 rebase-merge，main `72d8f28..b62e981`，提交
+  `ffad602` / `29f8dbe` / `9534983` / `b62e981`。
+  PR 上 `install-lint-build`（run `39005264346`）与 `audit`（同 run）均 SUCCESS；
+  合并后 main push run `39005551732` 两作业再次 SUCCESS。
+- **AC-6** run `39006433376`（workflow_dispatch / main，success）——
+  metadata 产出 `sha-b62e981`，不含 `latest`、不含版本号；
+  DockerHub `latest` digest 与运行前完全一致（`sha256:19e2d1ea...`），`last_updated` 未变。
+- **AC-7** annotated tag `v1.0.1` → `31b670a`（= `b62e981`），已推送；
+  run `39007059836`（push tag `v1.0.1`）success。
+- **AC-8** `v1.0.1` 与 `latest` digest 完全相同：
+  `sha256:13bbf2d989dfe4428d46d8be23c985e8a6104851e924149e05faf7a6c101eed3`；
+  三者（`latest` / `v1.0.1` / `sha-b62e981`）`updated` 均为 `2026-10-17T05:40:11~16Z`。
+- **AC-9**（本归档回写）TASK.md 与 handoff 已补记，任务目录迁入 `tasks/review/`，Status 改为 `REVIEW`。
 
 ---
 
@@ -281,8 +317,8 @@ Non-Scope (files):
 |------|---------|------|
 | `.github/workflows/ci.yml` | 修改 | `install-lint-build` 作业内、`Build shared package` 之后新增 `Typecheck server` 步骤（`run: pnpm typecheck:server`）及说明注释。**未新增 job**，作业名集合不变。 |
 | `.github/workflows/docker.yml` | 修改 | `:latest` 行增加 `enable=${{ github.ref_type == 'tag' }}` 门禁；文件头「推送后的镜像」小节同步说明。`type=sha,format=short` / `type=semver,pattern=v{{version}}` 两行未动。 |
-| `tasks/active/TASK-042-ci-server-typecheck-and-release-gate/**` | 新增/修改 | 任务档案；`artifacts/` 实证留档（AC-1 前置输出、AC-3 审计输出，含命令/退出码/UTC 时间头）；`handoffs/` 交接记录。 |
-| _（Phase 4–6 待回填：tag / run ID / digest 记录）_ | | |
+| `tasks/**/TASK-042-ci-server-typecheck-and-release-gate/**` | 新增/修改 | 任务档案；`artifacts/` 实证留档（AC-1 前置输出、AC-3 审计输出，含命令/退出码/UTC 时间头）；`handoffs/` 交接记录（HANDOFF-001~004）。 |
+| _（Phase 4–6 回填：tag / run ID / digest 记录）_ | | |
 
 ---
 
@@ -297,6 +333,10 @@ Non-Scope (files):
   故本任务**不 bump `package.json`**、不改 `CHANGELOG.md`。两套口径是否统一、何时统一，需另立任务。
 - **KI-3（结构性）** `docker.yml` 仍保留 `workflow_dispatch` 出口。本任务只是给 `:latest` 加了门禁，
   **并未移除该出口** —— 手动触发仍会推送一个 `sha-*` 镜像。若要彻底取消人工触发，需另立任务裁决。
+- **KI-4（已修）** `docker.yml` 文件头原称 workflow_dispatch「只产出 `<短commit-sha>` 一个 tag」，与同句
+  「可任选分支/tag」矛盾；从 tag 触发时会同时产出 `latest` + 版本号 + `sha`。已由主控位以提交
+  `a075b16`（main 上为 `b62e981`）修正。
+- **KI-5（未清理）** DockerHub 上 `sha-05bf884` 等旧 tag 与 `v1.0.0` 仍在，未清理。本任务不删除/不清理任何远端镜像 tag。
 
 ---
 
@@ -305,16 +345,13 @@ Non-Scope (files):
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | coordinator（主控位） | implementer（执行位） | 2026-10-17 | 任务登记 + 设计方案 + 三次平台动作的人类授权范围 |
+| 002 | implementer（执行位） | coordinator（主控位） | 2026-10-17 | P1–P3 实施报告 + PR #14 开立 + 主控位审查结论（PASS，附 3 项 MINOR） |
+| 003 | coordinator（主控位） | implementer（执行位） | 2026-10-17 | AC-9 归档回写指派（范围 / File Scope / 禁止事项 / 实证数据） |
+| 004 | implementer（执行位） | coordinator（主控位） | 2026-10-17 | AC-9 完成报告（改动文件 / 本地验证 / PR / 未做事项） |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-coordinator-to-implementer.md`
-**Next Action：** **（已过期，保留以备追溯）** 原为「领取任务并从 `origin/main` 建分支后执行
-阻塞判定」。该动作**已完成**：任务已于 `tasks/active/`，分支
-`chore/TASK-042-ci-server-typecheck-and-release-gate` 已建，
-AC-1 阻塞判定已通过（`artifacts/ac1-*.txt`）。
-**当前 Next Action（交主控位）：** 审查 PR
-[huyanluanyuqaq/shadcn-admin#14](https://github.com/huyanluanyuqaq/shadcn-admin/pull/14)
-的实际 diff（C8：读 diff 不读描述）→ PASS 后由主控位执行 `rebase-merge`。
-**执行位不得自行合并。**
+**最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
+**Next Action：** 主控位审查 PR [docs/TASK-042-archive](https://github.com/huyanluanyuqaq/shadcn-admin/pull/XX)
+的档案回写 diff → PASS 后执行 `rebase-merge`。
 
 ---
 
