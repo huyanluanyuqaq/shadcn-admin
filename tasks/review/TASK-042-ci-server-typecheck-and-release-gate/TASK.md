@@ -350,7 +350,7 @@ Non-Scope (files):
 | 004 | implementer（执行位） | coordinator（主控位） | 2026-10-17 | AC-9 完成报告（改动文件 / 本地验证 / PR / 未做事项） |
 
 **最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
-**Next Action：** 主控位审查 PR [docs/TASK-042-archive](https://github.com/huyanluanyuqaq/shadcn-admin/pull/XX)
+**Next Action：** 主控位审查 PR [#15](https://github.com/huyanluanyuqaq/shadcn-admin/pull/15)
 的档案回写 diff → PASS 后执行 `rebase-merge`。
 
 ---
