@@ -10,9 +10,9 @@
 Task ID: TASK-044
 Title: 归档回写 TASK-043/045 + 修 README 快照失真 + 清理派单启动语
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
-Owner: 主控位（设计已完成）→ 执行位（实施已完成，待审查）
+Owner: 已完成（PR #19 已合并 a978337，主控位审查通过）
 Owner Since: 2026-10-17
 Assigned Role: coordinator（设计，已完成）→ developer（实施，已完成）；审查由主控位承担
 Created: 2026-10-17
@@ -25,6 +25,7 @@ Requires Human Approval: true   # 含两笔跨任务档案的状态变更（Task
 
 > **本任务的「鸡生蛋」性质：** 本任务自身合并后，其合并事实同样留给**下一个任务**回填
 > （D13-C 选项 C 的固有代价）。**不得在本任务内自我回写。**
+> ✅ **已由 TASK-045（第十二实例）于 2026-10-17 回填**（见下方 Merge Record）。
 
 ---
 
@@ -198,31 +199,27 @@ Requires Human Approval: true   # 含两笔跨任务档案的状态变更（Task
       非检查失败）。
       **未自行合并**（`Requires Human Approval: true`），交主控位审查与人类授权。
 - [x] **AC-11（本任务档案）** `Changed Files` / `Known Issues` / `Current State` 已如实填写；
-      `Status → REVIEW` 且目录 `git mv` 至 `tasks/review/`；
-      **`Merge Record` 按 D13-C 留待第十二实例回填**（已在下方 `Merge Record` 占位节显式标注）。
+      本任务先 `Status → REVIEW` 迁 `tasks/review/`（PR #19），
+      **后由 TASK-045（第十二实例）回填 `Merge Record` 并将 `Status → DONE`、迁 `tasks/done/`**。
 
 ---
 
 ## Merge Record
 
-> **按 D13-C 选项 C：本表由下一个任务（第十二实例）回填。**
-> **不得在本任务内自我回写**（那将造成档案与提交历史不一致）。
->
-> **本任务自身即为第十二实例的待回写方** —— 这是 D13-C 选项 C 的固有代价，
-> 与 TASK-043 / TASK-045 同机制，**不是遗漏**。TASK-043 的该注已由本任务（第十实例）回填，
-> TASK-045 的该注已由本任务（第十一实例）补建；本任务的该注由第十二实例回填。
+> **本表由 TASK-045（第十二实例）于 2026-10-17 实查回填。**
+> 回填依据全部来自 `gh pr view 19` / `gh api .../runs/39043427578` / `git` 实测，非档案自述。
 
 | 要素 | 值 |
 |------|-----|
-| PR | **待第十二实例回填** |
-| 合并策略 | rebase-merge（预期，`AGENTS.md` §14.2） |
-| 提交数 | 待第十二实例回填 |
-| merged_at | 待第十二实例回填 |
-| merge_commit_sha | 待第十二实例回填 |
-| 合并后 CI | 待第十二实例回填 |
-| D8 解耦 | 待第十二实例回填 |
-| 独立审查 | 待第十二实例回填 |
-| SHA 映射 | 待第十二实例回填 |
+| PR | **#19**（https://github.com/huyanluanyuqaq/shadcn-admin/pull/19） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2） |
+| 提交数 | 1 |
+| merged_at | 2026-10-17T15:04:03Z |
+| merge_commit_sha | `a978337b3886583926314ea0c9c6eea4078c40ac` |
+| 合并后 CI | run **39043427578** = **success**（https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/39043427578） |
+| D8 解耦 | 成立：本任务为纯 `tasks/**` 文档改动，未改 `docker.yml`，合并未触发镜像构建，无对外可见产物 |
+| 独立审查 | 主控位审查，无独立 Reviewer |
+| SHA 映射 | `be07df5`(pre) → `a978337`(post)：两侧 `git cat-file -t` 均 `commit`，**tree 同为 `cd9d96c`**，**patch-id 同为 `a249c11`**，`git merge-base --is-ancestor a978337 origin/main` 通过 |
 
 ---
 
@@ -315,7 +312,7 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（review/）—— 实施已完成，PR 已开立，等主控位审查与人类授权。**
+**DONE（done/）—— PR #19 已由人类授权、主控位以 rebase-merge 合入 `main`（`a978337`），本档案已由 TASK-045 回填归档。**
 
 - 执行位已完成 AC-1 ~ AC-11，实测证据逐条附于上方「Acceptance Criteria」。
 - **TASK-043**：九要素 + 2 对 SHA 映射实查回填，`Status → DONE`，已迁 `tasks/done/`。
@@ -324,8 +321,7 @@ Non-Scope (files):
 - `STARTUP-PROMPT.md` 已删（TASK-045 归档内那一份，`git rm`）；TASK-044 自己那一份由主控位删除。
 - `projects/README.md` 已按**归档后终态**修正（Workspace 侧，无 Git，见 KI-1）。
 - 两个审计脚本通过；产品代码零改动。
-- **待主控位**：读实际 diff 审查 → PASS 后由**人类显式授权**、主控位执行 `rebase-merge`。
-  **执行位不得自行合并、不得自行判定 PASS。**
+- **本任务的 `Merge Record` 已由 TASK-045（第十二实例）回填**（见上节），无遗留待办。
 
 ---
 
@@ -370,8 +366,9 @@ Non-Scope (files):
   而 `git show -s --format=%h` 省略参数会默认取 HEAD，两对均被误打印为 `-> a0e7d3f`）。
   已提请主控位裁决并采纳 **patch-id + `git diff --stat`** 口径（HANDOFF-003 裁决一）。
   TASK-043 的两对仍可用 tree 验证（其合并时 `main` 未被推进），**两笔口径不同已在档案中分别说明**。
-- **KI-5（D13-C 固有）** 本任务自身合并后，其 `Merge Record` 按 D13-C 选项 C
-  留待**第十二实例**回写。这是既定机制，不是遗漏，**不得**在本任务内自我回写。
+- **KI-5（D13-C 固有，已消解）** 本任务自身合并后，其 `Merge Record` 原按 D13-C 选项 C
+  留待**第十二实例**回写；**已由 TASK-045（第十二实例）于 2026-10-17 回填**（见 Merge Record 节），
+  该机制代价已履行，不再是遗留项。
 
 ---
 
@@ -384,8 +381,8 @@ Non-Scope (files):
 | 003 | 主控位 coordinator | 执行位 implementer | 2026-10-17 | 裁决回复：① 采纳 patch-id + `git diff --stat` 口径（须补 tree 差异来源实测）；② TASK-044 的启动语单独删掉不入库（主控位已执行） |
 
 **最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
-**Next Action：** 主控位读**实际 diff**（不读描述）审查 → PASS 后由**人类显式授权**、
-主控位执行 `rebase-merge`。**执行位不得自行合并、不得自行判定 PASS。**
+**Next Action：** 无待办。PR #19 已合并（`a978337`），`Merge Record` 已由 TASK-045 回填，
+本任务已归档至 `tasks/done/`。
 
 ---
 
