@@ -10,9 +10,9 @@
 Task ID: TASK-043
 Title: 归档回写 TASK-041/042（D13-C 第八、九实例）+ 修正 README 失效断言 + 修复冒烟脚本 X4
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
-Owner: 主控位（设计已完成）→ 执行位（实施已完成，待审查）
+Owner: 主控位（设计已完成）→ 执行位（实施已完成，已审查，已合并）
 Owner Since: 2026-10-17
 Assigned Role: coordinator（设计，已完成）→ developer（实施，已完成）；审查由主控位承担
 Created: 2026-10-17
@@ -26,9 +26,12 @@ Requires Human Approval: true   # 含 D13-C 归档回写（改写 TASK-041/042 �
 > **编号说明：** 001–042 已占用。041 与 042 均已合并 `main` 但仍留 `tasks/review/`，
 > 本任务取 **043**。
 
-> **本任务的「鸡生蛋」性质（必读）：** 本任务自身合并后，其 `Merge Record` 同样需要
-> **下一个任务**（第十实例）回写 —— 这是 D13-C 选项 C 的固有代价，不是本任务的缺陷。
-> 不得为规避这一点而在本任务内自我回写（那将造成档案与提交历史不一致）。
+> **「鸡生蛋」性质已闭环（2026-10-17，由 TASK-044 承载）：** 本任务自身合并后，其
+> `Merge Record` 原按 D13-C 选项 C 留待**第十实例**回写。该回写**已完成** ——
+> `Status: REVIEW → DONE`、`git mv` 至 `tasks/done/`、九要素 + **2 对 SHA 映射**
+> 已由 TASK-044 以 `gh pr view 16` / `git` **实查**后落笔（见下方 `Merge Record` 节）。
+> D13-C 选项 C 的固有代价仍在：承载本次回写的 TASK-044 自身又成为
+> **第十二实例**的待回写对象 —— 这是既定机制，不是遗漏。
 
 ---
 
@@ -56,7 +59,7 @@ Requires Human Approval: true   # 含 D13-C 归档回写（改写 TASK-041/042 �
 |---|------|------|
 | B1 | `main` = `origin/main` = **`f2a63bc`**，工作区干净；PR #13/#14/#15 **全部 `MERGED`**（`72d8f28` / `b62e981` / `f2a63bc`） | `git rev-parse main origin/main`、`gh pr view 13/14/15 --json state,mergedAt,mergeCommit` |
 | B2 | CI 最近 6 次 run **全 `success`**；`docker.yml` 因 tag-only 仅在 `v1.0.1`（run `39007059836`）跑过，**D8 解耦仍成立** | `gh run list --limit 6`、`gh run list --workflow docker.yml` |
-| B3 | **D13-C 第八实例未回写**：`tasks/review/TASK-041-…/TASK.md` 的 `Merge Record` 九要素**全为「待回填」**，而 PR #13 已于 `2026-10-16T18:09:53Z` 合并 | 档案表格逐行读取 + `gh pr view 13` |
+| B3 | **D13-C 第八实例未回写**（**设计时点实测，已由本任务回写**）：`tasks/review/TASK-041-…/TASK.md` 的 `Merge Record` 九要素**当时全为「待回填」**，而 PR #13 已于 `2026-10-16T18:09:53Z` 合并。该回写**已由本任务完成**（九要素 + 6 对 SHA 映射，`Status → DONE`，迁 `done/`）⇒ **此条已失效，仅作历史发现保留** | 档案表格逐行读取 + `gh pr view 13` |
 | B4 | TASK-042 **未承载**第八实例回写 —— grep 全目录仅 2 处提及 TASK-041 且均为 `merge-base` 依赖声明 | `grep -rn "TASK-041" tasks/review/TASK-042-*/` |
 | B5 | **TASK-042 自身亦未归档**：仍留 `tasks/review/`，`Next Action` 写「审查 PR #15 → PASS 后合并」，而 #15 已于 `2026-10-17T06:45:04Z` 合并 ⇒ 指针滞后 | `TASK.md:353` + `gh pr view 15` |
 | B6 | **`projects/README.md` 失效断言**：第 107/117-118/134 行称「TASK-001~022 全部完成」「backlog/active/review 均为空」「done 下 22 个」；实测 `done` **39** 个、`review` **2** 个、已推进到 TASK-042 | `ls tasks/*/` 计数 |
@@ -331,6 +334,16 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-17 —— D13-C 第十实例归档回写完成（由 TASK-044 承载，`Refs: TASK-043`）。**
+> `Status: REVIEW → DONE`、`git mv` → `tasks/done/`、`Merge Record` 九项 + **2 对 SHA 映射**
+> 全部由 TASK-044 以 `gh pr view 16` / `git` **实查**后落笔（PR #16 / rebase-merge / 2 提交 /
+> `2026-10-17T09:13:03Z` / `3eebdae` / run `39020279475` 单 run 双绿 / D8 解耦成立 /
+> 无独立审查记录（主控位审查）/ 2 对映射 tree 逐对相同）。
+> 同步修正本档案 Meta 的 `Status` 与 `Owner`、顶部括注、`AC-11`、`KI-A`、
+> `Next Action` 等滞后指针（R5）。
+>
+> **下文为实施阶段的历史记录（执行位 / Implementer），按原样保留：**
+>
 **REVIEW（review/）—— 实施已完成，待主控位审查；PR 已开立，等两必需检查 SUCCESS 后停下。**
 
 ### AC 完成情况（逐条附证据）
@@ -377,7 +390,9 @@ Non-Scope (files):
       > 防腐注：上述 head / CI 结论为**撰写时点快照**；合并门禁以**合并时点 head 的 run** 为准。
 - [x] **AC-11（本任务档案）** 见本文件 `Changed Files` / `Known Issues` / `Current State` / `Handoff`；
       `Status → REVIEW` 且目录 `git mv` 至 `tasks/review/`；
-      `Merge Record` 按 D13-C 选项 C 显式标注「待第十实例回填」。
+      `Merge Record` 原按 D13-C 选项 C 显式标注「待第十实例回填」；
+      **该回写已由 TASK-044（第十实例）于 2026-10-17 完成** —— 九要素 + 2 对 SHA 映射实查回填，
+      无「待回填」残留。
 
 ### 冒烟环境（AC-6 / AC-9 的可复现口径）
 
@@ -414,8 +429,10 @@ Non-Scope (files):
 
 ## Known Issues
 
-- **KI-A（鸡生蛋 · D13-C 固有）** 本任务自身合并后，其 `Merge Record` 留待**第十实例**回写。
-  这是 D13-C 选项 C 的固有代价（TASK-041 已在设计中论证）。**不得**在本任务内自我回写。
+- **KI-A（鸡生蛋 · D13-C 固有，已闭环）** 本任务自身合并后，其 `Merge Record` 原留待
+  **第十实例**回写 —— 该回写**已由 TASK-044 于 2026-10-17 完成**（见 `Merge Record` 节）。
+  D13-C 选项 C 的固有代价仍在：承载本次回写的 TASK-044 自身又成为**第十二实例**的
+  待回写对象。这是既定机制，不是遗漏，**不得**在 TASK-044 内自我回写。
 - **KI-B（跨仓 AC-5，**已实测确认**）** `projects/README.md` 位于 Workspace 侧，
   **不在本任务 PR 范围内**。实测 `E:/NDLDSN-WORKSPACE` **不是 Git 仓库**
   （`git rev-parse --is-inside-work-tree` → `fatal: not a git repository`）⇒
@@ -434,20 +451,34 @@ Non-Scope (files):
 
 ## Merge Record
 
-> **按 D13-C 选项 C：本表由下一个任务（第十实例）回填。**
-> **不得在本任务内自我回写**（那将造成档案与提交历史不一致）。
+> **本表由 TASK-044 按 D13-C 第十实例于 2026-10-17 实查回填。**
+> 本任务经**一次**交付请求合入 `main`：**PR #16**（含 X4 代码修复 + 041/042 回写）。
+> 下表九要素全部由执行位以 `gh pr view 16` / `gh api` / `git` **实查**后落笔，
+> **未照抄**任何既有文档中的值（R1）。
 
 | 要素 | 值 |
 |------|-----|
-| PR | **待第十实例回填** |
-| 合并策略 | rebase-merge（预期，`AGENTS.md` §14.2） |
-| 提交数 | 待第十实例回填 |
-| merged_at | 待第十实例回填 |
-| merge_commit_sha | 待第十实例回填 |
-| 合并后 CI | 待第十实例回填 |
-| D8 解耦 | 待第十实例回填 |
-| 独立审查 | 待第十实例回填 |
-| SHA 映射 | 待第十实例回填 |
+| PR | **#16** |
+| 合并策略 | **rebase-merge**（`AGENTS.md` §14.2 项目约定；`origin/main` `f2a63bc → 1b1f692 → 3eebdae`） |
+| 提交数 | **2** |
+| merged_at | **2026-10-17T09:13:03Z** |
+| merge_commit_sha | **`3eebdae4d69ede896ebd719fc6520dced013c4a9`**（pre-rebase head `abd7dee`） |
+| 合并后 CI | run **`39020279475`** `success`，`headSha = 3eebdae`，作业名 **`Continuous Integration`**（`ci.yml`，event `push`） |
+| D8 解耦 | **成立**。`gh api ".../actions/runs?head_sha=3eebdae…"` 实测 `total_count = 1`，且该唯一 run 即 `Continuous Integration` ⇒ 普通合并**未触发** `docker.yml`，`:latest` 未随合并前进 |
+| 独立审查 | **无独立审查记录** —— 本任务由**主控位（coordinator）**审查，框架基线级（TASK-045 同口径）。`handoffs/` 内仅 `HANDOFF-001`（主控→执行）与 `HANDOFF-002`（执行→主控）两份交接记录，**无审查记录文件** |
+| SHA 映射 | **2 对**，逐对验证通过：两侧 `git cat-file -t` 均为 `commit`、`%t` **tree 相同**、post 侧 `git merge-base --is-ancestor <post> origin/main` 通过 |
+
+**SHA 映射逐对验证（2026-10-17 实测；pre = PR 侧 commit，post = `origin/main` 侧 commit）：**
+
+| # | pre（PR 侧） | post（main 侧） | `%t` 相同 | post 在 `origin/main` |
+|---|--------------|-----------------|-----------|----------------------|
+| 1 | `c60b05753f0d0403baf1367b64d48979333449a3` | `1b1f692a0ee8adc4947a6792776e27a5b450725a` | ✅ `cb4bb3369ca55b61e8b50c384410102d0aee6fc3` | ✅ |
+| 2 | `abd7dee38ed734f811a69e632969fb0f23bccea3` | `3eebdae4d69ede896ebd719fc6520dced013c4a9` | ✅ `0f733621de8bca6d0f3a603d829a7af23ae6680b` | ✅ |
+
+> **映射说明：** rebase-merge 会把 PR 侧提交重写为新 SHA，故 pre/post **SHA 不同但 tree 相同**。
+> 本表 post 侧由 `%t` tree 在 `origin/main` 全史反查定位，**未假设「post = 当前 main」**
+> —— 当前 `origin/main` 已推进至 `a0e7d3f`（PR #17 / #18 之后），两对 post 均为其祖先。
+> **PR #16 共 2 对，全部通过。**
 
 ---
 
@@ -459,8 +490,9 @@ Non-Scope (files):
 | 002 | 执行位 implementer | 主控位 coordinator | 2026-10-17 | 实施完成交付（X4 修复 + 041/042 回写 + README 修正 + AC 证据 + 跨仓不可提交上报） |
 
 **最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
-**Next Action：** 主控位审查本 PR（读实际 diff，不读描述）→ PASS 后由**人类显式授权**、
-主控位执行 `rebase-merge`。**执行位不得自行合并、不得自行判定 PASS。**
+**Next Action：** **无待办。** 本任务已由人类授权、主控位执行 `rebase-merge` 合入 `main`
+（PR #16，`2026-10-17T09:13:03Z` / `3eebdae`），并由 TASK-044 于 2026-10-17
+完成 D13-C 第十实例归档回写（九要素 + 2 对 SHA 映射 + `Status → DONE` + 迁 `done/`）。
 
 ---
 
