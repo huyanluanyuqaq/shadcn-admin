@@ -1,0 +1,11 @@
+仓库级框架审计 @ E:/NDLDSN-WORKSPACE/projects/shadcn-admin
+
+[PASS] F1  覆盖全部 10 个必需字段
+[PASS] F2  全部 3 个工作流均已声明 on 与 permissions
+[PASS] F3  无占位符残留（共检查 8 个文件）
+[PASS] F4  未发现明文密钥（共检查 9 个文件）
+[PASS] F5  5 个框架文档存在、被引用且链接有效
+[PASS] F6  2 个必需检查名与工作流作业名一致
+[PASS] F7  双 Agent 框架资产在位（.agents/ 四目录 + templates/ 四模板 + shared/scripts 自检脚本）
+
+PASS=7 FAIL=0 WARN=0
