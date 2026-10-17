@@ -10,9 +10,9 @@
 Task ID: TASK-042
 Title: CI 增加后端编译门禁 + Docker `:latest` 加 tag 门禁，并受控发布 v1.0.1
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
-Owner: implementer-devops（执行位实施）
+Owner: implementer-devops（执行位实施）→ 已合并归档
 Owner Since: 2026-10-17
 Assigned Role: architect（设计，已完成）→ devops（实施）；审查由主控位承担
 Created: 2026-10-17
@@ -22,7 +22,7 @@ Requires Human Approval: true   # 含对外发布动作（打 tag → DockerHub 
                                 # 发布 tag 名 v1.0.1 由人类当场裁决（主控位原建议 v2.2.1）
 ```
 
-> **编号说明：** 001–040 已占用，041 在 `tasks/review/`（代码已合入 `main`）。本任务取 **042**。
+> **编号说明：** 001–040 已占用，041 已归档 `tasks/done/`（代码已合入 `main`）。本任务取 **042**。
 >
 > **人类授权记录（2026-10-17，本轮指派）：** 授权范围**仅限**本任务 AC-6 与 AC-7 描述的三次
 > 平台动作 —— ① 一次 `workflow_dispatch`（门禁实证，副作用仅多一个 `sha-*` 镜像 tag）；
@@ -164,17 +164,52 @@ Requires Human Approval: true   # 含对外发布动作（打 tag → DockerHub 
 
 ## Merge Record
 
-| 字段 | 值 |
-|------|----|
-| PR 编号 | #14 |
-| 合并策略 | rebase-merge |
-| 合并后 main | `b62e981`（= `31b670a`，即 tag `v1.0.1` 指向） |
-| 合并前门禁 | `install-lint-build` SUCCESS（run `39005264346`）、`audit` SUCCESS（同 run）；`mergeState=CLEAN` |
-| 合并后 main push CI | run `39005551732`（`Continuous Integration`），两作业均 success |
-| 发布实证 | run `39006433376`（workflow_dispatch / main，门禁实证）、run `39007059836`（push tag `v1.0.1`，受控发布） |
-| 三 tag 同 digest | `latest` / `v1.0.1` / `sha-b62e981` digest 均为 `sha256:13bbf2d989dfe4428d46d8be23c985e8a6104851e924149e05faf7a6c101eed3`，`updated` 均为 `2026-10-17T05:40:11~16Z` |
+> **本表由 TASK-043 按 D13-C 第九实例于 2026-10-17 实查回填。**
+> 本任务经**两次**交付请求合入 `main`：**PR #14**（代码：CI 门禁 + Docker `:latest` 收紧）
+> 与 **PR #15**（AC-9 档案回写）。下表九要素按 PR #14 为主记录，PR #15 的事实单列一节。
 
-> **D13-C 归档回写：** 本记录由 AC-9 补记，合并时尚未回写；按 D13-C 选项 C，归档回写（移入 `done/`）待下一个任务补记。
+| 要素 | 值 |
+|------|-----|
+| PR | **#14**（代码）+ **#15**（档案回写，见下节） |
+| 合并策略 | **rebase-merge**（`origin/main` `72d8f28 → b62e981`） |
+| 提交数 | **4** |
+| merged_at | **2026-10-17T05:14:48Z** |
+| merge_commit_sha | **`b62e9814bfb864c24c5398e868836e9681e64ec0`**（pre-rebase head `a075b169`） |
+| 合并后 CI | run **`39005551732`** `success`，`headSha = b62e981`，两作业（`install-lint-build` + `audit`）均 success |
+| D8 解耦 | **第 13 次复现**（`b62e981` 上 actions runs `total_count = 3`，但其中 2 个 `Build and Push Docker Image` 分别由 **`workflow_dispatch`（run `39006433376`，AC-6 已授权）**与 **tag `v1.0.1` push（run `39007059836`，AC-7 已授权）**触发；**该合并自身的 push 只产生 `Continuous Integration` 一个 run** ⇒ 普通合并仍未触发 docker.yml，D8 解耦成立） |
+| 独立审查 | `handoffs/HANDOFF-002-implementer-to-coordinator.md`（主控位审查结论 **PASS，附 3 项 MINOR**，均已整改） |
+| SHA 映射 | **4 对**（PR #14）+ **2 对**（PR #15），逐对验证通过：两侧均为 `commit` 对象、`%t` **tree 相同**、`git merge-base --is-ancestor <post> origin/main` 通过 |
+
+**SHA 映射逐对验证（2026-10-17 实测；pre = PR 侧 commit，post = `origin/main` 侧 commit）：**
+
+| # | PR | pre（PR 侧） | post（main 侧） | `%t` 相同 | post 在 `origin/main` |
+|---|----|--------------|-----------------|-----------|----------------------|
+| 1 | #14 | `f1991d0544fc5c50712bd1c203c51c0578962ccd` | `ffad602` | ✅ `de86aaf` | ✅ |
+| 2 | #14 | `ee1e34e787c7cdd81b5ea8acea7d4f38c96364e7` | `29f8dbe` | ✅ `82494fc` | ✅ |
+| 3 | #14 | `789c96ea46d3104edc0574de139bc184ae089c60` | `9534983` | ✅ `17ebc21` | ✅ |
+| 4 | #14 | `a075b1693fedaf4244d0e61acf909ffff416bc40` | `b62e981` | ✅ `1cb77fb` | ✅ |
+| 5 | #15 | `f377d6ca73626552a0c1d87cbb06affa27467df1` | `51a5ba8` | ✅ `c19fc33` | ✅ |
+| 6 | #15 | `9e22f66a41308a3c617aca1ca3a713432afd01a1` | `f2a63bc` | ✅ `905f5a0` | ✅ |
+
+> **映射说明：** rebase-merge 会把 PR 侧提交重写为新 SHA，故 pre/post **SHA 不同但 tree 相同**。
+> 上表按提交主题一一对应（`git log --oneline` 与 `gh pr view 14/15 --json commits` 双向核对），
+> **PR #14 共 4 对、PR #15 共 2 对，合计 6 对，全部通过**。
+
+### PR #15（档案回写）合并事实
+
+| 要素 | 值 |
+|------|-----|
+| PR | **#15** |
+| 合并策略 | rebase-merge（`origin/main` `b62e981 → f2a63bc`） |
+| 提交数 | **2** |
+| merged_at | **2026-10-17T06:45:04Z** |
+| merge_commit_sha | **`f2a63bc48ce50a165db0d338bb1465bcfa4d2c31`**（pre-rebase head `9e22f66a`） |
+| 合并后 CI | run **`39011065238`** `success`，`headSha = f2a63bc`，两作业均 success |
+| D8 解耦 | 同上（第 13 次复现口径：普通合并不触发 docker.yml） |
+
+> **D13-C 归档回写：** 原注「合并时尚未回写；按 D13-C 选项 C，归档回写（移入 `done/`）待下一个任务补记」
+> **已由 TASK-043（第九实例）于 2026-10-17 完成** —— `Status: REVIEW → DONE`、`git mv` 至 `tasks/done/`、
+> 本 `Merge Record` 九要素 + 6 对 SHA 映射实查回填。该原注已失效，不再保留。
 
 ---
 
@@ -276,7 +311,18 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（review/）—— 全部 AC 已完成，任务移交 `review/` 待归档回写。**
+**DONE（done/）—— 全部 AC 已完成；D13-C 第九实例归档回写已由 TASK-043 于 2026-10-17 完成。**
+
+> **2026-10-17 归档回写（由 TASK-043 承载，`Refs: TASK-042`）：** `Status: REVIEW → DONE`、
+> `git mv` → `tasks/done/`；`Merge Record` 由「仅 PR #14 事实」补全为**九要素 + PR #14（4 对）/
+> PR #15（2 对）共 6 对 SHA 映射**，全部以 `gh pr view 14/15` 与 `git` 实查后落笔
+> （`merged_at` / `merge_commit_sha` / 提交数 / 合并后 CI run / D8 复现口径 / 独立审查 /
+> SHA 映射逐对 `%t` 与 `--is-ancestor` 验证）。同步修正 Meta 的 `Status` 与 `Owner`、
+> 顶部「编号说明」的 041 目录表述、本 `Current State` 头部、以及 `Next Action` 滞后指针（R5）。
+>
+> **下方为实施/归档阶段的历史记录，按原样保留：**
+>
+> **REVIEW（review/）—— 全部 AC 已完成，任务移交 `review/` 待归档回写。**
 
 - **AC-1** 阻塞判定点：在 `origin/main`（`72d8f28`）未修改任何文件的前提下执行
   `pnpm build:shared` 与 `pnpm typecheck:server`，**均退出码 0**。原始输出见
@@ -350,8 +396,12 @@ Non-Scope (files):
 | 004 | implementer（执行位） | coordinator（主控位） | 2026-10-17 | AC-9 完成报告（改动文件 / 本地验证 / PR / 未做事项） |
 
 **最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
-**Next Action：** 主控位审查 PR [#15](https://github.com/huyanluanyuqaq/shadcn-admin/pull/15)
-的档案回写 diff → PASS 后执行 `rebase-merge`。
+**Next Action：** **无待办。** PR #14 与 PR #15 均已合并（`b62e981` / `f2a63bc`），
+本任务已由 TASK-043 按 D13-C 第九实例归档回写完成（`Status = DONE`、`tasks/done/`、
+`Merge Record` 九要素 + 6 对 SHA 映射实查回填）。
+> **原指针（已失效，2026-10-17 由 TASK-043 修正）：** 「主控位审查 PR #15 的档案回写 diff →
+> PASS 后执行 `rebase-merge`」—— PR #15 已于 `2026-10-17T06:45:04Z` 合并
+> （merge commit `f2a63bc`，合并后 run `39011065238` 双绿）。
 
 ---
 
