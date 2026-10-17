@@ -22,7 +22,8 @@
 #       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:<短commit-sha>
 #
 #   - 手动触发（workflow_dispatch，可在 Actions 页面任选分支/tag）：
-#       只产出 <短commit-sha> 一个 tag。`:latest` 带有
+#       从【分支】触发时只产出 <短commit-sha> 一个 tag；从【tag】触发时与打 tag
+#       发布相同（latest + 版本号 + sha）。`:latest` 带有
 #       enable=${{ github.ref_type == 'tag' }} 门禁（见下方 tags 段），
 #       只有 ref 为 tag 时才推进 —— 否则任意 feature 分支都能被手动发布成 latest。
 #
