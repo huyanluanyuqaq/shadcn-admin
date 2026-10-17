@@ -46,6 +46,16 @@ jobs:
       - name: Build shared package
         run: pnpm build:shared
 
+      # 后端（server/）此前从不被 CI 编译：根 tsc -b 的 references 只含
+      # tsconfig.app.json / tsconfig.node.json，不含 server/；唯一编译后端的是
+      # Dockerfile 的 `pnpm --filter server build`，而 docker.yml 自 2026-10-14 起
+      # 已改为 tag-only —— 只有打 tag 时才跑。于是「CI 全绿但后端根本编译不过」
+      # 成为一个盲区（TASK-042）。
+      # 放此处的理由：① 该脚本自带 @repo/shared build，依赖上一步已产出的 dist；
+      # ② fail-fast，排在昂贵的 lint / test / build 之前。
+      - name: Typecheck server
+        run: pnpm typecheck:server
+
       - name: Lint the code
         run: pnpm lint
 
