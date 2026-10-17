@@ -307,8 +307,14 @@ Non-Scope (files):
 | 001 | coordinator（主控位） | implementer（执行位） | 2026-10-17 | 任务登记 + 设计方案 + 三次平台动作的人类授权范围 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-coordinator-to-implementer.md`
-**Next Action：** 领取任务（Status → `ACTIVE`，移入 `tasks/active/`），从 `origin/main` 建分支，
-然后**在未修改任何文件的前提下**执行 `pnpm typecheck:server` 并保存原始输出。
+**Next Action：** **（已过期，保留以备追溯）** 原为「领取任务并从 `origin/main` 建分支后执行
+阻塞判定」。该动作**已完成**：任务已于 `tasks/active/`，分支
+`chore/TASK-042-ci-server-typecheck-and-release-gate` 已建，
+AC-1 阻塞判定已通过（`artifacts/ac1-*.txt`）。
+**当前 Next Action（交主控位）：** 审查 PR
+[huyanluanyuqaq/shadcn-admin#14](https://github.com/huyanluanyuqaq/shadcn-admin/pull/14)
+的实际 diff（C8：读 diff 不读描述）→ PASS 后由主控位执行 `rebase-merge`。
+**执行位不得自行合并。**
 
 ---
 
