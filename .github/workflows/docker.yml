@@ -21,6 +21,11 @@
 #       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:latest      ← 每次发布都更新
 #       docker.io/<DOCKERHUB_USERNAME>/subscription-admin:<短commit-sha>
 #
+#   - 手动触发（workflow_dispatch，可在 Actions 页面任选分支/tag）：
+#       只产出 <短commit-sha> 一个 tag。`:latest` 带有
+#       enable=${{ github.ref_type == 'tag' }} 门禁（见下方 tags 段），
+#       只有 ref 为 tag 时才推进 —— 否则任意 feature 分支都能被手动发布成 latest。
+#
 # 多架构：同时构建 linux/amd64 与 linux/arm64（Apple Silicon / ARM 服务器可直接用）。
 #
 # 注意：镜像构建不需要 JWT_SECRET / ADMIN_PASSWORD（这些是容器运行时变量，
@@ -70,7 +75,12 @@ jobs:
           tags: |
             # 发布时同步更新 latest（触发已改为 tag-only，因此 latest 只在打版本 tag 时前进，
             # 不再随 main 分支的每次合并变化）。
-            type=raw,value=latest
+            # enable 门禁：工作流保留 workflow_dispatch，而它允许在 Actions 页面任选
+            # 分支/tag 手动触发；若无此门禁，从任意分支手动触发都会把该分支构建成
+            # latest 推送，绕开「只有打 tag 才发布」的约束（TASK-042）。
+            # enable 只接受 GitHub 上下文表达式，不支持 is_tag 之类的函数（本仓曾因此
+            # 失败），故这里直接用 github.ref_type。
+            type=raw,value=latest,enable=${{ github.ref_type == 'tag' }}
             # 提交短 SHA，便于追溯
             type=sha,format=short
             # 打 Git tag（vX.Y.Z）时发布精确版本号镜像，不再额外生成 v1 / v1.0 浮动标签。
