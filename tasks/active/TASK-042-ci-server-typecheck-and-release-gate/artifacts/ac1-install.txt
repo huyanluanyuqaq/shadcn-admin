@@ -1,0 +1,14 @@
+# TASK-042 实证留档
+# 目录: E:/NDLDSN-WORKSPACE/projects/shadcn-admin
+# HEAD: 72d8f28f09df689fdf3d0156118eeb40d54af525 (= origin/main)
+# 时间(UTC): 2026-10-17T04:47:52Z
+# 命令: pnpm install --frozen-lockfile
+# 状态: 阻塞判定点之前（.github/ 未修改）
+# 退出码: 0
+# ---- 原始输出开始 ----
+Scope: all 3 workspace projects
+Lockfile is up to date, resolution step is skipped
+Already up to date
+
+Done in 778ms using pnpm v10.29.3
+# ---- 原始输出结束 ----
