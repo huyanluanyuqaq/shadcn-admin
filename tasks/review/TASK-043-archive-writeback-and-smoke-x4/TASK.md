@@ -371,7 +371,10 @@ Non-Scope (files):
       修复后 **159 通过 / 0 失败** ⇒ **通过项 +6、失败项 −4，无回归、无剩余失败项**。
       4 项原失败即 X4 目标断言（`richCustomer` / `richSub2` / `richSync2` / `richTg2`）。
 - [x] **AC-10（交付请求）** 按 `.github/PULL_REQUEST_TEMPLATE.md` 填全 PR 描述；
-      等 `install-lint-build` + `audit` 双绿；**未自行合并**（`Requires Human Approval: true`）。
+      **PR #16** 已开立，`install-lint-build` + `audit` **双绿**（`statusCheckRollup` 实测），
+      `mergeable: MERGEABLE` / `mergeState: CLEAN`；
+      **未自行合并**（`Requires Human Approval: true`），交主控位审查与人类授权。
+      > 防腐注：上述 head / CI 结论为**撰写时点快照**；合并门禁以**合并时点 head 的 run** 为准。
 - [x] **AC-11（本任务档案）** 见本文件 `Changed Files` / `Known Issues` / `Current State` / `Handoff`；
       `Status → REVIEW` 且目录 `git mv` 至 `tasks/review/`；
       `Merge Record` 按 D13-C 选项 C 显式标注「待第十实例回填」。
