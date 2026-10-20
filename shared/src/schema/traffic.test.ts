@@ -47,6 +47,41 @@ describe('effectiveCustomerTrafficTotal（阈值评估：手动 > 套餐 > 存�
   })
 })
 
+/**
+ * TASK-046：生效上限第三顺位跟随**当前订阅额度**（同步镜像口径）。
+ *
+ * 根因 B 的修复契约：订阅同步（server/src/services/subscription-sync.ts 的
+ * syncOne / syncMany，同事务）把 subscriptions.traffic_total 镜像写进
+ * customers.traffic_total，使第三顺位在客户无套餐、无手动上限时反映
+ * **当前订阅**的额度，而非换订阅前的陈旧值。
+ *
+ * 优先级函数本身不变（手动 > 套餐 > 第三顺位）；此处锁定镜像后的评估口径。
+ * 注：镜像的写库行为依赖 SQLite，浏览器 vitest 无法覆盖，由冒烟脚本验证；
+ * 这里断言的是镜像值流入后的端到端评估结果（换订阅刷新 / 用尽仍 100%）。
+ */
+describe('TASK-046：第三顺位镜像为当前订阅额度后的评估口径', () => {
+  it('换订阅后：第三顺位已镜像为新订阅额度 → 生效上限取新额度，百分比随新分母下降', () => {
+    // 旧订阅额度 100（已用尽 100 → 100%）；换订阅并同步后镜像值变为 1000
+    const total = effectiveCustomerTrafficTotal(1000, null, null)
+    expect(total).toBe(1000)
+    expect(trafficUsagePercent(100, total)).toBe(10)
+    expect(highestTrafficThreshold(100, total)).toBeNull()
+  })
+
+  it('反向验收（R3）：用尽且未换订阅 → 第三顺位保持原额度，仍为 100%', () => {
+    const total = effectiveCustomerTrafficTotal(100, null, null)
+    expect(trafficUsagePercent(100, total)).toBe(100)
+    expect(highestTrafficThreshold(100, total)).toBe(100)
+  })
+
+  it('镜像不压过更高优先级：手动上限与套餐月流量仍优先', () => {
+    // 手动上限压过镜像值
+    expect(effectiveCustomerTrafficTotal(1000, 500, 200)).toBe(200)
+    // 套餐月流量压过镜像值
+    expect(effectiveCustomerTrafficTotal(1000, 500, null)).toBe(500)
+  })
+})
+
 describe('trafficUsagePercent', () => {
   it('按占比取整', () => {
     expect(trafficUsagePercent(60, 100)).toBe(60)

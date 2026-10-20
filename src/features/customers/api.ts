@@ -3,6 +3,7 @@ import {
   useMutation,
   useQuery,
   useQueryClient,
+  type QueryClient,
 } from '@tanstack/react-query'
 import type {
   Customer,
@@ -11,6 +12,7 @@ import type {
   SubscriptionPreview,
 } from '@shared/index'
 import { api } from '@/lib/api'
+import { dashboardKeys } from '@/features/dashboard/queries'
 import { subscriptionKeys, usePoolOptions } from '@/features/subscriptions/api'
 
 /** 列表查询参数（全部由服务端执行筛选/排序/分页） */
@@ -28,6 +30,31 @@ export type CustomerListParams = {
 export const customerKeys = {
   root: ['customers'] as const,
   list: (params: CustomerListParams) => ['customers', 'list', params] as const,
+}
+
+/**
+ * 客户数据变更后的**统一失效域**（TASK-046）。
+ *
+ * 客户保存 / 订阅保存 / 订阅同步三类事件都会改变「依赖客户数据的查询」：
+ * - `customerKeys.root`：客户列表（行内流量列读 customers.traffic_*）；
+ * - `dashboardKeys.stats`：仪表盘「流量阈值提醒」卡片（listTrafficThresholdStatuses
+ *   实时查库，但前端有 staleTime 5 分钟的缓存，不失效就看不到新值）；
+ * - `subscriptionKeys.root`：订阅列表与客户表单第三部分的订阅选项。
+ *
+ * 三者按**前缀精确失效**（TanStack Query 官方 key factory 模式），
+ * 不得改用全量 `invalidateQueries()`——那会连带重拉所有查询。
+ *
+ * 时机约束：调用点必须在**用量同步成功之后**（订阅同步把用量/额度写库后），
+ * 否则 refetch 拿到的仍是旧数据。
+ */
+export function invalidateCustomerDependentQueries(
+  queryClient: QueryClient
+): Promise<void> {
+  return Promise.all([
+    queryClient.invalidateQueries({ queryKey: customerKeys.root }),
+    queryClient.invalidateQueries({ queryKey: dashboardKeys.stats }),
+    queryClient.invalidateQueries({ queryKey: subscriptionKeys.root }),
+  ]).then(() => undefined)
 }
 
 const joinValues = (values: string[]) =>
