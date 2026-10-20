@@ -49,7 +49,7 @@ import {
 } from '@/features/subscriptions/api'
 import { CRON_HINT, DEFAULT_CRON } from '@/features/subscriptions/data/schema'
 import {
-  customerKeys,
+  invalidateCustomerDependentQueries,
   useCreateCustomer,
   usePlanOptions,
   useSubscriptionPreview,
@@ -425,8 +425,10 @@ export function CustomersActionDialog({
         try {
           await syncSubscriptionUsage.mutateAsync(syncResult.subscriptionId)
           usageSynced = true
-          // 回写发生在同步成功后，客户列表缓存需再次失效行内才刷新
-          void queryClient.invalidateQueries({ queryKey: customerKeys.root })
+          // 回写发生在同步成功后：统一失效客户 / 仪表盘 / 订阅三域缓存，
+          // 仪表盘「流量阈值提醒」卡片才会立刻反映新订阅的额度（TASK-046）。
+          // 时机必须在用量同步成功之后——放早了 refetch 拿到的还是旧用量。
+          void invalidateCustomerDependentQueries(queryClient)
         } catch (usageError) {
           // 客户与订阅本身已保存成功，用量拉取失败不阻断流程，仅提示
           toast.error(

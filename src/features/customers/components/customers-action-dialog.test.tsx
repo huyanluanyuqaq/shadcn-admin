@@ -55,21 +55,32 @@ vi.mock('@/features/emails/queries', () => ({
 }))
 
 vi.mock('@/features/subscriptions/api', () => ({
+  // TASK-046：真实 invalidateCustomerDependentQueries 经 '../api' 载入，
+  // 依赖本模块的 subscriptionKeys 与 usePoolOptions 两个导出
+  subscriptionKeys: {
+    root: ['subscriptions'],
+    list: () => ['subscriptions', 'list'],
+  },
+  usePoolOptions: () => supplierOptions,
   useCreateSubscription: () => createSubscription,
   useUpdateSubscription: () => updateSubscription,
   useSyncSubscription: () => syncSubscriptionUsage,
   useSubscriptionOptions: () => subscriptionOptions,
 }))
 
-vi.mock('../api', () => ({
-  // 组件同步成功后按 customerKeys.root 失效客户列表
-  customerKeys: { root: ['customers'], list: () => ['customers', 'list'] },
-  useCreateCustomer: () => createCustomer,
-  useUpdateCustomer: () => updateCustomer,
-  usePlanOptions: () => planOptions,
-  useSupplierOptions: () => supplierOptions,
-  useSubscriptionPreview: () => subscriptionPreview,
-}))
+vi.mock('../api', async (importOriginal) => {
+  // TASK-046：保留真实的 invalidateCustomerDependentQueries（统一失效域），
+  // 仅 mock 数据 hooks——失效行为由 QueryClient spy 断言，避免自证
+  const actual = await importOriginal<typeof import('../api')>()
+  return {
+    ...actual,
+    useCreateCustomer: () => createCustomer,
+    useUpdateCustomer: () => updateCustomer,
+    usePlanOptions: () => planOptions,
+    useSupplierOptions: () => supplierOptions,
+    useSubscriptionPreview: () => subscriptionPreview,
+  }
+})
 
 const URL = 'https://example.com/sub'
 
@@ -167,9 +178,11 @@ function pickFirstAvailableDay(): string {
   return target.getAttribute('data-day') as string
 }
 
-async function renderDialog(currentRow?: Customer) {
-  const queryClient = new QueryClient()
-  return render(
+async function renderDialog(
+  currentRow?: Customer,
+  queryClient: QueryClient = new QueryClient()
+) {
+  const result = render(
     <QueryClientProvider client={queryClient}>
       <CustomersActionDialog
         open
@@ -178,6 +191,9 @@ async function renderDialog(currentRow?: Customer) {
       />
     </QueryClientProvider>
   )
+  // 直接展开会丢掉原型上的 locator 方法（getByLabelText 等），
+  // 故用 Object.assign 把 queryClient 挂到原结果上
+  return Object.assign(result, { queryClient })
 }
 
 describe('CustomersActionDialog 保存后触发订阅同步', () => {
@@ -269,6 +285,70 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
     })
     // 保存流未被同步失败中断（onOpenChange(false) 走到即关闭对话框）
     expect(createCustomer.mutateAsync).toHaveBeenCalledOnce()
+  })
+
+  // TASK-046（R1 / AC-2 / AC-3）：保存并同步成功后统一失效三域缓存，
+  // 其中 ['dashboard','stats'] 是根因 A 的修复点——此前只失效
+  // customerKeys.root，仪表盘「流量阈值提醒」5 分钟内都是旧值。
+  it('保存并同步成功后：仪表盘统计查询被失效（统一失效域，非全量）', async () => {
+    const queryClient = new QueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const currentRow = makeCustomer(9)
+    subscriptionOptions.data = { items: [makeSubscription(42, 9)] }
+
+    const { getByRole } = await renderDialog(currentRow, queryClient)
+
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(syncSubscriptionUsage.mutateAsync).toHaveBeenCalledWith(42)
+    })
+    await vi.waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalled()
+    })
+    const invalidatedKeys = invalidateSpy.mock.calls.map(
+      (call) => call[0]?.queryKey
+    )
+    // 根因 A：仪表盘统计此前从未被失效
+    expect(invalidatedKeys).toContainEqual(['dashboard', 'stats'])
+    // 统一失效域同时覆盖客户列表与订阅列表
+    expect(invalidatedKeys).toContainEqual(['customers'])
+    expect(invalidatedKeys).toContainEqual(['subscriptions'])
+    // 不得使用全量 invalidateQueries()：每次失效都必须带精确 queryKey
+    expect(
+      invalidateSpy.mock.calls.every((call) => call[0]?.queryKey !== undefined)
+    ).toBe(true)
+  })
+
+  // TASK-046：失效时机必须在用量同步成功之后——同步失败时不得失效，
+  // 否则 refetch 拿到的还是旧用量。
+  it('用量同步失败时：不做统一失效（时机在同步成功之后）', async () => {
+    syncSubscriptionUsage.mutateAsync.mockRejectedValue(new Error('上游超时'))
+    const queryClient = new QueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { getByLabelText, getByRole } = await renderDialog(
+      undefined,
+      queryClient
+    )
+
+    await userEvent.type(getByLabelText('名称', { exact: true }), '新客户')
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), URL)
+    // TASK-041：到期时间必填 ⇒ 新建保存前须先选一个日期
+    await userEvent.click(getByLabelText('到期时间', { exact: true }))
+    pickFirstAvailableDay()
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(syncSubscriptionUsage.mutateAsync).toHaveBeenCalledWith(42)
+    })
+    // 保存流未被同步失败中断
+    await vi.waitFor(() => {
+      expect(createCustomer.mutateAsync).toHaveBeenCalledOnce()
+    })
+    // 失效调用位于 try 块内、同步成功之后：同步失败则整段跳过
+    // （失效只可能在同步成功后发生，本断言与时序无关）
+    expect(invalidateSpy).not.toHaveBeenCalled()
   })
 
   // TASK-018：FormControl 注入 id + aria 属性前，下列输入的 label 指向
