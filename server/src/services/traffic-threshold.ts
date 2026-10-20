@@ -16,9 +16,10 @@ import { publish } from './notifications.js'
  *
  * 语义（用户需求：「达到阈值时需要发送通知提醒，通知每次取当前所在最高的阈值」）：
  * - 阈值档位 50% / 80% / 100%（shared `TRAFFIC_THRESHOLDS`）；
- * - 生效上限 = `trafficManualCap ?? 套餐月流量 ?? trafficTotal`
- *   （`effectiveCustomerTrafficTotal`，TASK-023：手动上限最高优先级，
- *   其次客户对应套餐的月流量，套餐未设时回落存量值）；为空不评估；
+ * - 生效上限 = `trafficManualCap ?? 套餐月流量`
+ *   （`effectiveCustomerTrafficTotal`，TASK-023 → TASK-046 人类裁决：
+ *   手动上限最高优先级，其次客户对应套餐的月流量；
+ *   **订阅拉取的额度与存量月流量均不参与**）；为空（不限）不评估；
  * - **穿越式触发**：`customers.traffic_threshold_notified` 记录该客户
  *   「当前所在最高阈值」，仅当它**上升**时发一条通知（取新的最高阈值），
  *   同一阈值不重复发；用量回落后状态同步下调，再次穿越可重新通知
@@ -52,7 +53,6 @@ type TrafficRow = {
   id: number
   name: string
   trafficUsed: number
-  trafficTotal: number | null
   planTrafficLimit: number | null
   trafficManualCap: number | null
   notified: number
@@ -60,15 +60,15 @@ type TrafficRow = {
 
 /**
  * 加载全部客户的阈值评估行（TASK-023：join plans 取套餐月流量）。
- * 扫描与仪表盘列表共用，保证「通知判定」与「卡片展示」同一口径。
+ * 扫描、仪表盘列表与站内「用尽」提醒（reminder-scan）共用，
+ * 保证三处生效上限口径同一（TASK-046 R-3）。
  */
-function loadTrafficRows(): TrafficRow[] {
+export function loadTrafficRows(): TrafficRow[] {
   return db
     .select({
       id: customers.id,
       name: customers.name,
       trafficUsed: customers.trafficUsed,
-      trafficTotal: customers.trafficTotal,
       planTrafficLimit: plans.trafficLimit,
       trafficManualCap: customers.trafficManualCap,
       notified: customers.trafficThresholdNotified,
@@ -88,7 +88,6 @@ export function scanTrafficThresholds(): TrafficThresholdScanResult {
 
   for (const row of rows) {
     const total = effectiveCustomerTrafficTotal(
-      row.trafficTotal,
       row.planTrafficLimit,
       row.trafficManualCap
     )
@@ -177,7 +176,8 @@ type TrafficThresholdStatus = {
  * 只读，不写库、不发通知——仪表盘展示与通知状态解耦：
  * 卡片反映实时用量，`notified` 反映通知是否已随扫描发出。
  *
- * 生效上限口径同扫描（TASK-023）：手动上限 > 套餐月流量 > 存量月流量。
+ * 生效上限口径同扫描（TASK-023 → TASK-046 人类裁决）：手动上限 > 套餐月流量；
+ * 订阅拉取额度与存量月流量均不参与。
  */
 export function listTrafficThresholdStatuses(limit = 10): TrafficThresholdStatus[] {
   const rows = loadTrafficRows()
@@ -185,7 +185,6 @@ export function listTrafficThresholdStatuses(limit = 10): TrafficThresholdStatus
   const statuses: TrafficThresholdStatus[] = []
   for (const row of rows) {
     const total = effectiveCustomerTrafficTotal(
-      row.trafficTotal,
       row.planTrafficLimit,
       row.trafficManualCap
     )

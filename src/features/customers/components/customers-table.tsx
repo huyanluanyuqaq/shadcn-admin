@@ -91,6 +91,14 @@ export function CustomersTable() {
         planNameById: new Map(
           (plans.data?.items ?? []).map((item) => [item.id, item.name])
         ),
+        // TASK-046：客户表格「流量使用」列的生效上限口径 = 手动 ?? 套餐月流量，
+        // 套餐额度由套餐选项缓存按 planId 查表补齐（/customers 不返回该字段）
+        planTrafficLimitById: new Map(
+          (plans.data?.items ?? []).map((item) => [
+            item.id,
+            item.trafficLimit ?? null,
+          ])
+        ),
       }),
     [suppliers.data, plans.data]
   )

@@ -222,6 +222,8 @@ dialog 2 个 R1 用例 + traffic.test.ts 3 个 R2/R3 用例）。
   SQLite，而 `pnpm test` 全量跑在 Chromium（浏览器 vitest 无法加载
   better-sqlite3）。R2/R3 以评估口径契约测试锁定；端到端写库验证留待
   主控位/人类决定是否补跑隔离环境冒烟（VACUUM INTO 快照 + PORT=3002）。
+  ⚠️ **本条已被第二轮整改取代**：`trafficTotal` 镜像撤销后不存在写库口径行为，
+  口径计算全部纯函数化，冒烟留待项不再适用（见文末整改记录）。
 - 真实生产库不可达，存量分析基于本机 `server/data/app.db` 及其自带备份快照。
 
 ---
@@ -271,6 +273,120 @@ dialog 2 个 R1 用例 + traffic.test.ts 3 个 R2/R3 用例）。
 ## Next Action
 
 主控位审查 → 人类授权 → 主控位 rebase-merge。执行位**已停下**。
+
+---
+
+---
+
+# 第二轮：口径整改记录（2026-10-20，响应 HANDOFF-003 R-1 ~ R-5）
+
+**背景**：主控位审查后，**人类裁决推翻了首轮的「路径甲（写库镜像）」**：
+
+> 「订阅拉取更新出来的流量不参与，只有两个值参与，手动设置的上限为
+> 最高优先级，其次是套餐设定的月流量。」
+
+⇒ 生效上限 = `traffic_manual_cap ?? plans.traffic_limit`。
+订阅拉取额度与表单存量月流量**均不参与**；`traffic_used`（分子）照旧参与。
+首轮镜像恰是让订阅额度参与上限，与裁决相反，**已按要求撤销，不为原方案辩护**。
+
+## R-1 撤销镜像（AC-2r / AC-4r）
+
+`server/src/services/subscription-sync.ts` 两处均已恢复：
+
+- `syncOne`：`.set({ trafficUsed: used, trafficTotal: usage.total ?? null })`
+  → `.set({ trafficUsed: used })`（注释同步改回 TASK-017 原文）；
+- `syncMany`：`.set({ trafficUsed: …, trafficTotal: r.total ?? null })`
+  → `.set({ trafficUsed: (r.upload ?? 0) + (r.download ?? 0) })`。
+
+`git diff` 可证两处均不含 `trafficTotal`（订阅行自身的
+`trafficTotal: usage.total ?? null` 是 subscriptions 表自己的列，与客户口径无关，保留）。
+
+## R-2 口径函数（AC-4r）
+
+`shared/src/schema/traffic.ts` 的 `effectiveCustomerTrafficTotal`：
+
+```ts
+export function effectiveCustomerTrafficTotal(
+  planTrafficLimit: number | null | undefined,
+  trafficManualCap: number | null | undefined
+): number | null {
+  return trafficManualCap ?? planTrafficLimit ?? null
+}
+```
+
+**签名方案选择：删除 `trafficTotal` 参数**（而非保留弃用）。评估：删除后波及面仅
+`traffic-threshold.ts` 两处调用 + `traffic.test.ts` 用例，且顺带清掉
+`TrafficRow.trafficTotal` 与 select 列——比留一个无人传的弃用参数更干净，
+也不会给未来调用方「存量仍参与」的误导。优先级顺序未动（手动 > 套餐）。
+
+`effectiveTrafficTotal`（2 参，`manual ?? 传入月流量`）**保留未删**：本任务外既有
+导出、有测试覆盖，删它属扩大改动面；仅修正其已过时的文档注释（不再声称被客户表格使用）。
+整改后它**无任何 src 消费者**（仅 tests 引用）——已记录，留给后续清理决策。
+
+## R-3 三处口径统一（AC-6r）
+
+| # | 位置 | 整改内容 |
+|---|------|---------|
+| 1 | `server/src/services/traffic-threshold.ts` | 两处调用适配新签名；`TrafficRow` 去掉 `trafficTotal`；**`loadTrafficRows` 改为导出**（供 reminder-scan 共用，join plans 取套餐额度） |
+| 2 | `server/src/services/reminder-scan.ts:46` | 用尽判定由「裸读 `customers.trafficTotal`」改为 `loadTrafficRows().flatMap(...)` + `effectiveCustomerTrafficTotal(planTrafficLimit, trafficManualCap)`；`total == null \|\| <= 0 \|\| used < total` 过滤（与扫描同一评估条件）；publish data 改用算得的 `used/total` |
+| 3 | `src/features/customers/components/customers-columns.tsx:181` | 流量列改用 `effectiveCustomerTrafficTotal(planTrafficLimit, trafficManualCap)`；新增入参 `planTrafficLimitById: Map<number, number \| null>` |
+| 3b | `src/features/customers/components/customers-table.tsx:96` | 沿用既有 `poolNameById`/`planNameById` 同款装配：从 `usePlanOptions()` 构建 `planTrafficLimitById`（`item.trafficLimit ?? null`）注入列工厂 |
+
+**未改后端 API 响应结构**（`/customers` 未加套餐字段，符合 Non-Scope 与禁令 4）；
+套餐额度走前端已有的 `usePlanOptions()` 缓存（`Plan[]` 含 `trafficLimit`）。
+
+**降级行为定案（HANDOFF-003 要求由执行位定并说明）**：套餐数据未加载
+（`plans.data` 为空 → 映射无条目）时，该客户的 `planTrafficLimit` 按 `null` 处理
+⇒ 生效上限 = 手动 ?? null。**无手动上限时该列短暂显示「不限 / 无上限」**，
+套餐查询就绪后自动恢复正确值。选取此行为的原因：与「未设套餐」的真实语义一致
+（都是无套餐额度），不引入新的加载态 UI；套餐选项查询为 5 分钟 staleTime 的共享缓存，
+实际窗口极小。
+
+## R-4 测试（AC-5r / AC-9r）
+
+`shared/src/schema/traffic.test.ts` 按新口径重写（首轮 3 个镜像口径用例作废）：
+
+- `effectiveCustomerTrafficTotal` describe 改 2 参：手动压套餐（`(200, 50)` → 50）、
+  无手动按套餐（`(200, null)` → 200）、皆无不限（`(null, null)` → null）；
+- **TASK-046 describe（3 个）**：
+  - 「有手动上限：换订阅后分母不随订阅额度变化，仅按已用量重算」——
+    `(1000, 100)` → 100；`trafficUsagePercent(100, 100)` → **100**、
+    `trafficUsagePercent(10, 100)` → **10**（新订阅额度 1000 不参与分母）；
+  - **反向验收（AC-5r）「用尽且未换订阅 ⇒ 仍显示 100%」**（套餐口径）——
+    `trafficUsagePercent(100, effectiveCustomerTrafficTotal(100, null))` → **100**、
+    `highestTrafficThreshold(100, 100)` → **100**；
+  - **新语义（AC-9r）「手动与套餐皆无 ⇒ 不限流量，不显示百分比」**——
+    `trafficUsagePercent(100, null)` → null、`highestTrafficThreshold(100, null)` → null。
+
+R1 的两个 dialog 用例（仪表盘失效 / 同步失败不失效）不受口径整改影响，保持通过。
+
+## R-5 文档（AC-11r）
+
+- `TASK.md`：`Known Issues` 增补 KI-5（`traffic_total` 降级为纯存量列 +
+  面向用户说明文案：「月流量（GB）为存量字段，仅作记录；流量上限以手动上限或
+  所选套餐的月流量为准；两者均未设置时不限流量。」）；KI-4 改写为
+  「口径纯函数化、测试直接覆盖」；AC 段补齐 AC-4r/5r/6r/9r/11r 并勾选。
+- 表单「月流量（GB）」字段**未移除**（禁令 6：仅记录降级事实，移除属产品决策）。
+
+## 整改验证（全绿）
+
+```text
+$ pnpm build:shared          （成功）
+$ pnpm test
+ Test Files  27 passed (27)
+      Tests  351 passed (351)      ← 首轮 350 → 351（口径用例重写后净 +1）
+$ pnpm lint                  （无输出，通过）
+$ pnpm format:check          （customers-columns.tsx 首轮报格式，prettier --write 后通过）
+$ pnpm typecheck:server      （无输出，通过）
+$ pnpm build                 ✓ built（修复一处 Map 值类型 item.trafficLimit ?? null 后通过）
+```
+
+## 留待项（超出本任务 File Scope，未动）
+
+- `docs/architecture/overview.md:567`（及 175/186 行）仍描述旧口径
+  「`trafficManualCap ?? 套餐月流量 ?? trafficTotal`」——`docs/**` 不在本任务
+  File Scope，**未改**；建议主控位/人类决定是否随合并后续航修订。
+- `effectiveTrafficTotal` 无 src 消费者（见 R-2 节），是否清理留待后续决策。
 
 ---
 

@@ -28,57 +28,62 @@ describe('effectiveTrafficTotal', () => {
   })
 })
 
-describe('effectiveCustomerTrafficTotal（阈值评估：手动 > 套餐 > 存量）', () => {
-  it('手动上限为最高优先级（压过套餐与存量）', () => {
-    expect(effectiveCustomerTrafficTotal(100, 200, 50)).toBe(50)
+describe('effectiveCustomerTrafficTotal（阈值评估：手动 > 套餐，TASK-046 人类裁决）', () => {
+  it('手动上限为最高优先级（压过套餐）', () => {
+    expect(effectiveCustomerTrafficTotal(200, 50)).toBe(50)
   })
 
-  it('无手动上限时按套餐月流量（压过存量陈旧值）', () => {
-    expect(effectiveCustomerTrafficTotal(100, 200, null)).toBe(200)
+  it('无手动上限时按套餐月流量', () => {
+    expect(effectiveCustomerTrafficTotal(200, null)).toBe(200)
+    expect(effectiveCustomerTrafficTotal(200, undefined)).toBe(200)
   })
 
-  it('套餐未设月流量时回落存量月流量', () => {
-    expect(effectiveCustomerTrafficTotal(100, null, null)).toBe(100)
-    expect(effectiveCustomerTrafficTotal(100, undefined, undefined)).toBe(100)
-  })
-
-  it('三者都无表示不限', () => {
-    expect(effectiveCustomerTrafficTotal(null, null, null)).toBeNull()
+  it('两者都无表示不限', () => {
+    expect(effectiveCustomerTrafficTotal(null, null)).toBeNull()
+    expect(effectiveCustomerTrafficTotal(undefined, undefined)).toBeNull()
   })
 })
 
 /**
- * TASK-046：生效上限第三顺位跟随**当前订阅额度**（同步镜像口径）。
+ * TASK-046：人类裁决后的生效上限口径（2026-10-20，经两轮澄清确认）。
  *
- * 根因 B 的修复契约：订阅同步（server/src/services/subscription-sync.ts 的
- * syncOne / syncMany，同事务）把 subscriptions.traffic_total 镜像写进
- * customers.traffic_total，使第三顺位在客户无套餐、无手动上限时反映
- * **当前订阅**的额度，而非换订阅前的陈旧值。
+ * 「订阅拉取更新出来的流量不参与，只有两个值参与：手动设置的上限为
+ * 最高优先级，其次是套餐设定的月流量。」
+ * ⇒ 订阅拉取的额度（subscriptions.traffic_total）与表单手填的月流量
+ * （customers.traffic_total）**均不参与**上限计算；后者降级为纯存量列。
  *
- * 优先级函数本身不变（手动 > 套餐 > 第三顺位）；此处锁定镜像后的评估口径。
- * 注：镜像的写库行为依赖 SQLite，浏览器 vitest 无法覆盖，由冒烟脚本验证；
- * 这里断言的是镜像值流入后的端到端评估结果（换订阅刷新 / 用尽仍 100%）。
+ * 三处调用点共用同一函数（口径统一，R-3）：
+ * - 服务端 `traffic-threshold.ts`：阈值扫描 + 仪表盘卡片（loadTrafficRows）；
+ * - 服务端 `reminder-scan.ts`：站内「流量用尽」判定（同一 loadTrafficRows）；
+ * - 前端 `customers-columns.tsx`：客户表格「流量使用」列
+ *   （套餐额度经 planTrafficLimitById 注入，/customers 不返回套餐字段）。
+ *
+ * 口径变更后全部为纯函数计算（无写库镜像），本文件可直接覆盖。
  */
-describe('TASK-046：第三顺位镜像为当前订阅额度后的评估口径', () => {
-  it('换订阅后：第三顺位已镜像为新订阅额度 → 生效上限取新额度，百分比随新分母下降', () => {
-    // 旧订阅额度 100（已用尽 100 → 100%）；换订阅并同步后镜像值变为 1000
-    const total = effectiveCustomerTrafficTotal(1000, null, null)
-    expect(total).toBe(1000)
-    expect(trafficUsagePercent(100, total)).toBe(10)
-    expect(highestTrafficThreshold(100, total)).toBeNull()
+describe('TASK-046：生效上限只由「手动上限 ?? 套餐月流量」决定', () => {
+  it('有手动上限：换订阅后分母不随订阅额度变化，仅按已用量重算', () => {
+    // 手动上限 100：旧订阅用尽（已用 100）⇒ 100%；
+    // 换订阅后已用量变 10 ⇒ 10%——新订阅额度（1000）不参与分母
+    const total = effectiveCustomerTrafficTotal(1000, 100)
+    expect(total).toBe(100)
+    expect(trafficUsagePercent(100, total)).toBe(100)
+    expect(trafficUsagePercent(10, total)).toBe(10)
   })
 
-  it('反向验收（R3）：用尽且未换订阅 → 第三顺位保持原额度，仍为 100%', () => {
-    const total = effectiveCustomerTrafficTotal(100, null, null)
+  it('反向验收（AC-5r）：用尽且未换订阅 ⇒ 仍显示 100%（套餐口径同样成立）', () => {
+    // 无手动上限、套餐月流量 100、已用 100 ⇒ 仍为 100%，不得被口径整改修掉
+    const total = effectiveCustomerTrafficTotal(100, null)
+    expect(total).toBe(100)
     expect(trafficUsagePercent(100, total)).toBe(100)
     expect(highestTrafficThreshold(100, total)).toBe(100)
   })
 
-  it('镜像不压过更高优先级：手动上限与套餐月流量仍优先', () => {
-    // 手动上限压过镜像值
-    expect(effectiveCustomerTrafficTotal(1000, 500, 200)).toBe(200)
-    // 套餐月流量压过镜像值
-    expect(effectiveCustomerTrafficTotal(1000, 500, null)).toBe(500)
+  it('新语义（AC-9r）：手动与套餐皆无 ⇒ 不限流量，不显示百分比', () => {
+    // 这是人类裁决后的新语义，不是缺陷：不设置即不限
+    const total = effectiveCustomerTrafficTotal(null, null)
+    expect(total).toBeNull()
+    expect(trafficUsagePercent(100, total)).toBeNull()
+    expect(highestTrafficThreshold(100, total)).toBeNull()
   })
 })
 
