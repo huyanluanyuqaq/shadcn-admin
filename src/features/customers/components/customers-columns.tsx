@@ -1,5 +1,9 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { type Customer, planTiers } from '@shared/index'
+import {
+  type Customer,
+  effectiveCustomerTrafficTotal,
+  planTiers,
+} from '@shared/index'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
 import { Checkbox } from '@/components/ui/checkbox'
@@ -8,7 +12,6 @@ import { LongText } from '@/components/long-text'
 import { customerStatusLabels, customerStatusStyles } from '../data/schema'
 import {
   daysLeft,
-  effectiveTrafficTotal,
   formatBytes,
   formatDateTime,
   trafficUsagePercent,
@@ -18,11 +21,14 @@ import { DataTableRowActions } from './data-table-row-actions'
 export type CustomerColumnMaps = {
   poolNameById: Map<number, string>
   planNameById: Map<number, string>
+  /** planId → 套餐月流量（plans.traffic_limit）；套餐未加载时无条目 */
+  planTrafficLimitById: Map<number, number | null>
 }
 
 export function getCustomersColumns({
   poolNameById,
   planNameById,
+  planTrafficLimitById,
 }: CustomerColumnMaps): ColumnDef<Customer>[] {
   return [
     {
@@ -169,10 +175,15 @@ export function getCustomersColumns({
         <DataTableColumnHeader column={column} title='流量使用' />
       ),
       cell: ({ row }) => {
-        const { trafficUsed, trafficTotal, trafficManualCap } = row.original
-        // 生效上限：手动流量上限优先，其次月流量
-        const effectiveTotal = effectiveTrafficTotal(
-          trafficTotal,
+        const { trafficUsed, planId, trafficManualCap } = row.original
+        // 生效上限（TASK-046 人类裁决口径，与仪表盘/站内提醒同一口径）：
+        // 手动上限 > 套餐月流量；订阅拉取额度与存量月流量均不参与。
+        // 套餐额度经 planTrafficLimitById 注入（/customers 不返回套餐字段）；
+        // 套餐未加载（无条目）时按「无套餐」处理，显示「不限」。
+        const planTrafficLimit =
+          planId != null ? (planTrafficLimitById.get(planId) ?? null) : null
+        const effectiveTotal = effectiveCustomerTrafficTotal(
+          planTrafficLimit,
           trafficManualCap
         )
         const percent = trafficUsagePercent(trafficUsed, effectiveTotal)

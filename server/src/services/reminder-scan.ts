@@ -1,9 +1,10 @@
 import { and, isNotNull, lte } from 'drizzle-orm'
+import { effectiveCustomerTrafficTotal } from '@repo/shared'
 import { db } from '../db/index.js'
 import { customers, reminders } from '../db/schema.js'
 import { writeLog } from './logger.js'
 import { publish } from './notifications.js'
-import { scanTrafficThresholds } from './traffic-threshold.js'
+import { loadTrafficRows, scanTrafficThresholds } from './traffic-threshold.js'
 
 /**
  * 提醒扫描（自 `routes/reminders.ts` 抽出，供 HTTP 入口与调度器共用）。
@@ -38,12 +39,18 @@ export function runReminderScan(windowDays: number = DEFAULT_SCAN_WINDOW_DAYS): 
     .where(and(isNotNull(customers.expireAt), lte(customers.expireAt, new Date(now + window))))
     .all()
 
-  const overTraffic = db
-    .select()
-    .from(customers)
-    .where(isNotNull(customers.trafficTotal))
-    .all()
-    .filter((r) => r.trafficTotal !== null && r.trafficUsed >= r.trafficTotal)
+  // 流量用尽（TASK-046 人类裁决口径，与 traffic-threshold 同一口径：
+  // 生效上限 = 手动上限 ?? 套餐月流量；订阅拉取额度与存量月流量均不参与）。
+  // 复用 loadTrafficRows（join plans）而非裸读 customers.traffic_total，
+  // 保证「用尽提醒」与「阈值扫描 / 仪表盘卡片」不会互相矛盾。
+  const overTraffic = loadTrafficRows().flatMap((row) => {
+    const total = effectiveCustomerTrafficTotal(
+      row.planTrafficLimit,
+      row.trafficManualCap
+    )
+    if (total == null || total <= 0 || row.trafficUsed < total) return []
+    return [{ id: row.id, name: row.name, used: row.trafficUsed, total }]
+  })
 
   const existing = db.select().from(reminders).all()
   const exists = new Set(
@@ -78,7 +85,7 @@ export function runReminderScan(windowDays: number = DEFAULT_SCAN_WINDOW_DAYS): 
     publish('customer.traffic_exhausted', {
       title: '客户流量用尽',
       message: `客户「${cust.name}」流量已用尽`,
-      data: { customerId: cust.id, name: cust.name, used: cust.trafficUsed, total: cust.trafficTotal },
+      data: { customerId: cust.id, name: cust.name, used: cust.used, total: cust.total },
     })
   }
 

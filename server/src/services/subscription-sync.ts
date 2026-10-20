@@ -151,15 +151,11 @@ export async function syncOne(id: number): Promise<SyncResult> {
         .run()
       // 用量回写关联客户（TASK-017）：客户行「流量使用」列读
       // customers.traffic_used，与 subscriptions.traffic_used 语义分离，
-      // 必须显式镜像，否则保存后行内永远是 0。
-      // 总量一并镜像（TASK-046）：生效上限第三顺位（手动上限 >
-      // 套餐月流量 > customers.traffic_total）在客户无套餐、无手动上限时
-      // 回落到本列；只镜像用量会让换订阅后分母仍是旧订阅的额度
-      // （仪表盘「流量阈值提醒」卡片卡在 100%）。手动上限与套餐月流量
-      // 优先级更高，且不被本镜像触碰；订阅未同步时本列保持原值。
+      // 必须显式镜像，否则保存后行内永远是 0。只镜像用量——总量/到期
+      // 由客户表单管理（套餐/手动上限语义），不覆盖。
       if (row.customerId != null) {
         tx.update(customers)
-          .set({ trafficUsed: used, trafficTotal: usage.total ?? null })
+          .set({ trafficUsed: used })
           .where(eq(customers.id, row.customerId))
           .run()
       }
@@ -299,16 +295,11 @@ export async function syncMany(ids?: number[]): Promise<BatchSyncResult> {
         .run()
       // 用量回写关联客户（TASK-017，同 syncOne）：同步成功即镜像
       // used = upload + download 到 customers.traffic_used；失败不回写。
-      // 总量一并镜像（TASK-046，同 syncOne）：让生效上限第三顺位
-      // 跟随当前订阅额度，换订阅后分母不再停留在旧订阅的值。
       if (r.ok) {
         const customerId = customerBySub.get(r.id)
         if (customerId != null) {
           tx.update(customers)
-            .set({
-              trafficUsed: (r.upload ?? 0) + (r.download ?? 0),
-              trafficTotal: r.total ?? null,
-            })
+            .set({ trafficUsed: (r.upload ?? 0) + (r.download ?? 0) })
             .where(eq(customers.id, customerId))
             .run()
         }
