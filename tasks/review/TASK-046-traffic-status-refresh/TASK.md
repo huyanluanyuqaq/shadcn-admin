@@ -51,8 +51,9 @@ Requires Human Approval: true   # 含数据口径变更（生效上限来源）
   └─ GET /dashboard/stats  server/src/routes/dashboard.ts
        ├─ trafficThresholds ← listTrafficThresholdStatuses()  server/src/services/traffic-threshold.ts
        │     └─ loadTrafficRows() —— **每次实时查库**，非扫描快照
-       │        生效上限 = effectiveCustomerTrafficTotal(trafficTotal, planTrafficLimit, trafficManualCap)
-       │                   = 手动上限 ?? 套餐月流量 ?? 存量上限
+       │        生效上限 = effectiveCustomerTrafficTotal(planTrafficLimit, trafficManualCap)
+       │                   = 手动上限 ?? 套餐月流量
+        │                （整改后口径；主控位定位时为三值「手动 ?? 套餐 ?? 存量」，见 KI-1）
        │        百分比 = trafficUsagePercent(trafficUsed, total)
        └─ remindersUnread ← count(*) from reminders where is_read = 0
 ```
@@ -71,21 +72,24 @@ void queryClient.invalidateQueries({ queryKey: customerKeys.root })   // ['custo
 
 ### 根因 B（生效上限分母不更新 · 次因，决定性证据）
 
-1. `subscriptions.traffic_total` **有**写入方：`subscription-sync.ts:142 / 178 / 280`。
-2. **`customers.traffic_total` 全仓无任何写入方** ——
-   `grep -rn "set\(\{[^}]*trafficTotal" server/src/` **零命中**；
-   仅 `db/schema.ts:82` 定义 + `reminder-scan.ts:44/46`、`traffic-threshold.ts` 读取。
-   ⇒ 该列是**只读的历史存量列**（建表时留下、此后无代码写它）。
-3. 客户表单**无 `trafficTotal` 字段**（只有 `trafficManualCapGb`），
-   后端 `customerInputSchema` 虽允许 `trafficTotal`（`shared/src/schema/entities.ts:109`），
-   但**前端从不发送** ⇒ 永远保持建表时的值。
-4. 表单里的「订阅流量上限」真名是 **`subscriptionTrafficTotalGb`**，
+1. `subscriptions.traffic_total` **有**写入方：订阅同步时更新（订阅行自身字段，
+   与客户口径无关；首轮曾据此加客户行镜像，**已按人类裁决撤销**，见 KI-1）。
+2. ⚠️ **本条原始判断有误，已被 KI-1b 修正**：主控位定位时只在 `server/src/`
+   内 grep drizzle 直写（`set({...trafficTotal`），据此一度认为该列无人写入。
+   **实际**：客户表单「月流量（GB）」（`trafficMonthlyGb`）经 `toCustomerInput`
+   （`src/features/customers/data/schema.ts:298-301`）在**每次保存**时写入
+   `customers.traffic_total`（通用 CRUD `crud.ts` 的 `.set(values)`；
+   入参 schema 含 `trafficTotal`，`shared/src/schema/entities.ts:109`）。
+   ⇒ 该列是**用户可编辑的月流量字段**，不是无人写入的存量列
+   （主控位已独立复核，修正成立）。
+3. 表单里的「订阅流量上限」真名是 **`subscriptionTrafficTotalGb`**，
    经 `buildSubscriptionInput`（`src/features/customers/data/schema.ts:404-407`）
    写进 **subscriptions 表**。
-5. ⇒ **触发条件**：当客户**既无手动上限、也无套餐**（`planId` 为 null）时，
-   生效上限落到「永不变化的存量 `customers.traffic_total`」。
-   换订阅后 `traffic_used` 虽已更新为新订阅用量，**分母仍是旧订阅的额度**
-   ⇒ 百分比仍可能 100%。
+4. ⇒ **触发条件（旧口径下的定位结论；口径已改，见 KI-1）**：当客户
+   **既无手动上限、也无套餐**（`planId` 为 null）时，旧口径的生效上限落到
+   第三顺位 `customers.traffic_total`（换订阅后不随之更新）⇒ 百分比仍可能 100%。
+   ⚠️ **新口径（人类裁决）下该场景为「不限流量」**（手动与套餐皆无 ⇒ null），
+   见 R2 / HANDOFF-003；本任务的最终修复**不包含**「让存量额度跟随订阅」。
 
 ### 已排除的假设（勿重复排查）
 
@@ -108,7 +112,9 @@ TanStack Query 官方文档《Invalidations from Mutations》《Query Invalidati
 ## Scope
 
 - **根因 A 修复**：`customers-action-dialog.tsx` 保存成功后，使仪表盘统计查询失效。
-- **根因 B 修复**：让生效上限在换订阅后能反映**新订阅的额度**。
+- **根因 B 修复**：生效上限改按**人类裁决口径**（手动上限 ?? 套餐月流量；
+  订阅拉取额度与表单存量月流量均不参与）。原「换订阅后反映新订阅额度」的
+  方向已作废，详见 R2 / `HANDOFF-003-coordinator-to-implementer.md`。
 - 对应测试（浏览器 vitest）。
 - 本任务自身的 `TASK.md` / `handoffs/` 记录。
 
@@ -119,7 +125,9 @@ TanStack Query 官方文档《Invalidations from Mutations》《Query Invalidati
 - ❌ **不改** `trafficThresholdNotified` 的穿越式语义（TASK-013 设计）。
 - ❌ **不改** 套餐月流量来源（`plans.trafficLimit`）。
 - ❌ **不删除** `customers.traffic_total` 列、**不写数据库迁移**。
-- ❌ **不改** 提醒扫描 `reminder-scan.ts` 的用尽判定。
+- ✅ **原 Non-Scope，已按 HANDOFF-003 R-3 整改（2026-10-20）**：提醒扫描
+  `reminder-scan.ts` 的用尽判定已改为统一口径（经 `loadTrafficRows` +
+  `effectiveCustomerTrafficTotal`），不再是 Non-Scope。
 - ❌ 不改后端 API 路径与响应结构。
 - ❌ 不动 `.agents/**`、`templates/**`（框架快照只读）。
 
@@ -255,7 +263,7 @@ TanStack Query 官方文档《Invalidations from Mutations》《Query Invalidati
 | 类型 | 内容 |
 |------|------|
 | 平台 | `pnpm test` 前**必须** `pnpm build:shared`（TASK-026） |
-| 口径 | **不得**改动 `effectiveCustomerTrafficTotal` 的**优先级顺序**（手动 > 套餐 > 订阅/存量） |
+| 口径 | **不得**改动 `effectiveCustomerTrafficTotal` 的**优先级顺序**（手动 > 套餐；2026-10-20 人类裁决，订阅/存量已不参与） |
 | 口径 | **不得**让「阈值穿越」语义退化为「固定状态」 |
 | 范围 | 超出 File Scope 的改动须先更新本字段并说明理由 |
 | 流程 | 合并用 `rebase-merge`，**禁止直推 `main`**；只用显式路径 `git add` |
@@ -267,7 +275,7 @@ TanStack Query 官方文档《Invalidations from Mutations》《Query Invalidati
 | 依赖 | 类型 | 状态 |
 |------|------|------|
 | 基线 `604017d` | blocks | ✅ `main` = `origin/main` = `604017d`，工作区干净，**无待合并 PR** |
-| 存量数据语义澄清 | blocks | ⚠️ **执行位须先实测** `customers.traffic_total` 存量值与订阅的关系（R2） |
+| 存量数据语义澄清 | blocks | ✅ **已实测**（VACUUM INTO 只读快照，原始输出见 HANDOFF-002）；R2 已作废，结论见 KI-1 / KI-1b |
 
 ---
 
@@ -319,6 +327,8 @@ TanStack Query 官方文档《Invalidations from Mutations》《Query Invalidati
 File Scope:
   - src/features/customers/components/customers-action-dialog.tsx
   - src/features/customers/components/customers-action-dialog.test.tsx
+  - src/features/customers/components/customers-columns.tsx   # P-2 补登记：HANDOFF-003 R-3.1 所需
+  - src/features/customers/components/customers-table.tsx     # P-2 补登记：HANDOFF-003 R-3.1 所需
   - src/features/customers/api.ts
   - src/features/dashboard/queries.ts
   - src/features/customers/data/schema.ts
@@ -337,6 +347,12 @@ Non-Scope (files):
   - server/src/db/migrations/**
   - docker-compose.yml  Dockerfile
 ```
+
+> **P-2 补登记（HANDOFF-004，2026-10-20）**：`customers-columns.tsx` 与
+> `customers-table.tsx` 按 HANDOFF-003 R-3.1 被改动（客户表格「流量使用」列改
+> 「手动 ?? 套餐」口径），经该指令追加进 File Scope。理由：套餐额度经前端
+> `usePlanOptions()` 按 `planId` 查表注入，**不改后端 API 响应结构**
+> （`/customers` 不加套餐字段，符合 Non-Scope）。
 
 ---
 
@@ -488,14 +504,18 @@ Non-Scope (files):
 | 001 | 主控位 coordinator | 执行位 implementer | 2026-10-20 | 任务登记 + 设计（两根因实测证据链 / 官方做法 / R2 两条路径 / 10 条 AC） |
 | 002 | 执行位 implementer | 主控位 coordinator | 2026-10-20 | 实施报告：存量 SQL 原始输出 + 选定路径甲及依据 + 派遣单事实修正（KI-1b）+ 改动文件 + 三处口径调用点 + 全量测试结果 |
 | 003 | 主控位 coordinator | 执行位 implementer | 2026-10-20 | **人类裁决推翻路径甲**：生效上限改为「手动上限 ?? 套餐月流量」，订阅额度与表单月流量均不参与；整改指令 R-1 ~ R-5（撤销镜像 / 删第三顺位 / 统一三处口径 / 新语义测试 / 文档说明） |
+| 004 | 主控位 coordinator | 执行位 implementer | 2026-10-20 | **复审结论：代码 8 项 AC 全过，档案有 3 类问题**；档案修正指令 P-1 ~ P-3（正文 7+1 处失真 / File Scope 补登记两文件 / docs 披露补记第 3 处） |
 
-**最新 Handoff：** `handoffs/HANDOFF-003-coordinator-to-implementer.md`
-**Next Action：** 执行位按 HANDOFF-003 整改（**在 PR #21 上追加提交**，不新开 PR）；
-整改后交主控位复审。**合并须人类显式授权**，由主控位执行 rebase-merge。
+**最新 Handoff：** `handoffs/HANDOFF-004-coordinator-to-implementer.md`
+**Next Action：** 执行位按 HANDOFF-004 修正档案（**仅 `tasks/**`，零代码改动**；
+在 PR #21 上追加提交，不新开 PR）→ 交主控位复审。
+**合并须人类显式授权**，由主控位执行 rebase-merge。
 
-> **审查状态**：首轮审查 **PASS**（10 项 AC 实测全过，`pnpm test` 27 文件 / 353 用例全绿），
-> 但**人类裁决改变了口径**（见 R2 / KI-1），故要求整改后再复审。
-> **R1 缓存失效部分已通过审查，整改时保留。**
+> **审查状态**：首轮审查 **PASS**（10 项 AC 实测全过，`pnpm test` 27 文件 /
+> 350 用例全绿；口径整改后为 351），但**人类裁决改变了口径**（见 R2 / KI-1），
+> 故要求整改后再复审。**R1 缓存失效部分已通过审查，整改时保留。**
+> 第二轮复审（提交 `89cb11f`）：代码侧 8 项 AC 全部通过（主控位实跑复验），
+> 档案问题按 HANDOFF-004 于第三轮修正。
 
 ---
 
