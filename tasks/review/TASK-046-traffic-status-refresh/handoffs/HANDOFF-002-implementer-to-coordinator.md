@@ -383,10 +383,91 @@ $ pnpm build                 ✓ built（修复一处 Map 值类型 item.traffic
 
 ## 留待项（超出本任务 File Scope，未动）
 
-- `docs/architecture/overview.md:567`（及 175/186 行）仍描述旧口径
-  「`trafficManualCap ?? 套餐月流量 ?? trafficTotal`」——`docs/**` 不在本任务
-  File Scope，**未改**；建议主控位/人类决定是否随合并后续航修订。
+- `docs/**` 共 **3 处**旧口径描述（主控位全量 grep 实测；`docs/**` 不在本任务
+  File Scope，**均未改**，是否修订报人类裁定、可并入后续任务）：
+  1. `docs/architecture/overview.md:567`（及 175/186 行）—— 旧口径
+     「`trafficManualCap ?? 套餐月流量 ?? trafficTotal`」（第二轮已披露）；
+  2. `docs/technical/api-contract.md:150` —— 「生效流量上限（列表用量条）按
+     `trafficManualCap ?? trafficTotal` 派生」；整改后客户表格列表列已是
+     「手动 ?? 套餐」口径（**P-3 补披露**：HANDOFF-004 复审发现，首轮漏披露）。
 - `effectiveTrafficTotal` 无 src 消费者（见 R-2 节），是否清理留待后续决策。
+
+---
+
+---
+
+# 第三轮：档案修正记录（2026-10-20，响应 HANDOFF-004 P-1 ~ P-3）
+
+**背景**：主控位第二轮复审结论——**代码与测试 8 项 AC 全部通过**
+（实读 + 实跑复验：两处 `.set()` 无 `trafficTotal`、口径两值、4 个调用点参数顺序、
+断言齐、27 文件 / 351 用例全绿、lint / format / typecheck 过、PR #21 追加提交 mergeable），
+但 `TASK.md` 档案自身有 3 类问题，须修正后才能合并。
+本轮**零代码改动**（`git diff` 可证仅 `tasks/**` 变动），
+按 HANDOFF-004 要求**未重跑** `pnpm test` / `typecheck:server`。
+
+## P-1 档案失真修正（7+1 处）
+
+| # | 位置 | 修法 |
+|---|------|------|
+| 1 | 数据来源图（原 54-55 行） | 旧签名 `(trafficTotal, planTrafficLimit, trafficManualCap)` 与「?? 存量上限」改为现签名 `(planTrafficLimit, trafficManualCap)` 与两值口径，加「整改后口径」标注（保留定位史实） |
+| 2 | 根因 B 第 2 条（原 75-78 行） | 「该列无人写入、只读存量列」的错误判断改为正确陈述：表单「月流量（GB）」经 `toCustomerInput`（`data/schema.ts:298-301`）每存必写；原判断过程以 ⚠️ 标注保留（史实不抹除） |
+| 3 | 根因 B 第 3 条（原 79-81 行） | 「前端从不发送 ⇒ 永远保持建表时的值」随 #2 一并撤销，合并入修正后的第 2 条 |
+| 4 | 根因 B 第 4 条（原 85-88 行） | 触发条件标注「旧口径下的定位结论；口径已改」：新口径下该场景为「不限流量」；明确最终修复**不含**「让存量额度跟随订阅」 |
+| 5 | Scope 根因 B（原 111 行） | 「反映新订阅的额度」改为「生效上限改按人类裁决口径（手动 ?? 套餐）」，原方向标注已作废 |
+| 6 | Non-Scope（原 122 行） | ★最严重项：「不改 `reminder-scan.ts` 用尽判定」改为 ✅「已按 HANDOFF-003 R-3 整改（2026-10-20）」 |
+| 7 | Constraints（原 258 行） | 优先级「手动 > 套餐 > 订阅/存量」改为「手动 > 套餐」并注明人类裁决依据 |
+| 附 | Dependencies（原 270 行） | 「执行位须先实测（R2）」改为 ✅ 已实测（VACUUM INTO 快照，原始输出见本文件第一轮）、R2 已作废 |
+
+修法原则落实：#2/#4 为根因定位史实，**就近标注**「旧口径下 / 已被 KI-1b 修正」
+而非抹除过程；#1/#5/#6/#7 为当前事实陈述，直接改对。
+改后 `TASK.md` 正文不再有任何「当前口径含存量/订阅额度」的断言。
+
+**AC-12r 验证**：
+
+```text
+$ grep -n "存量上限\|trafficTotal, planTrafficLimit\|不改 提醒扫描\|全仓无任何写入方\|手动 > 套餐 >" TASK.md
+198:- **不得**改变「手动 > 套餐 > 订阅」三层优先级本身；
+```
+
+仅剩 1 处命中，位于 `<details>`「（已作废）原 R2 文本 — 保留备查，勿执行」块内
+（lines 190-210），符合 AC-12r「或仅剩带『旧口径下/已作废』标注的史实段」条款。
+
+**另修正一处本轮新发现的数字失真**：审查状态注记中 `pnpm test`「353 用例」
+与实测（首轮 350 / 整改后 351）不符，已改为正确表述。
+
+## P-2 File Scope 补登记
+
+`customers-columns.tsx` 与 `customers-table.tsx` 补入 File Scope yaml
+（各带 `# P-2 补登记：HANDOFF-003 R-3.1 所需` 行内注释），并在 yaml 下方补追加理由：
+R-3.1 所需、经 HANDOFF-003 指令追加；套餐额度经前端 `usePlanOptions()` 注入，
+**不改后端 API 响应结构**。满足 Constraints「超出 File Scope 的改动须先更新本字段并说明理由」。
+
+## P-3 补披露
+
+复审发现 docs 旧口径实为 **3 处**（第一轮只披露了 overview 的 2 处）。
+已在本文末「留待项」补记第 3 处：
+
+- `docs/technical/api-contract.md:150` —— 「生效流量上限（列表用量条）按
+  `trafficManualCap ?? trafficTotal` 派生」；整改后客户表格列表列已是「手动 ?? 套餐」口径。
+
+`docs/**` 不在 File Scope，本轮**未改 docs 文件本身**（仅披露）；
+是否修订报人类裁定（可并入后续任务）。
+
+## 本轮验证
+
+```text
+$ pnpm format:check
+Checking formatting...
+All matched files use Prettier code style!
+```
+
+改动范围：仅 `tasks/review/TASK-046-traffic-status-refresh/**`
+（`TASK.md` + `HANDOFF-002`），零代码改动；
+PR #21 追加提交（不新开 PR），提交信息含 `Refs: TASK-046`。
+
+## 停手
+
+按 HANDOFF-004 要求**停下**，等主控位复审与人类授权。执行位未合并 PR。
 
 ---
 
