@@ -1,10 +1,22 @@
-# 2026-10-21-coordinator-recheck — TASK-047（A3 审查记录如实补记）
+# 2026-10-21-posthoc-recheck — TASK-047（A3 审查记录如实补记）
 
-> **TASK-047** · 主控位复查记录
+> **TASK-047** · **执行位**事后复核记录（post-hoc recheck）
+> **作者：developer（执行位）** —— 非主控位。
 > **本记录为「事后复核」（post-hoc recheck），非合并前独立审查。**
 > TASK-042 ~ TASK-046 五个任务在发生时**均未留下独立审查档**（A3 系统性断档的实测结论）。
 > **本记录不得被视作补齐了那个缺口** —— 补写「当时发生过」的审查记录等同伪造证据，
 > 本档案遵循 TASK-047 Task Rules「证据诚实」，只登记既成事实并给出上述声明。
+>
+> ---
+>
+> **文件名与作者修订记录（F-8，2026-10-21）：**
+> 本文件原名 `2026-10-21-coordinator-recheck.md`，首行自称「**主控位**复查记录」。
+> 该命名与作者**不符** —— 文件由**执行位**产出，而 `-coordinator-recheck.md` 按
+> `.agents/protocols/handoff.md` §3.2 是**主控位**专用文件名。
+> 根因是**主控位的设计缺陷**：HANDOFF-001 的 WP-6 / 原 AC-19 要求执行位产出一个
+> 主控位命名的文件。现已：① 文件更名为 `2026-10-21-posthoc-recheck.md`；
+> ② 首行作者改为**执行位**；③ 同步修订 AC-19 的强制文件名（不再要求执行位产出主控位命名文件）。
+> **文件内容未改写**（除本条修订注与 R-2 的测试计数更正），实测命令与输出原样保留。
 
 ---
 
@@ -54,6 +66,20 @@ Test Files 27 passed (27)  Tests 351 passed (351)   TEST_EXIT=0
 $ python scripts/audit-repo.py           PASS=7 FAIL=0
 $ python shared/scripts/audit_framework.py  PASS=13 FAIL=0 SKIP=0   # A3 已不再 SKIP（PyYAML 在位）
 ```
+
+> ⚠️ **「27 文件 / 351 用例」为含重复计数的失真值，已于 R-2（2026-10-21）查明并更正。**
+> 上方为当时实测原文，保留可追溯；**不得作为当前测试计数引用**。
+>
+> 分解（R-2 实测）：`vite.config.ts` 的 `test` 未声明 `exclude`，而 Vitest 4 的运行时默认
+> `exclude` 只有 `['**/node_modules/**', '**/.git/**']`（`node_modules/vitest/dist/chunks/defaults.*.js`；
+> 类型声明 JSDoc 写着含 `**/dist/**` 的长列表，与运行时不符）。`shared/tsconfig.json` 未排除
+> `*.test.ts` ⇒ 测试被编译进 `shared/dist/` ⇒ vitest 连编译产物里的测试一并收集。
+> 基线 351 = **真实 331 + `shared/dist/schema/traffic.test.js` 重复 20**
+> （`main` 上该源文件实测 20 例，`schema.test.ts` 48 例）。
+>
+> **修正后（`test.exclude` 恢复 `**/dist/**`）：26 文件 / 325 用例 / 失败 0**，
+> 计数不再随 `shared/dist` 新鲜度漂移。AC-20 判据同步改为「失败 0 + 测试文件数」，
+> 不再写绝对用例数。完整记录见 `HANDOFF-004-implementer-to-coordinator.md`。
 
 ## 3. 复查结论（16 项发现索引）
 
