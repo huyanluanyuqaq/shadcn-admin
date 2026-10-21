@@ -78,6 +78,32 @@ DECLARED_CHECK_ROW = re.compile(
     re.M,
 )
 
+# ---------------------------------------------------------------------------
+# F8 / F9 显式白名单与豁免（禁止隐式放宽：任何新增豁免都必须在此登记理由）
+# ---------------------------------------------------------------------------
+# F8：Merge Record 章节要求自 TASK-026 起：首个含该章节的档案是 TASK-026，
+# 而 TASK-001~025 是在「合并回写制度（D13-C，TASK-035 起）」确立前完成的历史档案。
+# 改写历史档案以凑门禁反而破坏档案真实性，故按 HD-1 同一原则显式登记历史豁免，
+# 白名单之外（TASK-026 起）的档案缺 `## Merge Record` 即 FAIL。
+F8_MERGE_RECORD_LEGACY_EXEMPT = frozenset(f"TASK-{n:03d}" for n in range(1, 26))
+
+# F9：任务编号唯一性的人类裁决白名单（HD-1，2026-10-21，最终决定，不得再议）：
+# 两个历史 TASK-045 并存（done/TASK-045-review-record-naming 与
+# done/TASK-045-docker-pipeline-hardening），因并发分配撞号所致。
+# 裁决「不重编」（引用面过大，重编会破坏字面引用与提交历史），
+# 门禁以显式白名单共存；白名单外的重复编号必须 FAIL。
+F9_HD1_WHITELIST = {
+    "TASK-045": frozenset({
+        "done/TASK-045-review-record-naming",
+        "done/TASK-045-docker-pipeline-hardening",
+    }),
+}
+
+TASK_STATES = ("backlog", "active", "review", "done")
+# Task ID 两种历史形态：`Task ID: TASK-XXX`（YAML Meta）与 `| Task ID | `TASK-XXX` |`（表格 Meta）
+TASK_META_ID = re.compile(r"^(?:Task ID:\s*(TASK-\d{3,})\s*|\|\s*Task ID\s*\|\s*`(TASK-\d{3,})`\s*\|)\s*$", re.M)
+MERGE_RECORD_HEADING = re.compile(r"^## Merge Record\s*$", re.M)
+
 
 class Result:
     def __init__(self, code: str, status: str, detail: str = "", items=None):
@@ -279,7 +305,93 @@ def check_f7(_root: Path) -> Result:
     return Result("F7", PASS, "双 Agent 框架资产在位（.agents/ 四目录 + templates/ 四模板 + shared/scripts 自检脚本）")
 
 
-CHECKS = [check_f1, check_f2, check_f3, check_f4, check_f5, check_f6, check_f7]
+def iter_task_archives() -> list[tuple[Path, str]]:
+    """依次返回 (TASK.md 路径, 状态目录相对标识，如 "done/TASK-041-...")。"""
+    out: list[tuple[Path, str]] = []
+    tasks_dir = ROOT / "tasks"
+    if not tasks_dir.is_dir():
+        return out
+    for state in TASK_STATES:
+        state_dir = tasks_dir / state
+        if not state_dir.is_dir():
+            continue
+        for task_dir in sorted(state_dir.iterdir()):
+            if not (task_dir.name.startswith("TASK-") and task_dir.is_dir()):
+                continue
+            task_md = task_dir / "TASK.md"
+            if task_md.is_file():
+                out.append((task_md, f"{state}/{task_dir.name}"))
+    return out
+
+
+def check_f8(_root: Path) -> Result:
+    """F8 合并档案必须含 `## Merge Record` 章节（B2 缺陷的门禁反制）。"""
+    archives = iter_task_archives()
+    if not archives:
+        return Result("F8", FAIL, "未找到任何任务档案（tasks/*/TASK-*）")
+    missing: list[str] = []
+    exempt = 0
+    checked = 0
+    for path, label in archives:
+        task_id = _task_id_of(path)
+        if task_id is not None and task_id in F8_MERGE_RECORD_LEGACY_EXEMPT:
+            exempt += 1
+            continue
+        checked += 1
+        if not MERGE_RECORD_HEADING.search(read_text(path)):
+            missing.append(f"{label}：缺少 `## Merge Record` 章节")
+    if missing:
+        return Result("F8", FAIL, f"{len(missing)} 个档案缺少 Merge Record 章节", missing)
+    return Result(
+        "F8",
+        PASS,
+        f"全部 {checked} 个非豁免档案均含 `## Merge Record` 章节"
+        f"（历史豁免 TASK-001~025 共 {exempt} 个，理由见脚本白名单注释）",
+    )
+
+
+def _task_id_of(path: Path) -> str | None:
+    m = TASK_META_ID.search(read_text(path))
+    if not m:
+        return None
+    return m.group(1) or m.group(2)  # 两种形态的分组：YAML 形态在 group1，表格形态在 group2
+
+
+def check_f9(_root: Path) -> Result:
+    """F9 任务编号唯一性（B1 缺陷的门禁反制；HD-1 白名单见脚本头部注释）。"""
+    archives = iter_task_archives()
+    if not archives:
+        return Result("F9", FAIL, "未找到任何任务档案（tasks/*/TASK-*）")
+    by_id: dict[str, list[str]] = {}
+    unparseable: list[str] = []
+    for path, label in archives:
+        task_id = _task_id_of(path)
+        if task_id is None:
+            unparseable.append(f"{label}：Meta 中缺少 `Task ID: TASK-XXX` 行")
+            continue
+        by_id.setdefault(task_id, []).append(label)
+
+    problems: list[str] = unparseable
+    for task_id, labels in sorted(by_id.items()):
+        if len(labels) <= 1:
+            continue
+        if task_id in F9_HD1_WHITELIST and frozenset(labels) == F9_HD1_WHITELIST[task_id]:
+            continue  # HD-1 裁决（2026-10-21）：两个历史 045 不重编，白名单共存
+        problems.append(
+            f"{task_id} 重复 {len(labels)} 处：{', '.join(labels)}"
+            + ("（若属历史冲突须回人类裁决，不得就地改名重编）" if task_id in F9_HD1_WHITELIST else "")
+        )
+    if problems:
+        return Result("F9", FAIL, f"{len(problems)} 处编号问题", problems)
+    return Result(
+        "F9",
+        PASS,
+        f"全 {len(archives)} 个档案编号可解析且唯一"
+        f"（HD-1 白名单内共存：TASK-045 × 2，裁决 2026-10-21）",
+    )
+
+
+CHECKS = [check_f1, check_f2, check_f3, check_f4, check_f5, check_f6, check_f7, check_f8, check_f9]
 
 
 def main() -> int:
