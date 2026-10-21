@@ -37,6 +37,9 @@ ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW_DIR = ROOT / ".github" / "workflows"
 PR_TEMPLATE = ROOT / ".github" / "PULL_REQUEST_TEMPLATE.md"
 AGENTS_MD = ROOT / "AGENTS.md"
+# F8（位置）同时校验模板自身 —— templates/task/TASK.md 声称「Merge Record 位置由 F8 保证」，
+# 若模板不在检范围内，该声明对模板自己仍是空话。
+TASK_TEMPLATE = ROOT / "templates" / "task" / "TASK.md"
 
 # F5 检查的框架文档（刻意不含历史遗留下来的其它文档，避免历史死链干扰本门禁）
 FRAMEWORK_DOCS = [
@@ -86,6 +89,34 @@ DECLARED_CHECK_ROW = re.compile(
 # 改写历史档案以凑门禁反而破坏档案真实性，故按 HD-1 同一原则显式登记历史豁免，
 # 白名单之外（TASK-026 起）的档案缺 `## Merge Record` 即 FAIL。
 F8_MERGE_RECORD_LEGACY_EXEMPT = frozenset(f"TASK-{n:03d}" for n in range(1, 26))
+
+# F8（位置）：`## Merge Record` 必须位于 `## Handoff` 之后、`## Task Rules` 之前。
+# 该**位置**约束自 TASK-047（R-3，2026-10-21）起新增门禁，原因见下。
+#
+# 为什么需要显式历史豁免（实测，非推测）：把上述顺序断言套到当前 `main` 全量档案上，
+# 有 **10 个**已归档档案的 `## Merge Record` 出现在 `## Handoff` **之前** ——
+# 历史约定本就是相反顺序。逐字执行「顺序断言」会让本门禁在现有 main 上直接 FAIL，
+# 违反 TASK-047 Requirement 4（新增门禁不得让现有 CI 变红）。
+# 处置（与 HD-1「不重编历史」同一原则）：**不回溯重排历史档案的章节顺序**
+# （那会改写已归档记录、牵动 10 个 File Scope 外的文件），改为显式登记豁免，
+# 使位置约束**只对 TASK-047 起的新任务生效**。
+F8_MERGE_RECORD_POSITION_EXEMPT = frozenset({
+    "TASK-026",  # 无 Handoff / Task Rules 锚点，无从判定顺序
+    "TASK-027",  # 同上
+    "TASK-028",  # 有 Handoff，Merge Record 在其之前
+    "TASK-029",  # 同上
+    "TASK-030",  # 无锚点
+    "TASK-031", "TASK-032", "TASK-033", "TASK-034",
+    "TASK-035", "TASK-036", "TASK-037", "TASK-038",  # 均无锚点
+    "TASK-039", "TASK-040", "TASK-041", "TASK-042",
+    "TASK-043", "TASK-044",
+    "TASK-045",  # 占用两次（HD-1），两目录均为历史顺序
+    "TASK-046",
+})
+
+# F8（位置）的参照锚点。注意：`exclude` 语义同 vitest —— 见 vite.config.ts 的注释。
+HANDOFF_HEADING = re.compile(r"^## Handoff\s*$", re.M)
+TASK_RULES_HEADING = re.compile(r"^## Task Rules\s*$", re.M)
 
 # F9：任务编号唯一性的人类裁决白名单（HD-1，2026-10-21，最终决定，不得再议）：
 # 两个历史 TASK-045 并存（done/TASK-045-review-record-naming 与
@@ -325,28 +356,79 @@ def iter_task_archives() -> list[tuple[Path, str]]:
 
 
 def check_f8(_root: Path) -> Result:
-    """F8 合并档案必须含 `## Merge Record` 章节（B2 缺陷的门禁反制）。"""
+    """F8 合并档案必须含 `## Merge Record` 章节（B2 缺陷的门禁反制），且位置合规。
+
+    位置合规 = 位于 `## Handoff` 之后、`## Task Rules` 之前（templates/task/TASK.md 的声明）。
+    自 TASK-047（R-3）起新增位置校验；历史档案的顺序不回溯重排，见
+    `F8_MERGE_RECORD_POSITION_EXEMPT` 的登记理由。
+    """
     archives = iter_task_archives()
     if not archives:
         return Result("F8", FAIL, "未找到任何任务档案（tasks/*/TASK-*）")
     missing: list[str] = []
+    misplaced: list[str] = []
     exempt = 0
     checked = 0
+    position_exempt = 0
     for path, label in archives:
         task_id = _task_id_of(path)
         if task_id is not None and task_id in F8_MERGE_RECORD_LEGACY_EXEMPT:
             exempt += 1
             continue
         checked += 1
-        if not MERGE_RECORD_HEADING.search(read_text(path)):
+        text = read_text(path)
+        merge = MERGE_RECORD_HEADING.search(text)
+        if not merge:
             missing.append(f"{label}：缺少 `## Merge Record` 章节")
+            continue
+        # 位置校验。仅当任务不在位置豁免清单内、且两个参照锚点**都存在**时才判定：
+        # 锚点缺失时无从判定顺序（TASK-007/012/014/015 等无 `## Handoff`），
+        # 按「不可判定」跳过而非 FAIL —— 否则本门禁会在现有 main 上变红。
+        if task_id is not None and task_id in F8_MERGE_RECORD_POSITION_EXEMPT:
+            position_exempt += 1
+            continue
+        handoff = HANDOFF_HEADING.search(text)
+        task_rules = TASK_RULES_HEADING.search(text)
+        problems: list[str] = []
+        if handoff is not None and merge.start() < handoff.start():
+            problems.append("`## Merge Record` 出现在 `## Handoff` 之前")
+        if task_rules is not None and merge.start() > task_rules.start():
+            problems.append("`## Merge Record` 出现在 `## Task Rules` 之后")
+        if problems:
+            misplaced.append(
+                f"{label}：{'；'.join(problems)}"
+                "（须位于 `## Handoff` 之后、`## Task Rules` 之前）"
+            )
+
+    # 模板自身也必须在检：templates/task/TASK.md 声称「本节位置由 F8 门禁保证」，
+    # 若 F8 只查 tasks/** 而不查模板，该声明对模板自身仍是一句空话（B2 同类缺陷）。
+    template_text = read_text(TASK_TEMPLATE)
+    t_merge = MERGE_RECORD_HEADING.search(template_text)
+    t_handoff = HANDOFF_HEADING.search(template_text)
+    t_rules = TASK_RULES_HEADING.search(template_text)
+    tpl_label = rel(TASK_TEMPLATE)
+    if not (t_merge and t_handoff and t_rules):
+        missing.append(
+            f"{tpl_label}：模板缺少 `## Handoff` / `## Merge Record` / `## Task Rules` 之一"
+            "（模板声称位置由 F8 保证，故模板自身必须在检）"
+        )
+    elif not (t_handoff.start() < t_merge.start() < t_rules.start()):
+        misplaced.append(
+            f"{tpl_label}：`## Merge Record` 未位于 `## Handoff` 之后、`## Task Rules` 之前"
+            "（模板自称位置由 F8 保证，模板自身必须率先合规）"
+        )
+
     if missing:
         return Result("F8", FAIL, f"{len(missing)} 个档案缺少 Merge Record 章节", missing)
+    if misplaced:
+        return Result("F8", FAIL, f"{len(misplaced)} 个档案的 Merge Record 章节位置不合规", misplaced)
     return Result(
         "F8",
         PASS,
-        f"全部 {checked} 个非豁免档案均含 `## Merge Record` 章节"
-        f"（历史豁免 TASK-001~025 共 {exempt} 个，理由见脚本白名单注释）",
+        f"全部 {checked} 个非豁免档案均含 `## Merge Record` 章节且位置合规"
+        f"（历史豁免 TASK-001~025 共 {exempt} 个，理由见脚本白名单注释；"
+        f"位置豁免 {position_exempt} 个，理由见 F8_MERGE_RECORD_POSITION_EXEMPT；"
+        f"模板 {tpl_label} 已在检）",
     )
 
 
