@@ -172,14 +172,18 @@ shadcn-admin/
 客户表单（即「订阅面板」，含「订阅信息」「订阅链接」两部分）的**月流量**字段
 **始终跟随套餐**——套餐是唯一自动来源，切换套餐/打开对话框即覆盖写入，
 不再回落到订阅信息流量；未选套餐或套餐未设月流量时保留已存/已填值
-（可手动填写）。生效上限口径（`effectiveCustomerTrafficTotal` =
-`trafficManualCap ?? 套餐月流量 ?? trafficTotal`，TASK-023）：
+（可手动填写）。生效上限口径（**人类裁决 2026-10-20 / TASK-046 实施，只认两值**：
+`effectiveCustomerTrafficTotal` = `trafficManualCap ?? 套餐月流量`）：
 
 | 优先级 | 来源 | 说明 |
 |--------|------|------|
-| 最高 | 手动流量上限（`customers.traffic_manual_cap`） | 阈值评估中压过套餐与存量月流量 |
-| 高 | 套餐月流量（`plans.traffic_limit`） | 客户对应套餐的月流量；套餐改流量后阈值即时跟进，不受存量 `traffic_total` 陈旧值影响 |
-| 默认 | 存量月流量（`customers.traffic_total`） | 客户未选套餐（或套餐未设月流量）时的回落，保持既有行为 |
+| 最高 | 手动流量上限（`customers.traffic_manual_cap`） | 阈值评估中压过套餐月流量 |
+| 默认 | 套餐月流量（`plans.traffic_limit`） | 客户对应套餐的月流量；套餐改流量后阈值即时跟进 |
+| 皆无 | **不限流量** | 手动与套餐均未设置时不评估上限、不显示百分比（非 bug，新语义） |
+
+**不参与生效上限：** 订阅拉取的流量额度与 `customers.traffic_total`（纯存量列，
+随表单跟随套餐而写但不用于阈值评估）。历史三值回落
+`… ?? customers.traffic_total` 已于 TASK-046 撤销（R-2），文档到此对齐。
 
 解析逻辑在前端 `src/features/customers/data/schema.ts` 的 `resolveAutoTrafficGb`
 （纯函数，单一套餐来源，前后端无共享契约变更）；阈值侧口径在 shared
@@ -398,7 +402,7 @@ sublinkPro 的 DSN 参数实测一致：`_busy_timeout=5000` / `_journal_mode=WA
 
 | 口径 | 说明 |
 |------|------|
-| 只镜像用量 | `customers.traffic_total` 是月流量上限（表单管理，TASK-023 起始终跟随套餐）、`expire_at` 同为表单管理字段，均**不覆盖** |
+| 只镜像用量 | `customers.traffic_total` 是纯存量列（表单管理、始终跟随套餐写入，**不参与生效上限**——人类裁决 2026-10-20，见 §4），`expire_at` 同为表单管理字段，均**不覆盖** |
 | 成功即写 | 不回写受 C8 增量对比约束——即使订阅侧无变化，客户侧也可能是旧值（如新建时写 0），每次成功同步都镜像 |
 | 写入口仅两处 | 同步引擎（本条）+ 表单保存（`toCustomerInput` 透传原值）；无其他写点 |
 
@@ -564,7 +568,7 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 | 维度 | 决策 |
 |------|------|
 | 评估对象 | **客户**（`customers`），与 `traffic_exhausted` 扫描口径一致；不做订阅粒度 |
-| 生效上限 | `trafficManualCap ?? 套餐月流量 ?? trafficTotal`（`effectiveCustomerTrafficTotal`，TASK-023：手动上限最高优先级，其次客户对应套餐 `plans.traffic_limit`，套餐未设时回落存量值）；为 null/<=0 不评估 |
+| 生效上限 | `trafficManualCap ?? 套餐月流量`（`effectiveCustomerTrafficTotal`，人类裁决 2026-10-20 / TASK-046：手动上限最高优先级，默认取客户对应套餐 `plans.traffic_limit`；**两者皆无 ⇒ 不限流量、不评估**；订阅拉取额度与 `customers.traffic_total` 均不参与）；为 null/<=0 不评估 |
 | 阈值常量 | `TRAFFIC_THRESHOLDS = [50, 80, 100]`（shared `schema/traffic.ts`，前后端共用；比较用精确值，避免取整提前触发） |
 | 触发语义 | **穿越式**：`customers.traffic_threshold_notified` 记录「当前所在最高阈值」，仅当它**上升**时发 1 条通知（取新最高档）；同一阈值不重复发 |
 | 回落重置 | 用量回落到已通知阈值之下时状态同步下调（不通知），再次穿越可重新通知——适配月度流量重置 / 手动调量 |
