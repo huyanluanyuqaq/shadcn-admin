@@ -20,7 +20,7 @@ Previous Handoff: HANDOFF-003-coordinator-to-implementer.md
 | 分支 | `chore/TASK-047-residual-debt-consolidation` |
 | 基线 | `main` = `origin/main` = `2a4e259` |
 | **PR** | **#22**（`https://github.com/huyanluanyuqaq/shadcn-admin/pull/22`），base `main`，**OPEN，未合并** |
-| **CI** | run **`39537943459`**（`pull_request`，head `4b8a5d3`）→ `install-lint-build` **success**、`audit` **success** |
+| **CI** | run **`39537943459`**（`pull_request`，head `4b8a5d3`）→ `install-lint-build` **success**、`audit` **success**；<br>run **`39543828636`**（`pull_request`，head `f1e512c`，整改后）→ 两作业**均 success**，且 CI 内 `Test Files 26 / Tests 325`、F8 位置校验通过 |
 | 工作区 | 主控位 `git mv` 到 `active/` 的未提交改动**已被 `4b8a5d3` 收存**（未丢弃、未 reset、未 stash） |
 | 档案状态 | `Status: REVIEW`，目录已迁回 `tasks/review/` |
 
@@ -106,6 +106,39 @@ PASS=13  FAIL=0  WARN=0  SKIP=0
 
 ⇒ **knip 入 CI、`audit_framework.py` 入 CI + PyYAML（A3 不再 SKIP）、F8 / F9 入 CI 四项
 全部首次取得 CI 证据**，不再是「只有本机证据」。F-1 的后果（核心交付从未在 CI 执行过）已消除。
+
+### 2.5 整改后的第二轮 CI（run `39543828636`，head `f1e512c`）
+
+R-2~R-5 的改动推送后，两个必需检查**再次实跑并 success**：
+
+```
+$ gh api repos/:owner/:repo/actions/runs/39543828636 --jq '{name,event,conclusion,status,head_sha,run_started_at,updated_at}'
+{"conclusion":"success","event":"pull_request","head_sha":"f1e512c2fc8844d4b4b7bbaf7aa15dde827cb626",
+ "name":"Continuous Integration","run_started_at":"2026-10-21T04:24:06Z","status":"completed","updated_at":"2026-10-21T04:25:49Z"}
+
+$ gh api repos/:owner/:repo/actions/runs/39543828636/jobs --jq '.jobs[] | "\(.name) -> \(.status)/\(.conclusion)"'
+install-lint-build -> completed/success
+audit -> completed/success
+```
+
+**该轮 CI 同时证实了 R-2 / R-3 的修正确实在 CI 生效（不只是本机）：**
+
+```
+# install-lint-build / Run tests —— 计数已变为单一值
+ Test Files  26 passed (26)
+      Tests  325 passed (325)
+   Duration  18.04s
+
+# audit —— F8 的位置校验与「模板在检」在 CI 同样通过
+[PASS] F8  全部 22 个非豁免档案均含 `## Merge Record` 章节且位置合规（…位置豁免 21 个…模板 templates/task/TASK.md 已在检）
+[PASS] F9  全 47 个档案编号可解析且唯一（HD-1 白名单内共存：TASK-045 × 2，裁决 2026-10-21）
+PASS=9 FAIL=0 WARN=0
+[PASS] A3  3 个 YAML 均可解析（占位符已归一化）
+PASS=13  FAIL=0  WARN=0  SKIP=0
+```
+
+即：`shared/dist/schema/traffic.test.js` 已不再出现在收集列表里，27→26 个文件、342→325 个用例，
+**与本机实测逐字一致**。
 
 ---
 
@@ -355,7 +388,8 @@ $ git status --short
 | 8 | `C:/Python313/python scripts/audit-repo.py` | **0** | `PASS=9 FAIL=0 WARN=0`（F8 含位置合规 + 模板在检） |
 | 9 | `python shared/scripts/audit_framework.py`（默认解释器） | **0** | `PASS=13 FAIL=0 WARN=0 SKIP=0` |
 | 10 | `C:/Python313/python shared/scripts/audit_framework.py` | **0** | `PASS=13 FAIL=0 WARN=0 SKIP=0` |
-| 11 | CI run `39537943459`（`install-lint-build` + `audit`） | — | 两作业 **success** |
+| 11 | CI run `39537943459`（`install-lint-build` + `audit`） | — | 两作业 **success**（R-1：首次取得 CI 证据） |
+| 12 | CI run `39543828636`（`install-lint-build` + `audit`，head `f1e512c`） | — | 两作业 **success**；`Test Files 26 / Tests 325`、F8 含位置校验 + 模板在检，均与本机逐字一致 |
 
 **`audit_framework.py` 所用解释器（HANDOFF-003 要求必须注明）：**
 
