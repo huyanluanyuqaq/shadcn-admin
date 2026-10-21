@@ -283,7 +283,7 @@ Requires Human Approval: true   # 含框架模板/协议、CI 门禁、历史档
 
 ### 全局
 
-- [ ] **AC-20** 全部门禁复跑绿：`pnpm build:shared` → `pnpm lint` → `pnpm format:check` → `pnpm test`（**失败 0 + 测试文件数**）→ `pnpm build`（先移走 `dist`）→ `python scripts/audit-repo.py`（FAIL=0）→ `python shared/scripts/audit_framework.py`（FAIL=0）。结果附在交付报告中。
+- [x] **AC-20** 全部门禁复跑绿：`pnpm build:shared` → `pnpm lint` → `pnpm format:check` → `pnpm test`（**失败 0 + 测试文件数**）→ `pnpm build`（先移走 `dist`）→ `python scripts/audit-repo.py`（FAIL=0）→ `python shared/scripts/audit_framework.py`（FAIL=0）。结果附在交付报告中。（主控位第二轮复跑确认：CI run 39544951231 双作业 success + 本机 lint/format/knip/test/build/audit-repo 全绿）
   > **判据已于 R-2 改写**：原判据「`≥351` 用例」在本任务删除 6 个用例后自相矛盾，且 351 本身含
   > `shared/dist` 重复计数、随 `dist` 新鲜度漂移 ⇒ **不可作为验收判据**。
   > 新判据 = **失败 0 + 测试文件数**（不写绝对用例数；用例数随业务增删而变，
@@ -605,15 +605,20 @@ Non-Scope (files):
 | 002 | developer（执行位） | coordinator（主控位） | 2026-10-21 | WP-1~WP-6 实施完成 + AC-20 全门禁绿 + AC-19 recheck 出具；交付时**声称已开 PR，实测无 PR**（见审查记录 F-1） |
 | 003 | coordinator（主控位） | developer（执行位） | 2026-10-21 | **整改派单**：审查判定 CHANGES_REQUESTED（4 阻断 F-1~F-4 + 6 失真 F-5~F-10），要求按 R-1~R-5 顺序整改后重交 |
 | 004 | developer（执行位） | coordinator（主控位） | 2026-10-21 | **整改报告**：R-1~R-5 与 F-1~F-10 逐条对应；含 CI run `39537943459` 双必需检查实跑证据、Vitest 4 排除项根因、F8 双探针反向验证三段原始输出、全门禁逐个退出码 |
+| 005 | coordinator（主控位） | developer（执行位） | 2026-10-21 | **收尾派单**：复审 PASS，仅剩 M-1（`AC-20` 未勾）；要求一次提交勾选 AC-20 + 入库第 2 轮审查记录 + 推送并等 PR #22 双检查 success，不重做任何 WP |
 
-**最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`（整改报告）
+**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（收尾派单，仅 M-1）
 **审查记录：** `handoffs/2026-10-21-posthoc-recheck.md`（执行位出具的 A3 事后复核，F-8 改名并更正作者）·
-`handoffs/2026-10-21-coordinator-review.md`（主控位复审，**CHANGES_REQUESTED**）
-**Next Action：** 主控位读实际 diff，复审 R-1~R-5 / F-1~F-10 的整改质量 → 判定 PASS / FAIL；
-PASS 后经**人类显式授权**由主控位执行 rebase-merge，并按 D13-C 选项 C 由下一个任务回填本档案 `Merge Record`。
+`handoffs/2026-10-21-coordinator-review.md`（主控位第 1 轮，**CHANGES_REQUESTED**）·
+`handoffs/2026-10-21-coordinator-review-round2.md`（主控位第 2 轮，**PASS**，1 项合并前必修 M-1）
+**Next Action：** ⓐ **补 M-1**（已派单：`handoffs/HANDOFF-005-coordinator-to-implementer.md`）——
+勾选 `AC-20` 并加注「主控位第 2 轮复跑确认（CI `39544951231` + 本机全绿）」，同时把主控位留在工作区的
+第 2 轮审查记录一并入库；
+ⓑ 该收尾提交推送后等 CI 双作业 success（新 head 的 run 为准）；ⓒ 经**人类显式授权**由主控位执行 rebase-merge；
+ⓓ 合并后按 D13-C 选项 C 由下一个任务回填本档案 `Merge Record`（第九实例）。
 **执行位未自行合并、未自行判定 PASS、未代写主控位署名文件。**
 **前置阻断：** 已解除 —— knip / PyYAML / `audit_framework.py` / F8 / F9 均已在 CI 实跑成功
-（run `39537943459`，两作业 success；PEP 668 未构成障碍）。
+（run `39537943459`、`39543828636`、`39544951231`，三批两作业均 success；PEP 668 未构成障碍）。
 
 ---
 
