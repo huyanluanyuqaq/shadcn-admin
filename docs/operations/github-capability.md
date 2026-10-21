@@ -193,7 +193,7 @@ main                          → 未变动（e3231e7）
 | Actions 运行 CI | **可用**（已在 `push main` 与 `pull_request` 上运行） | — |
 | `gh` CLI 创建 / 合并 PR | **可用**（2026-10-14 把 `gh` 重新认证为 `huyanluanyuqaq` 后实测：`permissions` 为 `admin: true, maintain: true, push: true, pull: true, triage: true`） | — |
 | `gh` 读取仓库 / 运行记录 | 可用 | — |
-| `gh workflow run` / 重跑作业 | **不可用**（当前 token scopes 为 `gist, read:org, repo`，**缺 `workflow`**） | `gh auth refresh -h github.com -s workflow`（需再次设备码授权） |
+| `gh workflow run` / 重跑作业 | **不可用（且已裁决不再补救，HD-2，2026-10-21）**：token scopes 为 `gist, read:org, repo`，**缺 `workflow`**；人类已裁决**不补、接受限制**（不再留 open TODO，详见 §7 #6）。仅影响手动触发工作流与重跑作业，不影响 PR / 推送 / 分支保护 | ~~`gh auth refresh -h github.com -s workflow`~~（**不得擅自执行**——属 HD-2 裁决范围外的人力动作） |
 | 修改分支保护 / 规则集 | **权限具备，但 Agent 侧未实测**：`admin: true`（实测），且同一账号已成功在网页端完成配置 ⇒ 权限成立；**但 Agent 调用写接口（`PUT .../protection`）从未实际执行过** | 管理员权限 + 网页端或 API |
 | 由平台事件自动触发本地 Agent | **否** | 需可达的 Agent 运行时（本项目未建设） |
 | 受控自动合并 | **否（刻意不启用）** | 前置条件（分支保护 + 必需检查 + 合并与发布解耦）**已于 2026-10-14 全部满足**；但本设计的合并属层 3（人类授权）动作，故**不自动化** |
@@ -219,8 +219,8 @@ main                          → 未变动（e3231e7）
 | 3 | ~~**V5 的阳性对照**（必需检查全绿时，所有者能否正常合并自己的 PR）~~ → ✅ **已取得（2026-10-15，TASK-033 的 PR [#4](https://github.com/huyanluanyuqaq/shadcn-admin/pull/4)）**：绿灯时 `PUT /pulls/4/merge` 返回 `merged: true` ⇒ 「审批数 = 0 **不会**卡住合并」，与 V4（红灯 → HTTP 405）互为对照 | 用户 + Agent | ——（**已闭环**）。※ 注：本项标题中的「**V5**」曾有编号冲突，**已经 TASK-034 裁决（2026-10-15）**：V5 = 本项所问的「绿灯可合并」阳性对照义；「直推被拒」旧义由 V1 / V2 承载（见 §4 裁决注） |
 | 4 | ~~**D12**：删除已并入 `main` 的远端分支~~ → ✅ **已授权并执行（2026-10-15）**：删除 **7** 条（TASK-028/029/030 三条 + TASK-031 两条 + TASK-033 两条）。**执行前逐条核验**：3 条 `feat/TASK-02x` 为 `main` 祖先；4 条 `chore/TASK-03x-*` 有已合并 PR 且 head SHA 与分支 tip 一致 ⇒ 无内容丢失。远端在**D12 执行时点**仅剩 `main`（本任务自身的分支除外） | 用户 | ——（**已闭环**） |
 | 5 | 依赖漏洞审计是否纳入 CI（需评估外部网络带来的噪声） | 主控位 | 供应链 CVE 门禁（当前仅 Dependabot 覆盖「有更新时提 PR」） |
-| 6 | 补 `workflow` scope（`gh auth refresh -h github.com -s workflow`） | 用户 | 手动 `workflow_dispatch` 与重跑作业；**不影响**创建 / 合并 PR 与分支保护配置 |
-| 7 | 升级 `actions/checkout@v4` → `v5`（消除 Node 20 弃用告警） | 执行位 | 无（纯告警；属可选清理） |
+| 6 | ~~补 `workflow` scope~~ → ❌ **已裁决不补（HD-2，2026-10-21，人类最终决定，不再留作 open TODO）**：接受「经 HTTPS 推送含 `.github/workflows/**` 的改动会失败」这一限制（实测补救命令为 `gh auth refresh -h github.com -s workflow`，**不得擅自执行**）。当前 `gh` 的 Git 操作协议为 **SSH**，推送不受该 scope 影响；若推送被拒**立即停工上报**，禁止改用网页手动改文件绕过 PR 门禁 | 用户 | 手动 `workflow_dispatch` 与重跑作业**不可用**（此为本裁决接受的限制，非缺陷）；不影响创建 / 合并 PR 与分支保护配置 |
+| 7 | ~~升级 `actions/checkout@v4` → `v5`~~ → ✅ **已完成（2026-10-21，TASK-047）**：`docker.yml` 的 checkout 已由 v4 升 v5（`ci.yml` 两处此前已是 v5），`grep -rn "actions/checkout@" .github/workflows/` 全部命中 `@v5`；并由 Dependabot 的 `github-actions` 生态（weekly，TASK-047 将 monthly 提频）持续跟进后续版本 —— Node 20 弃用告警不再出现于本仓工作流 | 执行位 | ——（**已闭环**） |
 | 8 | 可选：启用「要求分支为最新」或线性历史（理由见 §2） | 用户 | 更严格的门禁；当前**刻意未启用** |
 
 > **已完成 —— 2026-10-14（阶段 2 收口）：**

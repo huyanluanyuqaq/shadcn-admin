@@ -142,12 +142,14 @@
 |------|------|------|
 | `purchasedAt` | number \| null | 购买时间（epoch ms） |
 | `expireAt` | number（**必填，不可为 null**） | 到期时间；**选了购买时间且套餐有档位时按「购买时间 + 档位天数」自动计算并物化**，否则手动选择。**TASK-041 起写入必填**：`POST` 缺此字段 → 400；`PATCH` 可**省略**（部分更新不受影响），但传 `{ expireAt: null }` → 400（不允许清空）。**读取仍可能为 `null`** —— 历史数据中已存在的空值保留不回填（ADR-005），故输出类型维持 `number \| null`。`purchasedAt` / `subscriptionExpireAt` 仍可空 |
-| `trafficTotal` | number \| null | **月流量**（字节），null 表示不限 |
-| `trafficManualCap` | number \| null | 手动流量上限（字节），**优先级高于月流量**；null 表示未设置 |
+| `trafficTotal` | number \| null | **月流量**（字节），null 表示不限。**纯存量列**：表单管理字段，不参与生效上限派生（人类裁决 2026-10-20） |
+| `trafficManualCap` | number \| null | 手动流量上限（字节），**优先级高于套餐月流量**；null 表示未设置 |
 | `subscriptionUrl` | string \| null | 订阅链接 |
 | `subscriptionExpireAt` | number \| null | 订阅链接到期时间（epoch ms），由「拉取订阅更新」从链接获取 |
 
-生效流量上限（列表用量条）按 `trafficManualCap ?? trafficTotal` 派生，手动上限优先。
+生效流量上限（列表用量条）按 **`trafficManualCap ?? 套餐月流量`** 派生（人类裁决
+2026-10-20 / TASK-046），手动上限优先；两者皆无 ⇒ 不限流量、不显示百分比。
+订阅拉取的流量额度与 `customers.traffic_total` 均**不参与**派生。
 `dateKeys` 含 `expireAt` / `purchasedAt` / `subscriptionExpireAt`（number ↔ Date 由 CRUD 工厂转换）。
 
 迁移 0010（TASK-013）新增阈值通知状态列 `customers.traffic_threshold_notified`（number，默认 0）：
