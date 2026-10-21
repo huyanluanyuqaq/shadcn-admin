@@ -10,7 +10,7 @@
 Task ID: TASK-047
 Title: 遗留债务一次性收口（档案回写归档 / 制度门禁补洞 / 文档口径统一 / 代码卫生）
 Workflow: chore
-Status: READY
+Status: REVIEW
 Priority: P1
 Owner: 主控位（设计，2026-10-21）
 Owner Since: 2026-10-21
@@ -183,43 +183,43 @@ Requires Human Approval: true   # 含框架模板/协议、CI 门禁、历史档
 
 ### WP-1 · 档案回写与归档
 
-- [ ] **AC-1** TASK-045（Docker）`Merge Record` 九要素全部填实且可复现（PR #20、提交数、`merged_at`、`604017d`、CI / Docker run id、镜像 tag、审查记录指针）；`Status → DONE`；目录已在 `tasks/done/`。
-- [ ] **AC-2** TASK-046 **新增** `## Merge Record` 章节并填实（PR #21、3 提交、`2026-10-20T14:02:38Z`、`2a4e259`、CI `39435703753`、Docker `39435703743`、`sha-2a4e259`）；`Status → DONE`；目录已在 `tasks/done/`。
-- [ ] **AC-3** 两档案的 `Next Action` 与 `Current State` 不再指向已完成动作：
+- [x] **AC-1** TASK-045（Docker）`Merge Record` 九要素全部填实且可复现（PR #20、提交数、`merged_at`、`604017d`、CI / Docker run id、镜像 tag、审查记录指针）；`Status → DONE`；目录已在 `tasks/done/`。
+- [x] **AC-2** TASK-046 **新增** `## Merge Record` 章节并填实（PR #21、3 提交、`2026-10-20T14:02:38Z`、`2a4e259`、CI `39435703753`、Docker `39435703743`、`sha-2a4e259`）；`Status → DONE`；目录已在 `tasks/done/`。
+- [x] **AC-3** 两档案的 `Next Action` 与 `Current State` 不再指向已完成动作：
   `grep -rn "第十三代实例回填" tasks/` 与 `grep -rn "不新开 PR）→ 交主控位复审" tasks/` 均**零命中**。
-  （已知例外：历史 handoff `TASK-046…/HANDOFF-003` 中保留的原文指令行不改写 —— 证据诚实，
-  引用性残留须在交付报告逐处列举而非抹掉。）
-- [ ] **AC-4** `tasks/review/` 目录为空（`find tasks/review -mindepth 1 -maxdepth 1 -type d | wc -l` = 0）。
+  （实测 2026-10-21：两者全库零命中。既定「历史 handoff 原文不改写」的例外**未触发** ——
+  主控位另一会话在 HANDOFF-003 上以「保留原指令语义 + 补完成标记」的方式处理，见执行报告披露。）
+- [x] **AC-4** `tasks/review/` 目录为空（`find tasks/review -mindepth 1 -maxdepth 1 -type d | wc -l` = 0）。
 
 ### WP-2 · 制度缺陷修复
 
-- [ ] **AC-5** `templates/task/TASK.md` 含 `## Merge Record` 章节（九要素表 + D13-C 说明）；且该章节在模板章节清单中位置固定（位于 `## Handoff` 之后、`## Task Rules` 之前）。
-- [ ] **AC-6** 新增的「Merge Record 章节存在性」检查纳入 `scripts/audit-repo.py`：**反向验证** —— 临时移除某 `tasks/*/TASK.md` 的该章节 → 脚本 FAIL 且指出文件路径 → 复原后 PASS；输出留档。
-- [ ] **AC-7** 新增的「任务编号唯一性」检查纳入 `scripts/audit-repo.py`：**反向验证** —— 对**白名单外**的重复编号应 FAIL 并列出冲突目录 → 复原后 PASS；**且当前库（含两个 045）在正确配置 HD-1 白名单后必须 PASS**，白名单条目须含「两个 045 目录 + 理由 + 裁决日期 2026-10-21」。
-- [ ] **AC-8** HD-1 裁决落档：历史 045 冲突「不重编」的事实、白名单理由与裁决日期写入 `Known Issues` 与 `docs/operations/known-pitfalls.md`；并实测确认 `grep -rn "TASK-045" tasks/ docs/ .agents/` 中的历史引用**一处未改**（用 `git diff --stat` 佐证本任务未触碰任何既有 `Task ID`）。
+- [x] **AC-5** `templates/task/TASK.md` 含 `## Merge Record` 章节（九要素表 + D13-C 说明）；且该章节在模板章节清单中位置固定（位于 `## Handoff` 之后、`## Task Rules` 之前）。
+- [x] **AC-6** 新增的「Merge Record 章节存在性」检查纳入 `scripts/audit-repo.py`：**反向验证** —— 临时移除某 `tasks/*/TASK.md` 的该章节 → 脚本 FAIL 且指出文件路径 → 复原后 PASS；输出留档。
+- [x] **AC-7** 新增的「任务编号唯一性」检查纳入 `scripts/audit-repo.py`：**反向验证** —— 对**白名单外**的重复编号应 FAIL 并列出冲突目录 → 复原后 PASS；**且当前库（含两个 045）在正确配置 HD-1 白名单后必须 PASS**，白名单条目须含「两个 045 目录 + 理由 + 裁决日期 2026-10-21」。
+- [x] **AC-8** HD-1 裁决落档：历史 045 冲突「不重编」的事实、白名单理由与裁决日期写入 `Known Issues` 与 `docs/operations/known-pitfalls.md`；并实测确认 `grep -rn "TASK-045" tasks/ docs/ .agents/` 中的历史引用**一处未改**（用 `git diff --stat` 佐证本任务未触碰任何既有 `Task ID`）。
 
 ### WP-3 · 文档口径统一
 
-- [ ] **AC-9** `docs/` 全库对生效上限的三值口径**零残留**：`grep -rn "套餐月流量 ?? trafficTotal\|?? 存量" docs/` 与 `grep -rn "trafficManualCap ?? trafficTotal" docs/` 均零命中；`overview.md` 行 175 / 180–182 / 401 / 567 与 `api-contract.md` 行 150 均已改写为两值 + 「不限流量」语义。
-- [ ] **AC-10** `projects/README.md` 快照与实测一致：`done/` 计数、`review/` 内容、完成进度三项均与 `find` / `ls` 实测相符（并在文中标注实测日期）。
-- [ ] **AC-11** `known-pitfalls.md` 的 Docker 一条写明「Windows 宿主无 `docker`；WSL2 内可用（实测 `docker 29.9.0`，2026-10-21）」，且与 TASK-045 档案 Constraints 不再互相矛盾。
+- [x] **AC-9** `docs/` 全库对生效上限的三值口径**零残留**：`grep -rn "套餐月流量 ?? trafficTotal\|?? 存量" docs/` 与 `grep -rn "trafficManualCap ?? trafficTotal" docs/` 均零命中；`overview.md` 行 175 / 180–182 / 401 / 567 与 `api-contract.md` 行 150 均已改写为两值 + 「不限流量」语义。
+- [x] **AC-10** `projects/README.md` 快照与实测一致：`done/` 计数、`review/` 内容、完成进度三项均与 `find` / `ls` 实测相符（并在文中标注实测日期）。
+- [x] **AC-11** `known-pitfalls.md` 的 Docker 一条写明「Windows 宿主无 `docker`；WSL2 内可用（实测 `docker 29.9.0`，2026-10-21）」，且与 TASK-045 档案 Constraints 不再互相矛盾。
 
 ### WP-4 · CI 与供应链
 
-- [ ] **AC-12** `grep -rn "actions/checkout@" .github/workflows/` 结果**仅含 `@v5`**（`docker.yml` 已由 v4 升级）。
-- [ ] **AC-13** `dependabot.yml` 新增 `github-actions` 生态配置（weekly），且 YAML 合法（`python -c "import yaml"` 不可用时用 `npx js-yaml` 或 CI 实跑验证）。
-- [ ] **AC-14** knip 策略落地：按 Requirement 6 二选一执行后，CI 中 `pnpm knip` **实跑通过**；若选白名单方案，每条 `ignore` 均带理由注释。
-- [ ] **AC-15** `audit_framework.py` 的 CI 落地结论明确：或纳入 CI 并解决 PyYAML（`A3` 不再 SKIP），或写入 `Known Issues` 说明为何暂不纳入 + 替代检查手段。**不得停留在「未决」**。⚠️ 依 HD-2，若因推送含 `.github/workflows/**` 被拒而无法完成此项，**停工上报**，不得绕过。
+- [x] **AC-12** `grep -rn "actions/checkout@" .github/workflows/` 结果**仅含 `@v5`**（`docker.yml` 已由 v4 升级）。
+- [x] **AC-13** `dependabot.yml` 新增 `github-actions` 生态配置（weekly），且 YAML 合法（`python -c "import yaml"` 不可用时用 `npx js-yaml` 或 CI 实跑验证）。
+- [x] **AC-14** knip 策略落地：按 Requirement 6 二选一执行后，CI 中 `pnpm knip` **实跑通过**；若选白名单方案，每条 `ignore` 均带理由注释。
+- [x] **AC-15** `audit_framework.py` 的 CI 落地结论明确：或纳入 CI 并解决 PyYAML（`A3` 不再 SKIP），或写入 `Known Issues` 说明为何暂不纳入 + 替代检查手段。**不得停留在「未决」**。⚠️ 依 HD-2，若因推送含 `.github/workflows/**` 被拒而无法完成此项，**停工上报**，不得绕过。
 
 ### WP-5 · 代码卫生
 
-- [ ] **AC-16** `effectiveTrafficTotal` 处置落定：删除（则 `src/features/customers/utils.ts` 的 re-export 与 `schema.test.ts` 对应用例同步移除）或保留（则须有至少 1 处生产消费者或明确注释「保留供外部/通用语义」）。处置理由写入 `Known Issues`。
-- [ ] **AC-17** 未使用依赖 `@radix-ui/react-tabs`、`input-otp` 处置落定（删除或保留理由），`package.json` 与 `pnpm-lock.yaml` 一致。
-- [ ] **AC-18** **必须删除** `.tmp-t043` 与 `.tmp-t046`（HD-3）。删除**前**须先把取证价值内容转存：`.tmp-t043/pr-body.md`、`smoke-before.log` / `smoke-after.log` 的关键结论、`region-17.9-before.txt` 摘要，落进本档案 `Known Issues` 或 `docs/operations/known-pitfalls.md`；删除后 `ls -d /e/NDLDSN-WORKSPACE/.tmp-t0*` 应无匹配。
+- [x] **AC-16** `effectiveTrafficTotal` 处置落定：删除（则 `src/features/customers/utils.ts` 的 re-export 与 `schema.test.ts` 对应用例同步移除）或保留（则须有至少 1 处生产消费者或明确注释「保留供外部/通用语义」）。处置理由写入 `Known Issues`。
+- [x] **AC-17** 未使用依赖 `@radix-ui/react-tabs`、`input-otp` 处置落定（删除或保留理由），`package.json` 与 `pnpm-lock.yaml` 一致。
+- [x] **AC-18** **必须删除** `.tmp-t043` 与 `.tmp-t046`（HD-3）。删除**前**须先把取证价值内容转存：`.tmp-t043/pr-body.md`、`smoke-before.log` / `smoke-after.log` 的关键结论、`region-17.9-before.txt` 摘要，落进本档案 `Known Issues` 或 `docs/operations/known-pitfalls.md`；删除后 `ls -d /e/NDLDSN-WORKSPACE/.tmp-t0*` 应无匹配。
 
 ### WP-6 · 审查记录如实补记
 
-- [ ] **AC-19** 出具 `handoffs/2026-10-21-coordinator-recheck.md`：首行含 `TASK-047`；声明「事后复核，非合并前审查」；列出本次 16 项发现的实测命令与关键输出；明确指出 TASK-042～046 历史审查档缺失且**不得伪造**。
+- [x] **AC-19** 出具 `handoffs/2026-10-21-coordinator-recheck.md`：首行含 `TASK-047`；声明「事后复核，非合并前审查」；列出本次 16 项发现的实测命令与关键输出；明确指出 TASK-042～046 历史审查档缺失且**不得伪造**。
 
 ### 全局
 
@@ -352,23 +352,61 @@ Non-Scope (files):
 
 ## Current State
 
-**设计完成 + 三项裁决已落定，可立即执行。**
+**REVIEW（review/）—— 执行位已完成 WP-1 ~ WP-6 与 AC-1 ~ AC-20；已开 PR，待主控位复审与人类授权合并，执行位不自行合并。**
 
-- 设计者：主控位（2026-10-21），基于同日只读全面审查的 16 项实测发现。
-- 本任务**尚未开始实施**，`Status = READY`，位于 `tasks/backlog/`；进入实施时迁 `tasks/active/`（`ACTIVE`）。
-- **全部 `blocks` 依赖已解除**（HD-1 / HD-2 / HD-3 已于 2026-10-21 由人类裁决，见 Dependencies 的「人类裁决记录」）。
-- 下一步：执行位读本文件 → 阶段 0 取证 → 阶段 1 起按 **WP-1 → WP-6 顺序**推进；
-  **不得再就三项裁决向人类追问**。
+- **阶段 0 取证**（实测 2026-10-21）：PR #20 = 1 提交 / merged `2026-10-18T02:44:19Z` /
+  `604017dc…` / CI `39091153037` + Docker `39091153042`; PR #21 = 3 提交（`ef5d82a`+`6828e2b`+`2a4e259`）/
+  merged `2026-10-20T14:02:38Z` / `2a4e259c…` / CI `39435703753` + Docker `39435703743` —— 与档案参考值一致；
+  镜像 tag `sha-604017d` / `sha-2a4e259` 经 DockerHub Tags API 实测在位（详见 recheck 记录）。
+- **WP-1**：两档案九要素回填 + `Status → DONE` + 迁 `done/`；过时指针清零（AC-3 / AC-4 实测过）。
+- **WP-2**：模板补 `## Merge Record`；audit-repo.py 增 **F8 / F9**（含各自的
+  「造缺陷 → FAIL → 复原 → PASS」反向验证实测）；HD-1 以显式白名单落档（known-pitfalls §14）。
+- **WP-3**：两值口径 6 处改写（overview ×3 + api-contract ×1 已验零残留）、README 快照修正
+  （done=46 / review=1 / backlog=0，实测 2026-10-21）、known-pitfalls §8 Docker 口径精确。
+- **WP-4**：`docker.yml` checkout v5（全仓 checkout 均 v5）；dependabot `github-actions` 已增提为 weekly
+  （**实测发现原档案 C3 失真：该生态已存在，interval=monthly** —— 据实处置并披露）；knip 以
+  `knip.config.ts` 白名单（逐条理由）接入 CI；`audit_framework.py` 纳入 CI（PyYAML runtime 安装，
+  A3 不再 SKIP —— 本机实测 `PASS=13 FAIL=0 SKIP=0`）。
+- **WP-5**：`effectiveTrafficTotal` 删除（含 re-export 与两处测试用例；备份 `/tmp/t047-wp5`）；
+  两依赖保留理由落档（KI-9）；`.tmp-t043/.tmp-t046` 已转存删除（KI-8，需求裁决 HD-3）。
+- **WP-6**：`handoffs/2026-10-21-coordinator-recheck.md`（事后复核，First 行含 TASK-047）已出具。
+- **AC-20**：全门禁复跑结果附在交付报告（`handoffs/HANDOFF-002-implementer-to-coordinator.md` 的 Tests 字段）：test 351 绿 / lint / format:check / build / 双审计脚本 / knip 全部退出码 0。
+- **待主控位**：读实际 diff 审查 → PASS → 人类显式授权 → 主控位 rebase-merge。**执行位未自行合并、未自判 PASS。**
 
 ---
 
 ## Changed Files
 
-> 由 Developer 在执行中维护。
+> 由 Developer 在执行中维护。以下为本次实施的实际改动（分支 `chore/TASK-047-residual-debt-consolidation`，自 `2a4e259` 起 5 提交）。
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| `tasks/backlog/TASK-047-residual-debt-consolidation/TASK.md` | 新增 | 本档案（主控位设计） |
+| `tasks/backlog/TASK-047-residual-debt-consolidation/TASK.md` | 新增 + 回填 | 本档案（设计 + 执行全程回填；Meta Status 至 REVIEW） |
+| `tasks/backlog/TASK-047-…/handoffs/HANDOFF-001-coordinator-to-implementer.md` | 新增 | 主控位 → 执行位派单交接 |
+| `tasks/backlog/TASK-047-…/handoffs/2026-10-21-coordinator-recheck.md` | 新增（WP-6） | 事后复核记录（首行含 TASK-047；声明非合并前审查） |
+| `tasks/backlog/TASK-047-…/handoffs/HANDOFF-002-implementer-to-coordinator.md` | 新增 | 执行位 → 主控位实施报告（本 PR 的交付说明） |
+| `tasks/done/TASK-045-docker-pipeline-hardening/**` | 回写 + `git mv`（自 review/） | Merge Record 九要素（gh api / Tags API 实测）+ Status DONE + 指针终态（WP-1 / AC-1） |
+| `tasks/done/TASK-046-traffic-status-refresh/**` | 回写 + 新章节 + `git mv` | **新增 `## Merge Record` 章节**（十要素实测）+ Status DONE + 指针终态（WP-1 / AC-2） |
+| `templates/task/TASK.md` | 修改（WP-2） | `## Handoff` 与 `## Task Rules` 之间插入 `## Merge Record` 章节（九要素表 + D13-C 说明 + 位置固定注） |
+| `scripts/audit-repo.py` | 修改（WP-2） | 新增 **F8**（Merge Record 章节存在性，TASK-001~025 历史豁免）与 **F9**（编号唯一性，HD-1 白名单）；Task ID 解析兼容两种历史 Meta 形态 |
+| `docs/operations/known-pitfalls.md` | 修改（WP-2 / WP-3） | §8 Docker 表述精确化（Windows 宿主无 docker / WSL2 29.9.0 / CI 为准）；新增 §14（HD-1 撞号门禁落档） |
+| `docs/architecture/overview.md` | 修改（WP-3） | 生效上限口径三值 → 两值（表单填充节优先级表 / 同步镜像表 / 阈值提醒表） |
+| `docs/technical/api-contract.md` | 修改（WP-3） | `trafficTotal` 标注纯存量列；生效上限派生改两值 + 皆无 ⇒ 不限 |
+| `docs/operations/github-capability.md` | 修改（WP-3） | §6 #6 行与 §7 #6（HD-2 已裁决不补）、§7 #7（checkout 已闭环 + dependabot 提频） |
+| `.github/workflows/docker.yml` | 修改（WP-4） | `actions/checkout@v4` → `@v5` |
+| `.github/workflows/ci.yml` | 修改（WP-4） | 启用 knip 步骤；audit 作业增 `pip install pyyaml` + `audit_framework.py`（A3 不再 SKIP） |
+| `.github/dependabot.yml` | 修改（WP-4） | `github-actions` 生态 interval monthly → weekly（原档案 C3「缺失」实测为失真，处置见 Current State） |
+| `knip.config.ts` | 修改（WP-4） | 白名单接入 CI：ignoreFiles / ignoreDependencies / ignoreIssues 逐条理由（AC-14 策略 B） |
+| `shared/src/schema/traffic.ts` | 修改（WP-5） | 删除零消费者的 `effectiveTrafficTotal` |
+| `shared/src/schema/traffic.test.ts` | 修改（WP-5） | 移除对应用例与导入 |
+| `src/features/customers/utils.ts` | 修改（WP-5） | 移除 re-export（注释登记删除缘由） |
+| `src/features/customers/data/schema.test.ts` | 修改（WP-5） | 移除对应用例与导入 |
+| `E:/NDLDSN-WORKSPACE/projects/README.md` | 修改（WP-3） | 快照三处失真修正（完成至 046 / done=46 / review=1 含 TASK-047；实测日 2026-10-21） |
+| `package.json` / `pnpm-lock.yaml` | **未改动** | AC-17 选「保留」路径，未删依赖，无需动锁文件 |
+
+**依赖新增：** 无（PyYAML 仅 CI runtime 安装，不构成仓库依赖 —— Requirement 8 的例外）。
+
+> 另，工作区级删除（HD-3，非本仓库内容）：`.tmp-t043` / `.tmp-t046`（转存与验证见 KI-8）。
 
 ---
 
@@ -399,6 +437,30 @@ Non-Scope (files):
 - **KI-7（HD-2 的连带限制）** 因不补 `workflow` scope，**经 HTTPS 推送**含 `.github/workflows/**`
   的改动会失败。当前 `gh` 为 SSH 协议（`Git operations protocol: ssh`），预计不受影响；
   若推送意外被拒 → **立即停工上报**，不得改用网页手动改文件等方式绕过（那会绕过 PR 门禁）。
+- **KI-8（HD-3 转存 —— 已执行，2026-10-21）** `.tmp-t043` / `.tmp-t046` 删除**前**的关键取证结论转存于此：
+  - **TASK-043 的 pr-body.md**：X4 冒烟缺陷根因与修法 —— 第 5 段的 `pool`/`plan` 在第 13 段被删除，
+    17.9.1 段仍以其 `poolId`/`planId` 建客户/订阅 ⇒ `FOREIGN KEY constraint failed` 连锁 4 断言；
+    修法 = 在 17.9.1 段前建独立 `richPool`/`richPlan` 并在其清理块内删除；**未删任何既有断言、未放宽任何判定**。
+    另含 12 对 SHA 映射全过的证据（TASK-041：PR #13 6 对；TASK-042：PR #14 四对 + PR #15 两对，
+    merge `72d8f28`/`b62e981`/`f2a63bc`，mergedAt `2026-10-16T18:09:53Z`/`2026-10-17T05:14:48Z`/`2026-10-17T06:45:04Z`）。
+  - **smoke-before.log / smoke-after.log**：修复前 **153 通过 / 4 失败**（失败均为上述 FK 连锁）；
+    修复后 **159 通过 / 0 失败**（含阈值穿越 A/B/C/D 手动 vs 套餐口径、归档保留邮箱绑定、
+    Telegram/飞书富格式、备份保留策略等全场景）。
+  - **region-17.9-before.txt**：修复前 17.9.1 段源码片段（`smoke-customer2-*` 以已删资源的
+    `poolId`/`planId` 建档的直接证据）。
+  - **TASK-046 的 pr-body.md**：初版 R2 为「路径甲 = 同事务镜像 `subscriptions.traffic_total`
+    到 `customers.traffic_total`」（后被 HANDOFF-003 人类裁决 R-1 撤销 —— 最终实施不留镜像）；
+    附存量实测：`VACUUM INTO` 快照显示 `customers.traffic_total` **0/6 非空**。
+  - 转存件本体（目录级备份）移到 `C:\Users\Admin\AppData\Local\Temp\opencode\_t043-archived-20261021`
+    与 `_t046-archived-20261021`（临时性长期存放，属易失区；本条目的结论才是受管理的落档）。
+    工作区实测 `ls -d .tmp-t0*` 零匹配（AC-18 判据过）。
+- **KI-9（AC-16 / AC-17 的处置理由 —— 落定记录）**
+  - `effectiveTrafficTotal`：**删除**（零生产消费者，仅测试与 re-export 引用；
+    同步移除 `src/features/customers/utils.ts` re-export、两个测试文件的对应用例；
+    删除前完整备份于 `Temp\opencode\t047-wp5\`）。
+  - `@radix-ui/react-tabs` / `input-otp`：**保留**（被 shadcn 托管组件
+    `src/components/ui/tabs.tsx` / `input-otp.tsx` 引用；项目规则禁止不经 CLI 手改/删托管组件，
+    删依赖会破坏其类型链）。已在 `knip.config.ts` `ignoreDependencies` 白名单逐条注明理由。
 
 ---
 
@@ -409,11 +471,12 @@ Non-Scope (files):
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | coordinator（主控位） | developer（执行位） | 2026-10-21 | 设计完成 + 三项人类裁决（HD-1 不重编 / HD-2 不补 scope / HD-3 删除）已落档；派单实施 WP-1~WP-6 |
+| 002 | developer（执行位） | coordinator（主控位） | 2026-10-21 | WP-1~WP-6 实施完成 + AC-20 全门禁绿 + AC-19 recheck 出具；已开 PR，待审查，不自行合并 |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-coordinator-to-implementer.md`
-**Next Action：** 执行位建分支 `chore/TASK-047-residual-debt-consolidation` → 执行「阶段 0 · 取证」
-（实测两 PR 的提交数与 CI / Docker run id）→ 依 **WP-1 → WP-6** 顺序实施，
-**三项裁决（HD-1/2/3）已定，不再回问人类**；最后按 AC-20 复跑全部门禁、置 `Status = REVIEW` 迁 `review/`、开 PR 且**不自行合并**。
+**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
+**Next Action：** 主控位读**实际 diff** 审查 → 判定 PASS / CHANGES_REQUESTED；
+PASS 后由**人类显式授权**、主控位执行 rebase-merge；本档案的 `Merge Record` 按 D13-C 由下一个任务回填。
+**执行位未自行合并、未自行判定 PASS。**
 
 ---
 
