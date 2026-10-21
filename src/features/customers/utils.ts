@@ -5,10 +5,7 @@ import {
   getDaysInMonth,
   startOfMonth,
 } from 'date-fns'
-import {
-  formatTrafficBytes,
-  trafficUsagePercent,
-} from '@shared/index'
+import { formatTrafficBytes, trafficUsagePercent } from '@shared/index'
 
 /**
  * 流量相关函数已上移 shared（`@shared/index`，TASK-013 起前后端共用同一实现），
@@ -16,10 +13,7 @@ import {
  * （`effectiveTrafficTotal` 已于 TASK-047 删除：零生产消费者，D13-C 口径
  * 由 `effectiveCustomerTrafficTotal` 承载，见 shared/src/schema/traffic.ts。）
  */
-export {
-  formatTrafficBytes as formatBytes,
-  trafficUsagePercent,
-}
+export { formatTrafficBytes as formatBytes, trafficUsagePercent }
 
 /** 取出可展示的错误信息（ApiError 已带服务端 message） */
 export function getErrorMessage(error: unknown, fallback = '操作失败'): string {
