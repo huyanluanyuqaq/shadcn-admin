@@ -10,7 +10,7 @@
 Task ID: TASK-045
 Title: 合并即构建（甲方案）+ pnpm 版本统一 + 推送重试 + 本地构建脚本
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: 执行位（实施已完成）→ 主控位（待审查）
 Owner Since: 2026-10-17
@@ -214,23 +214,21 @@ Actions 运行时只有 `GITHUB_TOKEN`，且 **`GITHUB_TOKEN` 产生的推送不
 
 ## Merge Record
 
-> **按 D13-C 选项 C：本表由下一个任务（第十三代实例）回填。**
-> **不得在本任务内自我回写**（那将造成档案与提交历史不一致）。
->
-> **本任务自身即为第十三代实例的待回写方** —— 与 TASK-043 / TASK-044 / TASK-045(命名) 同机制，
-> **不是遗漏**。TASK-044 的该注已由本任务（第十二实例）回填；本任务的该注由下一个任务回填。
+> **已由 TASK-047（遗留债务收口）于 2026-10-21 按实测回填**（原 D13-C 选项 C 的占位注随回填完成而移除）。
+> ⚠️ 依 A3 缺口，本任务**无合并前独立审查档**（当时审查未留独立文件，事后补写等同伪造）——
+> 仅由 TASK-047 出具的事后复核（`2026-10-21-coordinator-recheck.md`）覆盖本合并的取证，见「审查记录」行。
 
 | 要素 | 值 |
 |------|-----|
-| PR | **待第十三代实例回填** |
-| 合并策略 | rebase-merge（预期，`AGENTS.md` §14.2） |
-| 提交数 | 待第十三代实例回填 |
-| merged_at | 待第十三代实例回填 |
-| merge_commit_sha | 待第十三代实例回填 |
-| 合并后 CI | 待第十三代实例回填 |
-| D8 解耦 | 待第十三代实例回填 |
-| 独立审查 | 待第十三代实例回填 |
-| SHA 映射 | 待第十三代实例回填 |
+| PR | #20（base `main`；由主控位按人类授权执行 rebase-merge，2026-10-18） |
+| 合并策略 | rebase-merge（单提交，`merge_commit_sha` 即原提交本身，无额外 merge commit） |
+| 提交数 | **1**（实测 `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/20/commits --jq 'length'` = 1，2026-10-21） |
+| merged_at | `2026-10-18T02:44:19Z`（实测 `gh api repos/:owner/:repo/pulls/20`） |
+| merge_commit_sha | `604017dc14d97389ea9f6326cab90383c3b3933f` |
+| 合并后 CI run | `39091153037`（Continuous Integration，event=push，conclusion=success，created `2026-10-18T02:44:22Z`，实测 `actions/runs?head_sha=604017d…`） |
+| 合并后 Docker run | `39091153042`（Build and Push Docker Image，success，attempt 1；另有同日 `15:45:12Z` 的重跑 run `39141896318` 亦 success） |
+| 镜像 tag | `sha-604017d`（DockerHub `nomorelatenights/subscription-admin`，Tags API 实测在位，digest `sha256:cf0be98c…`；`latest` 的 digest 当时与此相同 —— 印证 `:latest` 只随 tag 前进的门禁） |
+| 审查记录 | ⚠️ **无合并前独立审查档**（A3 系统性断档的既成事实，**不补写、不伪造**）；仅 TASK-047 `handoffs/2026-10-21-coordinator-recheck.md` 事后复核 |
 
 ---
 
@@ -317,19 +315,16 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（review/）—— 执行位已完成 AC-1 ~ AC-12 的本地可验证部分，PR 已开立，等主控位审查与人类授权。**
+**DONE（done/）—— 已合并并归档；本 Merge Record 由 TASK-047 于 2026-10-21 按实测回填。**
 
-- 主控位已完成全量核查（B1~B4 四缺口）与甲方案选定（人类 2026-10-17 23:4x）。
-- 乙方案（自动打 tag + PAT）**已被人类否决**，未实现。
-- **执行位已完成四项改动**：
-  ① `docker.yml` 加 `branches:["main"]` 合并触发（`:latest` 行零改动）；
-  ② `Dockerfile` corepack pnpm 对齐 `12.10.1`；
-  ③ build-and-push 改为「包裹步骤 + 循环」退避重试（首发+2 重试、退避 30/60、构建/推送失败可区分）；
-  ④ 新增 `scripts/docker-build.sh` + `docs/operations/docker-release.md`。
-- **捎带归档 TASK-044**（第十二实例 `Merge Record` 回填 + `Status → DONE` + 迁 `done/`）。
-- **本地边界（KI-1/KI-2）**：本机无 Docker ⇒ AC-4/AC-6 的实跑、AC-2 的 main-push 触发均无法本地验证，
-  以 CI 实跑（AC-7）与合并后 run 为准；已在 PR 描述如实说明，**未伪造已验证**。
-- **待主控位**：读实际 diff 审查 → PASS 后由人类显式授权、主控位执行 rebase-merge。**执行位未自行合并。**
+- 合并事实（实测，2026-10-21）：PR #20、rebase-merge、**1 提交**、
+  `merged_at 2026-10-18T02:44:19Z`、`merge_commit_sha 604017dc…`（详见 `## Merge Record` 九要素）。
+- 合并后 CI run `39091153037` 与 Docker run `39091153042` 均 **success**；
+  镜像 tag `sha-604017d` 在位（DockerHub Tags API + digest 实证）。
+- 审查档缺口（A3）：本任务合并时**无独立审查档** —— 历史不可补写，
+  已由 TASK-047 以 `2026-10-21-coordinator-recheck.md` 做标注「事后复核」的复核记录覆盖。
+- D8 语义（KI-3）在合并后实测成立：合并产出 `sha-*` 镜像，`latest` 未随之上进
+  （`latest` digest 仍与 `sha-604017d` 相同）。
 
 ---
 
@@ -376,8 +371,8 @@ Non-Scope (files):
 | 002 | 执行位 implementer | 主控位 coordinator | 2026-10-17 | 实施报告：四项改动 + TASK-044 归档 + 本地边界（无 Docker / shellcheck / python3）+ 待审查 |
 
 **最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
-**Next Action：** 主控位读**实际 diff**（不读描述）审查 → PASS 后由**人类显式授权**、主控位执行 rebase-merge。
-**执行位未自行合并、未自行判定 PASS。**
+**Next Action：** 无（终态）。本档案已合并（PR #20）并于 2026-10-21 归档至 `tasks/done/`；
+后续对 Docker 流水线的改动以 TASK-047 与后继任务为准。
 
 ---
 
