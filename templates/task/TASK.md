@@ -183,6 +183,32 @@ Non-Scope (files):
 
 ---
 
+## Merge Record
+
+> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
+> `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
+> 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
+> **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
+> 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
+> 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
+>
+> **本节的章节位置固定：位于 `## Handoff` 之后、`## Task Rules` 之前**
+> （由 `scripts/audit-repo.py` F8 门禁保证一致；历史豁免与编号白名单见该脚本的显式清单）。
+
+| 要素 | 值 |
+|------|-----|
+| PR | 待回填（{{PR 号与合并执行者}}） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
+| 提交数 | 待回填（实测 `gh api repos/:owner/:repo/pulls/<N>/commits --jq 'length'`） |
+| merged_at | 待回填（实测 `gh api repos/:owner/:repo/pulls/<N>`） |
+| merge_commit_sha | 待回填（全 40 位 SHA） |
+| 合并后 CI run | 待回填（`actions/runs?head_sha=<SHA>` 实测 id + conclusion） |
+| 合并后 Docker run | 待回填（同上；docker.yml 触发的 run id + 镜像 tag） |
+| 镜像 tag | 待回填（`sha-<短SHA>`，DockerHub Tags API 实证在位） |
+| 审查记录 | 待回填（指向 `handoffs/YYYY-MM-DD-review.md`；无则如实写「无（A3 断档）」，不补写） |
+
+---
+
 ## Task Rules
 
 > 本 Task 特有的规则覆盖（如无则删除本节）。

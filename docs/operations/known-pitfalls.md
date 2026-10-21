@@ -135,7 +135,7 @@ WAL 模式下写写互斥，所有其他写入排队。
 | `wmic.exe` 被安全策略拦截，pnpm 偶发失败 | pnpm Windows 端会调用 wmic 解析存储路径 | 重试即可；非代码问题 |
 | **本机 `pnpm install` 通过，CI 却报 `ERR_PNPM_IGNORED_BUILDS`** | **pnpm 版本漂移**：本地 pnpm 10.29.3 仍读 `package.json` 的 `pnpm` 字段，CI 装的是最新版（实测 12.10.1，`store/v11`）不再读 | **锁版本**：CI 用 `npm install -g pnpm@<版本>`；排查时用 `npx pnpm@<CI版本> install` 复现。详见 §11 |
 | `pnpm test` 全部失败 | Vitest 为**浏览器模式**，需先 `pnpm test:browser:install` 装 Chromium | 环境准备问题，非代码缺陷 |
-| 本机无法 `docker build` | 该环境未安装 Docker | **已解决**：在既有 WSL2 Ubuntu 内安装 Docker Engine（非 Docker Desktop），`docker compose build` 可正常构建；详见 §9 / §10 的两个构建坑 |
+| 本机无法 `docker build` | **Windows 宿主无 `docker`**；Docker 仅可经 WSL2 使用（实测 WSL2 Ubuntu 内 `docker 29.9.0` 可用，2026-10-21 复测）。**注意口径**：勿写「已解决」——宿主机上 Docker CLI 依旧缺失，CI（ubuntu runner）与 WSL2 均可跑，Windows 宿主跑不了。凡需 Docker 实跑的项以 **CI 实跑**为准 | 详见 §9 / §10 的两个构建坑；TASK-045 档案 Constraints 的「本机无 Docker」与本行描述一致（同日口径已统一） |
 | Prettier 报 CRLF/LF 差异 | **已于 2026-10-10 修复**：Windows 开发机 `core.autocrlf=true` 把工作区检出为 CRLF，而仓库内容与 Prettier 配置均为 LF，造成"本机 format:check 红、CI 绿"的幽灵差异 | **已根治**：仓库新增 `.gitattributes`（`* text=auto eol=lf`），所有平台检出均为 LF，优先于 `core.autocrlf`。若仍遇到旧检出，跑一次 `pnpm format` 即归一 |
 
 ---
@@ -289,3 +289,34 @@ config-drawer 15/15、search-provider 7/8 等）。
   mock 不拦截 optimized deps，真实 undici 又无法在浏览器加载）。
   涉及 undici 的模块，消息级验证抽成纯函数模块（subscription-errors.ts），
   流程级验证走 smoke.ts（node + 真实 undici + 本地 mock 上游）。
+
+---
+
+## 14. 任务编号撞号门禁与两个历史 TASK-045（HD-1 裁决，2026-10-21）
+
+**背景（B1，实测 2026-10-21）：** `tasks/done/TASK-045-review-record-naming` 与
+`tasks/review/TASK-045-docker-pipeline-hardening`（现 `done/`）的 Meta **同为 `Task ID: TASK-045`**。
+根因：两任务**并发分配编号**时各自实测「044 已占用 → 取 045」，各取各的，撞号。
+旧门禁 `scripts/audit-repo.py` 与 `shared/scripts/audit_framework.py` 对「编号 / 唯一 / duplicate」
+零检查，此类问题无任何门禁可发现。
+
+**人类裁决（HD-1，2026-10-21，最终决定）：** **不重编**两个历史 `TASK-045`。
+理由：编号字面引用遍布 git 历史、PR 描述、`.agents/` 与 `docs/`，改名/加后缀维护成本与
+引用破坏面远大于收益。**禁止**任何形式的「假修复」（改 ID、移库、加 `045b` 之类后缀）。
+
+**落地（TASK-047）：** `scripts/audit-repo.py` 新增两条门禁：
+
+- **F9 任务编号唯一性**：解析全部 `tasks/*/TASK-*/TASK.md` 的 Task ID（YAML 与表格两种
+  历史形态都认），重复即 FAIL；唯一例外是显式白名单 `F9_HD1_WHITELIST`（两个 045 目录 +
+  理由 + 裁决日期，见脚本头注释）。白名单外的任何重复编号必须 FAIL。
+- **F8 Merge Record 章节存在性**：TASK-026 起的档案缺 `## Merge Record` 章节即 FAIL
+  （TASK-001~025 为制度确立前的历史档案，显式豁免清单见脚本头注释）。
+
+两条检查均已做**反向验证**（故意造缺陷 → FAIL → 复原 → PASS），输出存 TASK-047 交付记录。
+
+**排查提示（给下一个任务的取号者）：**
+
+- 新任务取号前：`find tasks -maxdepth 2 -type d -name "TASK-*"` 实测最大编号，**再加一**；
+  若并发分配是常态，取号后立即 `python scripts/audit-repo.py` 自检撞号。
+- 两个历史 045 并存属**人工裁决后的合法共存**，不是待清理项；任何「顺手统一编号」的
+  重构都是违规改动。
