@@ -10,7 +10,7 @@
 Task ID: TASK-046
 Title: 修复换订阅后仪表盘流量状态不刷新（缓存失效 + 生效上限分母）
 Workflow: bugfix
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: 主控位（设计）→ 执行位（实施完成，待审查）
 Owner Since: 2026-10-20
@@ -420,7 +420,16 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（review/）—— 首轮实施完成；按 HANDOFF-003 完成口径整改，待主控位复审与人类授权合并。**
+**DONE（done/）—— 已合并并归档；`Merge Record` 章节由 TASK-047 于 2026-10-21 新增回填。**
+
+- 合并事实（实测，2026-10-21）：PR #21、rebase-merge、**3 提交**（`ef5d82a`+`6828e2b`+`2a4e259`）、
+  `merged_at 2026-10-20T14:02:38Z`、`merge_commit_sha 2a4e259c…`（详见 `## Merge Record`）。
+- 合并后 CI run `39435703753` 与 Docker run `39435703743` 均 **success**；
+  镜像 tag `sha-2a4e259` 在位，`latest` 未随合并前进（门禁语义成立）。
+- 人类裁决（两值口径）已随 `6828e2b` + `2a4e259` 落地并合并；审查档缺口（A2/A3）为既成历史事实，
+  已由 TASK-047 `2026-10-21-coordinator-recheck.md` 事后复核覆盖，**不补写**。
+
+> 以下为实施期历史记录（如实保留，指向当时状态）；终态以上方 2026-10-21 归档注为准。
 
 - **根因 A 已修复并审查通过（保留）**：统一失效域 `invalidateCustomerDependentQueries`
   （customers / dashboard.stats / subscriptions 精确前缀失效），时机在用量同步成功之后。
@@ -432,8 +441,6 @@ Non-Scope (files):
   表单「月流量（GB）」降级为纯存量列（KI-5）。
 - 全量验证通过：`pnpm test` **351/351**、`pnpm lint`、`pnpm format:check`、
   `pnpm typecheck:server`、`pnpm build` 全绿。
-- **待主控位**：复审整改（重点：R-1 撤销证据、R-2 签名选择、R-3 三处统一、
-  KI-5 用户说明文案）；**合并须人类显式授权**，执行位未合并。
 
 ---
 
@@ -507,15 +514,35 @@ Non-Scope (files):
 | 004 | 主控位 coordinator | 执行位 implementer | 2026-10-20 | **复审结论：代码 8 项 AC 全过，档案有 3 类问题**；档案修正指令 P-1 ~ P-3（正文 7+1 处失真 / File Scope 补登记两文件 / docs 披露补记第 3 处） |
 
 **最新 Handoff：** `handoffs/HANDOFF-004-coordinator-to-implementer.md`
-**Next Action：** 执行位按 HANDOFF-004 修正档案（**仅 `tasks/**`，零代码改动**；
-在 PR #21 上追加提交，不新开 PR）→ 交主控位复审。
-**合并须人类显式授权**，由主控位执行 rebase-merge。
+**Next Action：** 无（终态）。该指令所指的追加提交与复审已于 PR #21 合并（2026-10-20）后完成，
+本档案已于 2026-10-21 归档至 `tasks/done/`，`Merge Record` 由 TASK-047 回填。
+**合并由人类显式授权、主控位执行 rebase-merge —— 已发生（执行位自始至终未自行合并）。**
 
 > **审查状态**：首轮审查 **PASS**（10 项 AC 实测全过，`pnpm test` 27 文件 /
 > 350 用例全绿；口径整改后为 351），但**人类裁决改变了口径**（见 R2 / KI-1），
 > 故要求整改后再复审。**R1 缓存失效部分已通过审查，整改时保留。**
 > 第二轮复审（提交 `89cb11f`）：代码侧 8 项 AC 全部通过（主控位实跑复验），
 > 档案问题按 HANDOFF-004 于第三轮修正。
+
+---
+
+## Merge Record
+
+> **由 TASK-047（遗留债务收口）于 2026-10-21 新增并按实测回填**（原档案无 `## Merge Record` 章节，B2 缺陷；
+> 十要素以 `gh api` / DockerHub Tags API 实测为准）。
+> ⚠️ 依 A3 缺口，本任务无合并前独立审查档 —— 见「审查记录」行，**不补写、不伪造**。
+
+| 要素 | 值 |
+|------|-----|
+| PR | #21（base `main`；由主控位按人类授权执行 rebase-merge，2026-10-20） |
+| 合并策略 | rebase-merge（3 个原提交线性追加，无额外 merge commit） |
+| 提交数 | **3**（实测 `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/21/commits --jq 'length'` = 3：`ef5d82a` + `6828e2b` + `2a4e259`，2026-10-21） |
+| merged_at | `2026-10-20T14:02:38Z`（实测 `gh api repos/:owner/:repo/pulls/21`） |
+| merge_commit_sha | `2a4e259c9de4235b7c14def1a2b8e9783f406bec` |
+| 合并后 CI run | `39435703753`（Continuous Integration，event=push，conclusion=success，created `2026-10-20T14:02:41Z`，实测 `actions/runs?head_sha=2a4e259…`） |
+| 合并后 Docker run | `39435703743`（Build and Push Docker Image，success，created `2026-10-20T14:02:41Z`） |
+| 镜像 tag | `sha-2a4e259`（DockerHub `nomorelatenights/subscription-admin`，Tags API 实测在位，digest `sha256:8ba8f5cf…`；`latest` 的 digest 未随本次合并前进，仍为 `sha-604017d` 对应值 —— 印证 `:latest` 只随 tag 前进的门禁） |
+| 审查记录 | ⚠️ **无合并前独立审查档**（本档案正文的两轮「审查」均为主控位.handoff 记录，见 A2/A3；**不补写、不伪造**）；仅 TASK-047 `handoffs/2026-10-21-coordinator-recheck.md` 事后复核 |
 
 ---
 
