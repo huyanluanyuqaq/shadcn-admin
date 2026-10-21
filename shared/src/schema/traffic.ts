@@ -22,22 +22,6 @@ export const trafficThresholdSchema = z.union([
 export type TrafficThreshold = z.infer<typeof trafficThresholdSchema>
 
 /**
- * 生效流量上限（通用口径）：手动流量上限（trafficManualCap）优先级最高，
- * 未设置时回落到传入的月流量（trafficTotal）；两者都为空表示不限（null）。
- *
- * ⚠️ TASK-046 人类裁决：流量阈值/百分比评估只认「手动上限 ?? 套餐月流量」
- * （见 `effectiveCustomerTrafficTotal`）——订阅拉取的额度与存量月流量
- * **均不参与**。本函数保留给需要「手动 ?? 传入月流量」通用语义的场景，
- * **不再被客户表格「流量使用」列使用**（该展示已改用套餐口径）。
- */
-export function effectiveTrafficTotal(
-  trafficTotal: number | null | undefined,
-  trafficManualCap: number | null | undefined
-): number | null {
-  return trafficManualCap ?? trafficTotal ?? null
-}
-
-/**
  * 客户生效流量上限（阈值评估口径，TASK-023 → TASK-046 人类裁决修订）：
  * **手动流量上限 > 套餐月流量**，两者都为空表示不限（null）。
  *

@@ -62,8 +62,8 @@ jobs:
       - name: Lint the code
         run: pnpm lint
 
-      # - name: Analyze unused files and dependencies
-      #   run: pnpm knip
+      - name: Analyze unused files and dependencies
+        run: pnpm knip
 
       - name: Run Prettier check
         run: pnpm format:check
@@ -92,3 +92,12 @@ jobs:
       # ubuntu-latest 自带 python3；脚本只用标准库，无需 setup-python。
       - name: Run repo framework audit
         run: python3 scripts/audit-repo.py
+
+      # 框架全量自检（shared/scripts/audit_framework.py，A1~A13）。
+      # PyYAML 仅 A3 需要（YAML 可解析检查）；ubuntu runner 无预装，故 runtime 安装，
+      # 不作为仓库依赖引入（Requirement 8 的 PyYAML 例外）。A3 此前长期 SKIP
+      # 形成「看起来检查过、其实跳过」（TASK-047 B5），纳入 CI 后 A3 必须实跑。
+      - name: Install PyYAML
+        run: python3 -m pip install --quiet --disable-pip-version-check pyyaml
+      - name: Run workspace framework audit
+        run: python3 shared/scripts/audit_framework.py
