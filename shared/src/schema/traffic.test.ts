@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest'
 import {
   TRAFFIC_THRESHOLDS,
   effectiveCustomerTrafficTotal,
-  effectiveTrafficTotal,
   formatTrafficBytes,
   highestTrafficThreshold,
   trafficUsagePercent,
@@ -11,20 +10,6 @@ import {
 describe('TRAFFIC_THRESHOLDS', () => {
   it('为 50 / 80 / 100 三档，升序', () => {
     expect(TRAFFIC_THRESHOLDS).toEqual([50, 80, 100])
-  })
-})
-
-describe('effectiveTrafficTotal', () => {
-  it('手动上限优先于月流量', () => {
-    expect(effectiveTrafficTotal(100, 50)).toBe(50)
-  })
-
-  it('未设手动上限时回落到月流量', () => {
-    expect(effectiveTrafficTotal(100, null)).toBe(100)
-  })
-
-  it('两者都无表示不限', () => {
-    expect(effectiveTrafficTotal(null, null)).toBeNull()
   })
 })
 

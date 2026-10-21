@@ -28,11 +28,16 @@ updates:
           - 'minor'
           - 'patch'
 
-  # 工作流与 Action 本身也属于依赖
+  # 工作流与 Action 本身也属于依赖（AC-13：weekly；TASK-047 前实为 monthly，
+  # 升高频率以跟紧 actions 弃用告警 —— 见 github-capability.md §7 #7）
   - package-ecosystem: 'github-actions'
     directory: '/'
     schedule:
-      interval: 'monthly'
+      interval: 'weekly'
+      day: 'monday'
+      time: '09:00'
+      timezone: 'Asia/Shanghai'
+    open-pull-requests-limit: 5
     labels:
       - 'dependencies'
       - 'ci'

@@ -1,7 +1,6 @@
 import type { Subscription } from '@shared/index'
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_CRON } from '@/features/subscriptions/data/schema'
-import { effectiveTrafficTotal } from '../utils'
 import {
   buildSubscriptionInput,
   computeExpireAt,
@@ -315,22 +314,6 @@ describe('toCustomerForm', () => {
       'https://sub.example.com/api/v1/client/subscribe?token=abc'
     )
     expect(form.subscriptionExpireAt?.getTime()).toBe(subExpire.getTime())
-  })
-})
-
-describe('effectiveTrafficTotal', () => {
-  it('手动流量上限优先于月流量', () => {
-    expect(effectiveTrafficTotal(50 * GB, 20 * GB)).toBe(20 * GB)
-  })
-
-  it('无手动上限时回落到月流量', () => {
-    expect(effectiveTrafficTotal(50 * GB, null)).toBe(50 * GB)
-    expect(effectiveTrafficTotal(50 * GB, undefined)).toBe(50 * GB)
-  })
-
-  it('两者都为空表示不限（null）', () => {
-    expect(effectiveTrafficTotal(null, null)).toBeNull()
-    expect(effectiveTrafficTotal(undefined, undefined)).toBeNull()
   })
 })
 

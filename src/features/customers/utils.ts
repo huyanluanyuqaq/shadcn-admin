@@ -6,7 +6,6 @@ import {
   startOfMonth,
 } from 'date-fns'
 import {
-  effectiveTrafficTotal,
   formatTrafficBytes,
   trafficUsagePercent,
 } from '@shared/index'
@@ -14,9 +13,10 @@ import {
 /**
  * 流量相关函数已上移 shared（`@shared/index`，TASK-013 起前后端共用同一实现），
  * 此处保留再导出，既有导入点无需改动。
+ * （`effectiveTrafficTotal` 已于 TASK-047 删除：零生产消费者，D13-C 口径
+ * 由 `effectiveCustomerTrafficTotal` 承载，见 shared/src/schema/traffic.ts。）
  */
 export {
-  effectiveTrafficTotal,
   formatTrafficBytes as formatBytes,
   trafficUsagePercent,
 }
