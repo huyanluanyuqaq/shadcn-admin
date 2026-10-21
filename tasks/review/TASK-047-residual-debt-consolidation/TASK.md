@@ -425,8 +425,14 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-21 14:2x · `REVIEW`（`tasks/review/`）—— 主控位第二轮复审已判定 PASS（1 项 M-1），
+> M-1 已由执行位闭合，现**仅待人类显式授权合并**。**
+> 第 2 轮审查：`handoffs/2026-10-21-coordinator-review-round2.md`（**PASS**）；
+> 收尾确认：`handoffs/HANDOFF-006-implementer-to-coordinator.md`（提交 `6ac1183`，run `39552606374` 双检查 success）；
+> 主控位独立复验：AC 勾选 **21/0**、提交恰 3 文件、AC-20 判据正文未改、PR head `6ac1183` 与 origin 一致。
+>
 > **2026-10-21 · `REVIEW`（`tasks/review/`）—— 主控位判定 CHANGES_REQUESTED 后的整改已按
-> `HANDOFF-003` 的 R-1 ~ R-5 全部完成，现重新提交主控位复审。**
+> `HANDOFF-003` 的 R-1 ~ R-5 全部完成，现重新提交主控位复审。**（历史，保留追溯）
 > 审查记录：`handoffs/2026-10-21-coordinator-review.md`（**CHANGES_REQUESTED**，4 阻断 + 6 失真）；
 > 整改报告：`handoffs/HANDOFF-004-implementer-to-coordinator.md`（逐条对应 R-1~R-5 与 F-1~F-10）。
 >
@@ -579,6 +585,15 @@ Non-Scope (files):
     `shared/dist` 的产物内容，牵动 `pnpm build:shared` / `typecheck:server` / `pnpm build`
     整条构建链，超出「测试收集范围」这一缺陷本身的范围（P5 最小改动）。
     **残留（未修，登记备查）**：`shared/dist/` 仍含 `schema/traffic.test.js` 等编译测试产物。
+- **KI-11（收尾阶段的「鸡生蛋」—— 主控位第 3 次核对时发现，已消解）**
+  - `HANDOFF-006` §5 原写「`git status --short` **为空（干净）**」，而**该文件自身即为当时唯一的
+    未跟踪项** ⇒ 该陈述在写下时即不成立。执行位在人读报告中已主动说明这一点，但**文件正文未同步**。
+  - 同类问题还有两处：`TASK.md` 的 `Handoff` 表缺 006 行、`最新 Handoff` 仍指 005、
+    `Next Action` 仍写「ⓐ 补 M-1」—— 即 **M-1 已闭合而档案仍称待补**，与 M-1 自身的缺陷同性质。
+  - **处置**：由主控位更新 `TASK.md`（Handoff 表 006 行 / 最新 Handoff / `Next Action` / `Current State`），
+    并要求执行位把 `HANDOFF-006` §5 改为准确表述后**与 `TASK.md` 同批提交**。
+  - **不再为此新开 Handoff 文件** —— 那会再造一个未跟踪项，形成无限回归。
+    本任务已第 2 次出现该形态（第 1 次 = D13-C 回写债），记此以备后续任务复用同一处置。
     `shared/package.json` 的 `exports` 只暴露 `./dist/index.js`，外部无法经包入口导入它们，
     故无功能影响；属构建卫生问题，建议后续任务给 `shared/tsconfig.json` 补
     `exclude: ["node_modules", "dist", "**/*.test.ts"]` 与 `server/tsconfig.json` 对齐。
@@ -606,16 +621,17 @@ Non-Scope (files):
 | 003 | coordinator（主控位） | developer（执行位） | 2026-10-21 | **整改派单**：审查判定 CHANGES_REQUESTED（4 阻断 F-1~F-4 + 6 失真 F-5~F-10），要求按 R-1~R-5 顺序整改后重交 |
 | 004 | developer（执行位） | coordinator（主控位） | 2026-10-21 | **整改报告**：R-1~R-5 与 F-1~F-10 逐条对应；含 CI run `39537943459` 双必需检查实跑证据、Vitest 4 排除项根因、F8 双探针反向验证三段原始输出、全门禁逐个退出码 |
 | 005 | coordinator（主控位） | developer（执行位） | 2026-10-21 | **收尾派单**：复审 PASS，仅剩 M-1（`AC-20` 未勾）；要求一次提交勾选 AC-20 + 入库第 2 轮审查记录 + 推送并等 PR #22 双检查 success，不重做任何 WP |
+| 006 | developer（执行位） | coordinator（主控位） | 2026-10-21 | **收尾确认**：M-1 已闭合（提交 `6ac1183`，AC-20 已勾、判据正文一字未改）；CI run `39552606374` 双必需检查 success；**未自行合并、未自判 PASS** |
 
-**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（收尾派单，仅 M-1）
+**最新 Handoff：** `handoffs/HANDOFF-006-implementer-to-coordinator.md`（收尾确认，M-1 闭合）
 **审查记录：** `handoffs/2026-10-21-posthoc-recheck.md`（执行位出具的 A3 事后复核，F-8 改名并更正作者）·
 `handoffs/2026-10-21-coordinator-review.md`（主控位第 1 轮，**CHANGES_REQUESTED**）·
 `handoffs/2026-10-21-coordinator-review-round2.md`（主控位第 2 轮，**PASS**，1 项合并前必修 M-1）
-**Next Action：** ⓐ **补 M-1**（已派单：`handoffs/HANDOFF-005-coordinator-to-implementer.md`）——
-勾选 `AC-20` 并加注「主控位第 2 轮复跑确认（CI `39544951231` + 本机全绿）」，同时把主控位留在工作区的
-第 2 轮审查记录一并入库；
-ⓑ 该收尾提交推送后等 CI 双作业 success（新 head 的 run 为准）；ⓒ 经**人类显式授权**由主控位执行 rebase-merge；
-ⓓ 合并后按 D13-C 选项 C 由下一个任务回填本档案 `Merge Record`（第九实例）。
+**Next Action：** ⓐ ~~补 M-1~~ ✅ **已闭合** —— 提交 `6ac1183`（AC-20 已勾、判据正文一字未改），
+CI run `39552606374`（`pull_request`，head `6ac1183`）双必需检查 `install-lint-build` / `audit` 均 **success**；
+ⓑ 待**人类显式授权**后，由主控位执行 rebase-merge（PR #22 现 `mergeable=MERGEABLE` / `mergeStateStatus=CLEAN`，未合并）；
+ⓒ 合并后按 D13-C 选项 C 由下一个任务回填本档案 `Merge Record`（第九实例），
+并在回填时以**合并时点**的 `git rev-list --count main..HEAD` 为准（当前 12，档案 `Changed Files` 锚定 `f4b49f5`=10，属 N-4 刻意取舍）。
 **执行位未自行合并、未自行判定 PASS、未代写主控位署名文件。**
 **前置阻断：** 已解除 —— knip / PyYAML / `audit_framework.py` / F8 / F9 均已在 CI 实跑成功
 （run `39537943459`、`39543828636`、`39544951231`，三批两作业均 success；PEP 668 未构成障碍）。
