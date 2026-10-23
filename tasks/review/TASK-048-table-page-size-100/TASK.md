@@ -7,7 +7,7 @@
 ## Meta
 
 ```yaml
-Task ID: TASK-048-table-page-size-100
+Task ID: TASK-048
 Title: 客户/订阅列表默认每页 100 行
 Workflow: feature
 Status: REVIEW
