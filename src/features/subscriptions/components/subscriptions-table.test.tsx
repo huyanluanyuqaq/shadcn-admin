@@ -167,19 +167,24 @@ function panelButton(label: string): HTMLButtonElement {
   return button
 }
 
+/** 列表相关 hook 的默认返回值（两个 describe 共用，避免重复） */
+function setupListMocks() {
+  useSubscriptionsQuery.mockReturnValue({
+    data: { items, total: items.length },
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+  })
+  useCustomerOptions.mockReturnValue(customers)
+  usePoolOptions.mockReturnValue({ data: { items: [] }, isPending: false })
+}
+
 describe('SubscriptionsTable 行展开', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useSubscriptionsQuery.mockReturnValue({
-      data: { items, total: items.length },
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-      isFetching: false,
-    })
-    useCustomerOptions.mockReturnValue(customers)
-    usePoolOptions.mockReturnValue({ data: { items: [] }, isPending: false })
+    setupListMocks()
   })
 
   it('每条主行都配一个面板行，初始全部收起且未选中', async () => {
@@ -266,5 +271,48 @@ describe('SubscriptionsTable 行展开', () => {
     expect(text).toContain('a@example.com')
     // 其他行的数据不应串入本面板
     expect(text).not.toContain('订阅-B')
+  })
+})
+
+/**
+ * TASK-048：订阅管理列表默认每页 100 行。
+ *
+ * 与客户管理列表断言口径一致：状态初值进入请求参数 + 分页组件展示与下拉选项。
+ */
+describe('SubscriptionsTable 默认每页行数', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupListMocks()
+  })
+
+  it('初始分页为 100 行，并进入列表请求参数', async () => {
+    await render(
+      <SubscriptionsProvider>
+        <SubscriptionsTable />
+      </SubscriptionsProvider>
+    )
+
+    expect(useSubscriptionsQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 100 })
+    )
+  })
+
+  it('分页组件展示 100，且下拉提供 100 选项', async () => {
+    await render(
+      <SubscriptionsProvider>
+        <SubscriptionsTable />
+      </SubscriptionsProvider>
+    )
+
+    const trigger = document.querySelector('[data-slot="select-trigger"]')
+    expect(trigger?.textContent).toBe('100')
+
+    await userEvent.click(trigger as HTMLElement)
+    await vi.waitFor(() => {
+      const options = Array.from(
+        document.querySelectorAll('[data-slot="select-item"]')
+      ).map((el) => el.textContent?.trim())
+      expect(options).toContain('100')
+    })
   })
 })
