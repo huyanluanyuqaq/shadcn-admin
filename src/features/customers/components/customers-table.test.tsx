@@ -131,22 +131,27 @@ function rangeText(cycleRange: string): Element | null {
   )
 }
 
+/** 列表相关 hook 的默认返回值（两个 describe 共用，避免重复） */
+function setupListMocks() {
+  useCustomersQuery.mockReturnValue({
+    data: { items, total: items.length },
+    isPending: false,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+  })
+  useSupplierOptions.mockReturnValue({
+    data: { items: [] },
+    isPending: false,
+  })
+  usePlanOptions.mockReturnValue({ data: { items: [] }, isPending: false })
+}
+
 describe('CustomersTable 行展开', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useCustomersQuery.mockReturnValue({
-      data: { items, total: items.length },
-      isPending: false,
-      isError: false,
-      error: null,
-      refetch: vi.fn(),
-      isFetching: false,
-    })
-    useSupplierOptions.mockReturnValue({
-      data: { items: [] },
-      isPending: false,
-    })
-    usePlanOptions.mockReturnValue({ data: { items: [] }, isPending: false })
+    setupListMocks()
   })
 
   it('每条主行都配一个面板行，初始全部收起且未选中', async () => {
@@ -233,5 +238,49 @@ describe('CustomersTable 行展开', () => {
     }
     // 面板里的周期文本可见
     expect(rangeText('2026.10.24 - 2026.11.23')).not.toBeNull()
+  })
+})
+
+/**
+ * TASK-048：客户管理列表默认每页 100 行。
+ *
+ * 两条断言分别覆盖「状态初值 → 请求参数」与「分页组件展示 + 下拉可选项」，
+ * 缺任一条都会漏掉「默认值改了但下拉里没有 100」这类错位。
+ */
+describe('CustomersTable 默认每页行数', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupListMocks()
+  })
+
+  it('初始分页为 100 行，并进入列表请求参数', async () => {
+    await render(
+      <CustomersProvider>
+        <CustomersTable />
+      </CustomersProvider>
+    )
+
+    expect(useCustomersQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ page: 1, pageSize: 100 })
+    )
+  })
+
+  it('分页组件展示 100，且下拉提供 100 选项', async () => {
+    await render(
+      <CustomersProvider>
+        <CustomersTable />
+      </CustomersProvider>
+    )
+
+    const trigger = document.querySelector('[data-slot="select-trigger"]')
+    expect(trigger?.textContent).toBe('100')
+
+    await userEvent.click(trigger as HTMLElement)
+    await vi.waitFor(() => {
+      const options = Array.from(
+        document.querySelectorAll('[data-slot="select-item"]')
+      ).map((el) => el.textContent?.trim())
+      expect(options).toContain('100')
+    })
   })
 })
