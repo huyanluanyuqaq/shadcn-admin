@@ -1,5 +1,5 @@
 import { Hono } from 'hono'
-import { eq, inArray, max } from 'drizzle-orm'
+import { and, eq, exists, inArray, like, max } from 'drizzle-orm'
 import { z } from 'zod'
 import {
   categoryInputSchema,
@@ -108,6 +108,21 @@ resourceRoutes.route(
     input: subscriptionInputSchema,
     name: '订阅',
     searchCols: [subscriptions.name, subscriptions.url],
+    // TASK-049：q 额外匹配「绑定客户的名称」——按客户检索是订阅管理的高频入口。
+    // subscriptions.customer_id 可空 ⇒ EXISTS 关联子查询（未绑定客户的订阅天然不命中），
+    // 与 searchCols 为 OR 关系；customers 表已在本模块导入。
+    searchCondition: (keyword) =>
+      exists(
+        db
+          .select({ id: customers.id })
+          .from(customers)
+          .where(
+            and(
+              eq(customers.id, subscriptions.customerId),
+              like(customers.name, `%${keyword}%`)
+            )
+          )
+      ),
     filterCols: {
       customerId: subscriptions.customerId,
       poolId: subscriptions.poolId,

@@ -27,6 +27,13 @@ export interface CrudOptions {
   /** 资源名，用于日志 module */
   name: string
   searchCols?: Col[]
+  /**
+   * 跨表关键字搜索条件（可选，TASK-049）。
+   * 与 searchCols 为 OR 关系；keyword 已 trim，调用方自行拼 like 模式串。
+   * 典型用途：订阅列表按绑定客户的名称搜索（customer_id 可空 ⇒ EXISTS 子查询）。
+   * 在列表处理器内按请求求值，不得在模块加载期构建。
+   */
+  searchCondition?: (keyword: string) => SQL | undefined
   /** 允许等值筛选的列，key 为查询参数名 */
   filterCols?: Record<string, Col>
   /** 允许排序的列，key 为 sortBy 取值 */
@@ -128,6 +135,7 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     input,
     name,
     searchCols = [],
+    searchCondition,
     filterCols = {},
     sortCols = { createdAt: table.createdAt, id: table.id },
     dateKeys = [],
@@ -149,8 +157,13 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
 
     const conditions: SQL[] = []
     const keyword = (query.q ?? '').trim()
-    if (keyword && searchCols.length > 0) {
-      conditions.push(or(...searchCols.map((col) => like(col, `%${keyword}%`))) as SQL)
+    if (keyword) {
+      // 本表 like 条件 + 跨表钩子条件，统一 OR 后作为**单一**条件进入 AND 链——
+      // 多个条件分别 push 会因 AND 优先级更高而退化成「必须同时命中」，语义错误。
+      const matches: SQL[] = searchCols.map((col) => like(col, `%${keyword}%`))
+      const extra = searchCondition?.(keyword)
+      if (extra) matches.push(extra)
+      if (matches.length > 0) conditions.push(or(...matches) as SQL)
     }
     for (const [key, col] of Object.entries(filterCols)) {
       const raw = query[key]

@@ -16,6 +16,7 @@
  * Telegram 渠道（mock Bot API：配置校验 / /start 自动绑定 / 事件派发 / 测试连接）、
  * 飞书渠道（mock 开放平台 API：配置校验 / 事件派发交互卡片 / 测试连接），
  * 通知归属行（TASK-028：已绑定客户→客户名、仅留邮箱→邮箱、否则该订阅暂未使用）。
+ * 订阅 q 搜索扩展（TASK-049：按绑定客户名称搜到订阅 / 不存在的关键字返回 0）。
  *
  * 快乐路径需要服务端指向内嵌 mock（否则只执行离线校验并跳过）：
  *   TELEGRAM_API_BASE=http://127.0.0.1:3998 FEISHU_API_BASE=http://127.0.0.1:4000 pnpm --filter server dev
@@ -524,6 +525,33 @@ async function main() {
         (s: any) => s.url === 'https://example.com/sub'
       ),
     byCustomer.json && { total: byCustomer.json.total }
+  )
+
+  // TASK-049：q 的匹配范围从「订阅名称 + 订阅地址」扩展为三字段 OR。
+  // 订阅名 smoke-sub-<suffix> 与地址 https://example.com/sub 均不含客户名片段，
+  // 因此命中只能来自「绑定客户的名称」——正向证明钩子确实生效。
+  const byCustomerName = await req(
+    `/api/subscriptions?q=${encodeURIComponent(`smoke-customer-${suffix}`)}`,
+    { token }
+  )
+  check(
+    '按客户名称关键字搜索订阅（q 匹配绑定客户名称）',
+    byCustomerName.status === 200 &&
+      Array.isArray(byCustomerName.json?.items) &&
+      byCustomerName.json.items.some((s: any) => s.id === subscription.json?.id),
+    byCustomerName.json && { total: byCustomerName.json.total }
+  )
+
+  // 负向用例：or(...) 条件一旦恒真，症状是「搜索永远返回全表」，
+  // 仅靠正向用例发现不了。「不存在的关键字 → total 0」是唯一廉价的反证。
+  const byNoMatch = await req(
+    `/api/subscriptions?q=${encodeURIComponent(`绝不存在的关键字-${suffix}`)}`,
+    { token }
+  )
+  check(
+    '按不存在的关键字搜索订阅返回 0 条（防止搜索条件恒真）',
+    byNoMatch.status === 200 && byNoMatch.json?.total === 0,
+    byNoMatch.json && { total: byNoMatch.json.total }
   )
 
   // 邮箱绑定：邮箱 ↔ 订阅（不是邮箱账号，无密码/提供商/客户字段）

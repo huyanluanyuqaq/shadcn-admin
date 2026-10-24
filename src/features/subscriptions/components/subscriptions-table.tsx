@@ -186,7 +186,7 @@ export function SubscriptionsTable() {
       <div className='flex items-center justify-between gap-2'>
         <DataTableToolbar
           table={table}
-          searchPlaceholder='搜索订阅名称或地址…'
+          searchPlaceholder='搜索订阅名称、地址或客户名称…'
           filters={[
             {
               columnId: 'syncStatus',

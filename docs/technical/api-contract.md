@@ -69,6 +69,8 @@
 
 **客户额外支持筛选：** `status`、`poolId`、`planId`
 **订阅额外支持筛选：** `customerId`、`syncStatus`、`enabled`
+**订阅 `q` 的匹配字段（TASK-049）：** 订阅名称、订阅地址、绑定客户的名称
+（三者 OR 模糊匹配；未绑定客户的订阅只参与前两者）。
 **邮箱绑定额外支持筛选：** `subscriptionId`、`poolId`、`status`
 
 ### 客户归档 `POST /api/customers/:id/archive`
