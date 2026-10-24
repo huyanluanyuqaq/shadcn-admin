@@ -316,3 +316,50 @@ describe('SubscriptionsTable 默认每页行数', () => {
     })
   })
 })
+
+/**
+ * TASK-049：搜索关键字覆盖「绑定客户的名称」。
+ *
+ * 断言口径（框架既有教训）：placeholder 一律读 `input` 的 **属性值**，
+ * 不用文本包含匹配——占位文案若与校验提示同文，文本断言会恒真。
+ * 关键字经 300ms 防抖后才进入请求参数，故用 `vi.waitFor`
+ * （默认超时 1000ms > 300ms）。
+ */
+describe('SubscriptionsTable 关键字搜索', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    setupListMocks()
+  })
+
+  it('搜索框 placeholder 体现「客户名称」', async () => {
+    await render(
+      <SubscriptionsProvider>
+        <SubscriptionsTable />
+      </SubscriptionsProvider>
+    )
+
+    const input = document.querySelector('input[placeholder]')
+    expect(input).not.toBeNull()
+    expect(input?.getAttribute('placeholder')).toBe(
+      '搜索订阅名称、地址或客户名称…'
+    )
+  })
+
+  it('输入关键字防抖后进入 q 参数', async () => {
+    await render(
+      <SubscriptionsProvider>
+        <SubscriptionsTable />
+      </SubscriptionsProvider>
+    )
+
+    const input = document.querySelector<HTMLInputElement>('input[placeholder]')
+    expect(input).not.toBeNull()
+    await userEvent.type(input as HTMLInputElement, '张三')
+
+    await vi.waitFor(() => {
+      expect(useSubscriptionsQuery).toHaveBeenCalledWith(
+        expect.objectContaining({ q: '张三' })
+      )
+    })
+  })
+})
