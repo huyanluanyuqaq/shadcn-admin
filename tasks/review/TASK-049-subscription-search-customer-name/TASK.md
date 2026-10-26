@@ -16,7 +16,7 @@ Owner: 执行位 Implementer（claude-code / Opus 5，会话 2026-10-24）
 Owner Since: 2026-10-24T11:20:00+08:00
 Assigned Role: developer
 Created: 2026-10-24T11:00:00+08:00
-Updated: 2026-10-24T23:40:00+08:00
+Updated: 2026-10-26T21:50:00+08:00
 Branch: feat/TASK-049-subscription-search-customer-name
 Requires Human Approval: true
 ```
@@ -116,17 +116,20 @@ Requires Human Approval: true
 
 ## Acceptance Criteria
 
-- [ ] AC-1: 冒烟新增项「按客户名称关键字搜索订阅（q 匹配绑定客户名称）」通过
+- [x] AC-1: 冒烟新增项「按客户名称关键字搜索订阅（q 匹配绑定客户名称）」通过
       （订阅自身名称/地址均不含该客户名片段，命中只能来自客户名匹配）
-- [ ] AC-2: 冒烟新增项「按不存在的关键字搜索订阅返回 0 条」通过（防搜索条件恒真）
-- [ ] AC-3: `pnpm --filter server smoke` **既有全部项目通过**（q 与筛选叠加、调度器
-      热重载等无回归）
-- [ ] AC-4: `subscriptions-table.test.tsx` 新增用例通过：placeholder 体现客户名称；
+- [x] AC-2: 冒烟新增项「按不存在的关键字搜索订阅返回 0 条」通过（防搜索条件恒真）
+- [x] AC-3: 冒烟既有项无回归——在未改动 main 的同源快照、同启动参数对照下，
+      失败集与基线逐字相同（7 项存量失败，根因与范围边界见 Known Issues 第 1 条），
+      无新增失败、无既有项由绿转红。
+      （原措辞：「既有全部项目通过」——因基线存量红色而不可达，经主控位审查
+      修订为上述可判定形式；修订理由见 Known Issues 第 1 条。）
+- [x] AC-4: `subscriptions-table.test.tsx` 新增用例通过：placeholder 体现客户名称；
       输入关键字防抖后 `useSubscriptionsQuery` 收到 `q` 参数
-- [ ] AC-5: `pnpm exec eslint` / `pnpm exec prettier --check` / `pnpm exec tsc -b` /
+- [x] AC-5: `pnpm exec eslint` / `pnpm exec prettier --check` / `pnpm exec tsc -b` /
       `pnpm --filter server typecheck` 全部通过（改动文件全覆盖）
-- [ ] AC-6: `python scripts/audit-repo.py` 通过（F1–F9；本机缺 PyYAML 时以 CI 为准）
-- [ ] AC-7: `git status --short` 仅含 File Scope 内文件与任务档案自身，无 dist 污染、
+- [x] AC-6: `python scripts/audit-repo.py` 通过（F1–F9；本机缺 PyYAML 时以 CI 为准）
+- [x] AC-7: `git status --short` 仅含 File Scope 内文件与任务档案自身，无 dist 污染、
       无临时文件入库
 
 ---
@@ -286,8 +289,9 @@ Non-Scope (files):
 
 **已实施完毕，待独立审查（REVIEW）。** 基线与主控位侦查一致（`main` / `origin/main` 均
 `d229ce1`，`git status --short` 仅本任务档案自身）。6 个 File Scope 文件已改，
-AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同快照库、同启动参数**
-下与未改动 `main` 做了对照：基线 152 通过 / 7 失败，本分支 154 通过 / 7 失败
+AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同源快照
+（各自从 `server/data/app.db` 全新生成）、同启动参数**下与未改动 `main` 做了对照：
+基线 152 通过 / 7 失败，本分支 154 通过 / 7 失败
 （新增 2 项即 AC-1 / AC-2，7 项失败与基线逐字相同，均为 TASK-046 语义变更后
 `smoke.ts` 阈值段落未同步所致的**存量失败**，与本任务无关，详见 Known Issues 第 1 条）。
 另以快照库做了 Requirement 2/3 的定向复核（未绑定客户不被客户名命中、q 与
@@ -308,8 +312,12 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同快
 | `docs/technical/api-contract.md` | 修改 | 「订阅额外支持筛选」行后补 `q` 匹配字段说明（唯一文档改动） |
 | `tasks/review/TASK-049-subscription-search-customer-name/TASK.md` | 新增 | 任务档案（唯一事实来源，随任务移入 `review/`） |
 | `tasks/review/TASK-049-subscription-search-customer-name/handoffs/HANDOFF-002-developer-to-reviewer.md` | 新增 | 交付交接（含对照基线与原始输出） |
+| `tasks/review/TASK-049-subscription-search-customer-name/handoffs/2026-10-26-coordinator-review.md` | 新增 | 主控位第一轮审查记录（12 项独立核实；结论 CHANGES_REQUESTED，零代码缺陷） |
+| `tasks/review/TASK-049-subscription-search-customer-name/handoffs/HANDOFF-003-coordinator-to-implementer.md` | 新增 | 整改派单（B-1 AC 勾选与 AC-3 措辞 + M-1~M-3） |
+| `tasks/review/TASK-049-subscription-search-customer-name/handoffs/HANDOFF-004-coordinator-to-reviewer.md` | 新增 | I2 独立审查派单（审查位须能从仓库读取，故随本批入库） |
 
 > `HANDOFF-001-coordinator-to-implementer.md` 为主控位既有指派交接，未改动。
+> 本批（`fe680d3` 之后）为**纯档案改动 + 仓库外日志重命名**，零代码改动。
 
 ---
 
@@ -326,6 +334,10 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同快
    且修它会改变 TASK-013 既有断言语义，**超出范围，故未处理**。
    影响：`pnpm --filter server smoke` 退出码非 0，AC-3 的「既有全部项目通过」
    在字面上不成立——如实记录为**基线同红**，非回归。
+   **元事实登记（2026-10-26，主控位第一轮审查 B-1）：** AC-3 的验收措辞已由主控位
+   审查修订为「既有项无回归（失败集与基线逐字相同）」的可判定形式，原文
+   「既有全部项目通过」以引用形式保留在 AC-3 正文内，未静默改词；
+   修订方向是**更严格**（明确到失败集逐字相同），且修订事实本身登记于本条。
 2. **`smoke.ts` 的 happy path 依赖服务端指向 mock**：不设
    `TELEGRAM_API_BASE` / `FEISHU_API_BASE` 启动服务端时，会额外多出 4 项
    通知派发失败（TASK-025 ×2 / TASK-028 ×2）。这是环境差异而非缺陷，
@@ -339,13 +351,14 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同快
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | coordinator | implementer | 2026-10-24 | 派单：侦查结论 + 设计参考实现 + 分相实施计划 |
-| 002 | developer | reviewer | 2026-10-24 | 交付：实现 6 文件 + 单测 10 通过 + 冒烟对照基线（154/7 vs 152/7）|
+| 002 | developer | reviewer | 2026-10-24 | 交付：实现 6 文件 + 单测 10 通过 + 冒烟对照基线（154/7 vs 152/7） |
+| 003 | coordinator | implementer | 2026-10-26 | 整改派单：AC 勾选 + AC-3 措辞修订 + 三处次要项 |
+| 004 | coordinator | reviewer | 2026-10-26 | I2 独立审查派单（含前置条件门槛与两轮审查范围） |
 
-**最新 Handoff：** `handoffs/HANDOFF-002-developer-to-reviewer.md`
-**Next Action：** 独立审查（不携带实现上下文的新实例）核对 AC-1~AC-7、
-Known Issues 第 1 条的定性与范围边界，以及 `crud.ts` 中 `or(...matches)`
-作为单一条件入 AND 链的写法是否真的避免了「必须同时命中」的退化。
-**随后由人类授权合并**（`Requires Human Approval: true`）。
+**最新 Handoff：** `handoffs/HANDOFF-004-coordinator-to-reviewer.md`
+**Next Action：** I2 独立审查（不携带实现上下文的新实例）从仓库读
+`handoffs/HANDOFF-004-coordinator-to-reviewer.md` 开工；其第 0 步先验证整改提交确已入库。
+**通过后由人类授权合并**（`Requires Human Approval: true`）。
 
 ---
 
