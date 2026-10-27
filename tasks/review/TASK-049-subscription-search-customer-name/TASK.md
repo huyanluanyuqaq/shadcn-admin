@@ -16,7 +16,7 @@ Owner: 执行位 Implementer（claude-code / Opus 5，会话 2026-10-24）
 Owner Since: 2026-10-24T11:20:00+08:00
 Assigned Role: developer
 Created: 2026-10-24T11:00:00+08:00
-Updated: 2026-10-26T21:50:00+08:00
+Updated: 2026-10-27T14:00:00+08:00
 Branch: feat/TASK-049-subscription-search-customer-name
 Requires Human Approval: true
 ```
@@ -287,7 +287,8 @@ Non-Scope (files):
 
 ## Current State
 
-**已实施完毕，待独立审查（REVIEW）。** 基线与主控位侦查一致（`main` / `origin/main` 均
+**已实施完毕；I2 独立审查已 PASS（记录 `handoffs/2026-10-27-review.md`，
+2026-10-27，零阻断项），待人类授权合并（REVIEW）。** 基线与主控位侦查一致（`main` / `origin/main` 均
 `d229ce1`，`git status --short` 仅本任务档案自身）。6 个 File Scope 文件已改，
 AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同源快照
 （各自从 `server/data/app.db` 全新生成）、同启动参数**下与未改动 `main` 做了对照：
@@ -314,6 +315,7 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同源
 | `tasks/review/TASK-049-subscription-search-customer-name/handoffs/HANDOFF-002-developer-to-reviewer.md` | 新增 | 交付交接（含对照基线与原始输出） |
 | `tasks/review/TASK-049-subscription-search-customer-name/handoffs/2026-10-26-coordinator-review.md` | 新增 | 主控位第一轮审查记录（12 项独立核实；结论 CHANGES_REQUESTED，零代码缺陷） |
 | `tasks/review/TASK-049-subscription-search-customer-name/handoffs/HANDOFF-003-coordinator-to-implementer.md` | 新增 | 整改派单（B-1 AC 勾选与 AC-3 措辞 + M-1~M-3） |
+| `tasks/review/TASK-049-subscription-search-customer-name/handoffs/2026-10-27-review.md` | 新增 | I2 独立审查记录（结论 PASS，1 次要项 M-4）——**原样入库，内容未改动** |
 | `tasks/review/TASK-049-subscription-search-customer-name/handoffs/HANDOFF-004-coordinator-to-reviewer.md` | 新增 | I2 独立审查派单（审查位须能从仓库读取，故随本批入库） |
 
 > `HANDOFF-001-coordinator-to-implementer.md` 为主控位既有指派交接，未改动。
@@ -343,6 +345,11 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同源
    通知派发失败（TASK-025 ×2 / TASK-028 ×2）。这是环境差异而非缺陷，
    本任务的对照运行已按文件头说明正确设置。
 3. 无本任务自身引入的未解决问题。
+4. **M-4（2026-10-27，I2 审查次要项，已更正）**：主控位审查记录
+   `2026-10-26-coordinator-review.md` 第 10 项的快照 id 跨度字面量
+   （原「订阅 80–90 / 客户 86–99」）失准，实测新增存活 id 为订阅 86–90 /
+   客户 95–99（`sqlite_sequence` 高水位 97 / 102）；该记录已追加字面量更正注记
+   （原文以引用保留），结论（全新快照）经双重确认不受影响。I2 PASS 判定不受影响。
 
 ---
 
@@ -354,11 +361,11 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同源
 | 002 | developer | reviewer | 2026-10-24 | 交付：实现 6 文件 + 单测 10 通过 + 冒烟对照基线（154/7 vs 152/7） |
 | 003 | coordinator | implementer | 2026-10-26 | 整改派单：AC 勾选 + AC-3 措辞修订 + 三处次要项 |
 | 004 | coordinator | reviewer | 2026-10-26 | I2 独立审查派单（含前置条件门槛与两轮审查范围） |
+| 005 | coordinator | implementer | 2026-10-27 | I2 记录合批入库派单：PASS 后的搬运批次 |
 
-**最新 Handoff：** `handoffs/HANDOFF-004-coordinator-to-reviewer.md`
-**Next Action：** I2 独立审查（不携带实现上下文的新实例）从仓库读
-`handoffs/HANDOFF-004-coordinator-to-reviewer.md` 开工；其第 0 步先验证整改提交确已入库。
-**通过后由人类授权合并**（`Requires Human Approval: true`）。
+**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`
+**Next Action：** 人类授权合并（`Requires Human Approval: true`）后由主控位执行
+`gh pr merge 24 --rebase`；`Merge Record` 由下一个任务按 D13-C 回填。
 
 ---
 
