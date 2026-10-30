@@ -1,5 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { BackupFile, BackupPolicy } from '@shared/index'
+import type {
+  BackupFile,
+  BackupImportResult,
+  BackupPolicy,
+  BackupRestorePlan,
+} from '@shared/index'
 import { api, tokenStore } from '@/lib/api'
 
 /** 备份列表查询参数：无（全量列表，文件数受保留份数约束） */
@@ -75,4 +80,54 @@ export async function downloadBackup(filename: string): Promise<void> {
   link.download = filename
   link.click()
   URL.revokeObjectURL(url)
+}
+
+/** 导入体积上限：与服务端 `IMPORT_MAX_BYTES` 保持一致（64 MiB） */
+export const BACKUP_IMPORT_MAX_BYTES = 64 * 1024 * 1024
+
+/**
+ * 上传备份文件入列（TASK-050）。
+ *
+ * 同样走原生 fetch：`api.post` 恒设 `Content-Type: application/json`
+ * （见 src/lib/api.ts），会把二进制破坏掉。服务端按 `application/octet-stream`
+ * 收字节流，`X-Backup-Filename` 仅用于审计溯源，不参与落盘命名。
+ */
+export async function uploadBackup(file: File): Promise<BackupImportResult> {
+  const baseUrl = import.meta.env.VITE_API_BASE_URL ?? '/api'
+  const token = tokenStore.get()
+  const res = await fetch(`${baseUrl}/backups/import`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/octet-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: file,
+  })
+  const text = await res.text()
+  let payload: BackupImportResult & { message?: string }
+  try {
+    payload = text ? JSON.parse(text) : {}
+  } catch {
+    payload = {} as BackupImportResult & { message?: string }
+  }
+  if (!res.ok) {
+    throw new Error(payload?.message ?? `导入失败（HTTP ${res.status}）`)
+  }
+  return payload
+}
+
+/**
+ * 排程一次备份恢复（TASK-050）。
+ *
+ * 成功后**不** invalidate 列表：恢复走「标记 + 重启」，进程退出前这份列表仍然有效，
+ * 重启后页面会被整体刷新（见 backups-table.tsx 的健康轮询）。
+ */
+export function useRestoreBackup() {
+  return useMutation({
+    mutationFn: (filename: string) =>
+      api.post<BackupRestorePlan>(
+        `/backups/${encodeURIComponent(filename)}/restore`,
+        { confirm: filename }
+      ),
+  })
 }
