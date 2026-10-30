@@ -7,7 +7,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { dirname, join, sep } from 'node:path'
 import Database from 'better-sqlite3'
 import { assertImportableBackup } from '../services/backup-inspect.js'
 import { buildPreRestoreFilename, isBackupFilename } from '../services/backup-naming.js'
@@ -72,6 +72,11 @@ function readRestoreMarker(dbPath: string): RestoreMarker | null {
   try {
     const parsed = JSON.parse(readFileSync(path, 'utf8')) as Partial<RestoreMarker>
     if (typeof parsed.filename !== 'string' || !isBackupFilename(parsed.filename)) {
+      // 文件名缺失或不合法：同样是「无法应用的标记」，与 JSON 损坏同一处置。
+      // 文件**保留**（不删），供人工检查后决定是修还是删。
+      console.error(
+        `[restore] 恢复标记存在但 filename 缺失或不合法，已忽略本次恢复（文件保留供人工检查）：${path}`
+      )
       return null
     }
     return {
@@ -79,8 +84,15 @@ function readRestoreMarker(dbPath: string): RestoreMarker | null {
       requestedAt: typeof parsed.requestedAt === 'string' ? parsed.requestedAt : '',
       requestedBy: typeof parsed.requestedBy === 'string' ? parsed.requestedBy : '',
     }
-  } catch {
-    // 标记损坏：交由调用方按「无标记」处理前先暴露，这里返回 null 但保留文件
+  } catch (err) {
+    // 标记损坏（JSON 解析失败 / 读取失败）：按「无标记」处理，但**必须留痕**——
+    // 否则用户点了恢复、进程重启后什么都没发生，且无任何痕迹可查（整改 M-3）。
+    // 文件刻意保留，供人工检查后决定是修还是删。
+    console.error(
+      `[restore] 恢复标记无法解析，已忽略本次恢复（文件保留供人工检查）：${path} → ${
+        err instanceof Error ? err.message : String(err)
+      }`
+    )
     return null
   }
 }
@@ -209,7 +221,10 @@ function resolveBackupFile(dbPath: string, filename: string): string | null {
   if (!isBackupFilename(filename)) return null
   const dir = resolveBackupDir(dbPath)
   const full = join(dir, filename)
-  if (!full.startsWith(dir)) return null
+  // 与 services/backup.ts:129 的 dir + sep 对齐（整改 L-2）：少了分隔符时
+  // `/x/backups` 会把 `/x/backups-evil/…` 也判为「在目录内」。白名单正则已使
+  // 路径穿越不可达，此处属纵深防御，仍与既有口径保持一致。
+  if (!full.startsWith(dir + sep)) return null
   return existsSync(full) ? full : null
 }
 

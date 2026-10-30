@@ -78,6 +78,11 @@ curl -X DELETE http://localhost:3000/api/backups/app-20261011-030000-123.db \
    删 `app.db-wal` / `app.db-shm` → 删标记。结果写 `logs`（applied → `warn`，
    failed → `error`）。任一步失败则回滚已做的 rename、**保留标记**、返回 failed。
 
+**取消待恢复任务**：排程（202）后若反悔，删除 `<数据库所在目录>/.restore-pending.json`
+即可，**无需重启服务**——该标记只在进程启动时被读取，运行中的服务不会理会它。
+（本任务不提供取消端点；目标文件缺失时每次启动会写一条 `error` 级 `restore` 日志，
+按本条清掉标记即可消除噪声。）
+
 **为什么是「标记 + 重启后应用」而不是热替换**：数据库连接在模块加载期建立，
 drizzle 实例与 `services/logger.ts` 等全部绑定该单例，运行期 close 再 open 无法安全
 替换引用。重启式还顺带保证「必须删 `-wal`/`-shm`」这条硬性要求（旧 WAL 与新主库
