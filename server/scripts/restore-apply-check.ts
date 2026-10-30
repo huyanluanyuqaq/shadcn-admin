@@ -34,6 +34,7 @@ import {
   restoreMarkerPath,
   writeRestoreMarker,
 } from '../src/db/restore.js'
+import { PRE_RESTORE_PREFIX } from '../src/services/backup-naming.js'
 
 /** 场景根目录：E:/AiData 优先，否则系统临时目录（Task Rules 第 1 条） */
 const ROOT = process.env.AI_DATA_DIR ?? 'E:/AiData'
@@ -203,7 +204,7 @@ async function main() {
     )
     check(
       'B5 pre-restore-*.db 已生成且内容为恢复前的现库',
-      preRestoreName.startsWith('pre-restore-') &&
+      preRestoreName.startsWith(PRE_RESTORE_PREFIX) &&
         existsSync(join(DB_DIR, preRestoreName)) &&
         countRows(join(DB_DIR, preRestoreName), 'customers') ===
           beforeRestore.customers,
