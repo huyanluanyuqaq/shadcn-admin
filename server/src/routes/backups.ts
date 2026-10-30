@@ -1,4 +1,4 @@
-import { mkdirSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, statSync } from 'node:fs'
 import { readFile, rename, unlink, writeFile } from 'node:fs/promises'
 import { createHash } from 'node:crypto'
 import { Hono } from 'hono'
@@ -145,6 +145,16 @@ backupRoutes.post('/import', async (c) => {
   const filename = buildBackupFilename('imp', new Date())
   const finalPath = `${dir}/${filename}`
   const partPath = `${finalPath}.part`
+
+  // 与 runBackup() 的 existsSync 保护对齐（整改 L-1）：毫秒级时间戳理论上可能碰撞，
+  // 没有这道检查时 rename 会**静默覆盖**已存在的那一份。
+  if (existsSync(finalPath)) {
+    const message = '备份文件名已存在，请稍后重试'
+    void writeLog('error', 'backup', `导入备份失败：${message}（${filename}）`, {
+      origin,
+    })
+    return c.json({ error: 'Conflict', message }, 409)
+  }
 
   try {
     await writeFile(partPath, bytes)
