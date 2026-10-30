@@ -119,8 +119,14 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
   const preRestorePath = join(dbDir, preRestoreName)
   const walPath = `${dbPath}-wal`
   const shmPath = `${dbPath}-shm`
-  /** 现库是否已被 rename 走（回滚时需要据此决定是否移回） */
-  let currentRenamed = false
+  /**
+   * **原库是否已被 rename 走**（回滚时据此判定 `dbPath` 的身份）。
+   *
+   * 关键：不能用「`dbPath` 是否存在」当删除判据。若 ① checkpoint 或 ② rename 失败，
+   * `dbPath` 仍是运维唯一的现库，此时删它 = 数据销毁且无从回退。
+   * 只有本标记为 true 时，`dbPath` 才是本次尝试复制出来的半成品，才允许删除。
+   */
+  let liveRenamed = false
 
   try {
     // ① 现库先做一次 WAL 归档，确保未落盘的写入进入主库文件后再被 rename 走。
@@ -132,7 +138,7 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
     // ② 现库改名留作回退副本（pre-restore-* 刻意不进白名单，不被保留策略删除）
     if (existsSync(dbPath)) {
       renameSync(dbPath, preRestorePath)
-      currentRenamed = true
+      liveRenamed = true
     }
 
     // ③ 复制备份为现库（保留备份原件：恢复后可再次从同一备份恢复）
@@ -149,10 +155,12 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
 
     return { status: 'applied', filename: marker.filename, preRestoreCopy: preRestoreName }
   } catch (err) {
-    // 回滚：清掉已复制的 app.db，把 rename 走的原库移回，**保留标记**以便重试/诊断
+    // 回滚：把 rename 走的原库移回，**保留标记**以便重试/诊断。
+    // 删除 `dbPath` 的唯一合法前提是「原库已改名」——否则它就是运维唯一的现库，
+    // 任何情况下都不得删除（B-1：此处曾以 existsSync 为判据，在 ①/② 失败时会删掉现库）。
     try {
-      if (existsSync(dbPath)) rmSync(dbPath, { force: true })
-      if (currentRenamed && existsSync(preRestorePath)) {
+      if (liveRenamed && existsSync(dbPath)) rmSync(dbPath, { force: true })
+      if (liveRenamed && existsSync(preRestorePath)) {
         renameSync(preRestorePath, dbPath)
       }
     } catch (rollbackErr) {

@@ -13,7 +13,9 @@
  *   A. 无标记 → `applyPendingRestore` 返回 null 且**零文件副作用**；
  *   B. 有标记 → app.db 被替换、`-wal`/`-shm` 已删除、`pre-restore-*.db` 已生成、标记已删除；
  *   C. 数据层取证 → 恢复后三处取值与备份文件内逐字相等（证明落的是备份内容）；
- *   D. 回滚路径 → 备份文件损坏时返回 failed、保留标记、原库未被破坏。
+ *   D. 回滚路径 → 备份文件损坏时返回 failed、保留标记、原库未被破坏；
+ *   E. 回滚护栏（B-1）→ 现库不可 checkpoint 时返回 failed、**现库文件仍在**、
+ *      字节内容逐字未变、标记保留。
  *
  * 退出码 0 = 全部通过。
  */
@@ -24,6 +26,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs'
@@ -275,6 +278,47 @@ async function main() {
     check(
       'D5 现库仍可读且数据未变',
       countRows(DB_PATH, 'customers') === SENTINEL.customers
+    )
+  }
+
+  // ---------- E. 回滚护栏：现库不可 checkpoint 时不得删除现库（B-1 回归用例）----------
+  //
+  // **为什么必须有这一段**：D 场景走的是「备份文件不可用」，在动任何文件之前就返回，
+  // 完全没有覆盖 catch 里的回滚分支。而 catch 分支原先以「`dbPath` 是否存在」为删除判据，
+  // 在 ① checkpoint 失败（现库损坏 / 被占用 / 磁盘错误）时 `dbPath` 恰是**运维唯一的现库**，
+  // 无条件 rmSync 会把它删掉且不会从 pre-restore 移回 ⇒ 下次启动建空库、全量数据丢失。
+  //
+  // 构造：把现库写成 4096 字节 0x5A（`new Database` 能打开，但
+  // `pragma('wal_checkpoint(TRUNCATE)')` 抛 SQLITE_NOTADB ⇒ 失败点确在 ①）。
+  {
+    // 先清掉 D 段留下的坏备份标记，避免它抢先返回
+    rmSync(restoreMarkerPath(DB_PATH), { force: true })
+
+    const garbage = Buffer.alloc(4096, 0x5a)
+    writeFileSync(DB_PATH, garbage)
+    const shaBefore = sha256(DB_PATH)
+
+    writeRestoreMarker(DB_PATH, 'imp-20261031-120000-000.db', 'check-script')
+    const outcome = applyPendingRestore(DB_PATH)
+
+    check(
+      'E1 现库不可 checkpoint 时返回 failed',
+      outcome?.status === 'failed',
+      outcome
+    )
+    check(
+      'E2 现库文件仍存在（未被删除）',
+      existsSync(DB_PATH),
+      { exists: existsSync(DB_PATH) }
+    )
+    check(
+      'E3 现库字节内容逐字未变（sha256 与写入前相同）',
+      existsSync(DB_PATH) && sha256(DB_PATH) === shaBefore,
+      { before: shaBefore, after: existsSync(DB_PATH) ? sha256(DB_PATH) : null }
+    )
+    check(
+      'E4 保留标记（失败不清标记，供人工诊断/重试）',
+      existsSync(restoreMarkerPath(DB_PATH))
     )
   }
 
