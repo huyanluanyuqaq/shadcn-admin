@@ -23,6 +23,7 @@ import { syncRoutes } from './routes/sync.js'
 import { telegramRoutes } from './routes/telegram.js'
 import { webhookRoutes } from './routes/webhooks.js'
 import { seedAdmin } from './db/seed.js'
+import { restoreOutcome } from './db/index.js'
 import {
   loadFromDatabase,
   startBackupJob,
@@ -95,6 +96,27 @@ serve({ fetch: app.fetch, port: config.port }, (info) => {
   console.log(`[server] listening on http://localhost:${info.port}`)
   console.log(`[server] database: ${config.databaseUrl}`)
 })
+
+// 恢复结果落日志（TASK-050）。db/index.ts 禁止 import logger（成环），故在此消费。
+if (restoreOutcome) {
+  if (restoreOutcome.status === 'applied') {
+    void writeLog(
+      'warn',
+      'restore',
+      `已应用备份恢复：${restoreOutcome.filename}（回退副本 ${restoreOutcome.preRestoreCopy}）`
+    )
+    console.log(
+      `[restore] 已应用备份 ${restoreOutcome.filename}，原库留作 ${restoreOutcome.preRestoreCopy}`
+    )
+  } else {
+    void writeLog(
+      'error',
+      'restore',
+      `备份恢复失败：${restoreOutcome.filename}（${restoreOutcome.error}）`
+    )
+    console.error(`[restore] 备份恢复失败：${restoreOutcome.filename} → ${restoreOutcome.error}`)
+  }
+}
 
 void writeLog('info', 'system', '服务启动')
 

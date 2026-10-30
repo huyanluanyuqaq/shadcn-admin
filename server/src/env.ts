@@ -76,6 +76,15 @@ export const config = {
   backupKeep: Number(process.env.BACKUP_KEEP ?? 7),
   /** 备份目录；默认 <数据库所在目录>/backups（TASK-015） */
   backupDir: process.env.BACKUP_DIR?.trim() || undefined,
+  /**
+   * 恢复排程后是否自动退出进程以触发重启（TASK-050）。
+   *
+   * `true`（默认）：写标记、返回 202、随后 `process.exit(0)` —— 容器
+   * `restart: unless-stopped` 会立即拉起，启动期应用恢复。
+   * `false`：只写标记不退出，供冒烟测试在不自杀的前提下断言排程行为；
+   * 本地 `tsx watch` 同样不会自启（见 docs/operations/backup-restore.md）。
+   */
+  restoreAutoExit: process.env.RESTORE_AUTO_EXIT !== 'false',
 }
 
 /**

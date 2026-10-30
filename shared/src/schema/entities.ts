@@ -317,8 +317,36 @@ export const backupPolicySchema = z.object({
   keep: z.number().int(),
   /** 每日备份 cron 表达式 */
   cron: z.string(),
+  /**
+   * 恢复排程后本环境是否会自动退出进程以触发重启（TASK-050，env `RESTORE_AUTO_EXIT`）。
+   * `true` = 会自重启（容器 `restart: unless-stopped`）；
+   * `false` = 仅留标记，需人工重启 —— UI 据此提示，冒烟据此避免服务端自杀。
+   */
+  restoreAutoExit: z.boolean(),
 })
 export type BackupPolicy = z.infer<typeof backupPolicySchema>
+
+/** 备份导入结果（TASK-050） */
+export const backupImportResultSchema = z.object({
+  /** 落盘后的备份文件（`imp-` 前缀） */
+  item: backupFileSchema,
+  /** 上传方声明的原始文件名（`X-Backup-Filename`），仅用于审计溯源 */
+  origin: z.string().nullable(),
+  /** 落盘内容的 sha256（64 位十六进制） */
+  sha256: z.string(),
+})
+export type BackupImportResult = z.infer<typeof backupImportResultSchema>
+
+/** 备份恢复排程结果（TASK-050） */
+export const backupRestorePlanSchema = z.object({
+  /** 是否已成功排程（恒 true；失败走 4xx） */
+  scheduled: z.boolean(),
+  /** 恢复目标备份文件名 */
+  filename: z.string(),
+  /** 进程是否即将退出以触发重启 */
+  restartExpected: z.boolean(),
+})
+export type BackupRestorePlan = z.infer<typeof backupRestorePlanSchema>
 
 // ---------- 认证 ----------
 
