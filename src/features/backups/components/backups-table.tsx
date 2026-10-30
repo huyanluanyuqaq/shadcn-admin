@@ -213,7 +213,9 @@ export function BackupsTable() {
         }}
       />
 
-      {data?.policy?.restoreAutoExit === true && (
+      {/* restoreAutoExit = true 表示「排程后会退出进程以触发重启」；只有为 false
+          时才需要提示「不会自动重启、需手动重启」（整改 M-1，条件原先写反了）。 */}
+      {data?.policy?.restoreAutoExit === false && (
         <Alert>
           <AlertTitle>本环境恢复后不会自动重启</AlertTitle>
           <AlertDescription>
