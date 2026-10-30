@@ -17,13 +17,24 @@
  * 飞书渠道（mock 开放平台 API：配置校验 / 事件派发交互卡片 / 测试连接），
  * 通知归属行（TASK-028：已绑定客户→客户名、仅留邮箱→邮箱、否则该订阅暂未使用）。
  * 订阅 q 搜索扩展（TASK-049：按绑定客户名称搜到订阅 / 不存在的关键字返回 0）。
+ * 备份导入与恢复（TASK-050：合法导入 / 三类失败 / 缺表库拒绝 / 恢复前置校验 /
+ * 恢复排程与标记 / 导入与下载审计）。
  *
  * 快乐路径需要服务端指向内嵌 mock（否则只执行离线校验并跳过）：
  *   TELEGRAM_API_BASE=http://127.0.0.1:3998 FEISHU_API_BASE=http://127.0.0.1:4000 pnpm --filter server dev
  * 退出码非 0 表示存在失败项。
+ *
+ * **TASK-050 第 19 段的两个必需环境变量**（否则该段会主动中止）：
+ *   RESTORE_AUTO_EXIT=false —— 否则 19.16 的合法恢复会触发 `process.exit(0)`
+ *      把冒烟服务端自己杀掉，后续用例全部 ECONNREFUSED；
+ *   SMOKE_DB_DIR=<服务端数据库所在目录> —— 恢复标记 `.restore-pending.json` 写在
+ *      数据库同目录，19.19 需要删掉它，否则残留会被下一次服务启动当成待恢复任务应用。
  */
 
 import { createServer, type Server } from 'node:http'
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'node:fs'
+import { join } from 'node:path'
+import Database from 'better-sqlite3'
 
 const BASE = process.env.SMOKE_BASE_URL ?? 'http://localhost:3000'
 const USERNAME = process.env.SMOKE_USERNAME ?? 'admin'
@@ -74,7 +85,54 @@ async function req(
   return { status: res.status, json, headers: res.headers }
 }
 
+/**
+ * 原始字节流请求（TASK-050 导入端点用）。
+ *
+ * `req` 恒设 `Content-Type: application/json` 并 JSON 序列化 body，会把二进制破坏；
+ * 备份导入要求 `application/octet-stream` + 原始字节，故单独走 native fetch。
+ */
+async function reqRaw(
+  path: string,
+  init: {
+    body?: BodyInit
+    contentType?: string
+    token?: string
+    headers?: Record<string, string>
+  } = {}
+): Promise<{ status: number; json: any; headers: Headers }> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      ...(init.contentType ? { 'Content-Type': init.contentType } : {}),
+      ...(init.token ? { Authorization: `Bearer ${init.token}` } : {}),
+      ...(init.headers ?? {}),
+    },
+    ...(init.body === undefined ? {} : { body: init.body }),
+  })
+  const text = await res.text()
+  let json: any
+  try {
+    json = text ? JSON.parse(text) : null
+  } catch {
+    json = text
+  }
+  return { status: res.status, json, headers: res.headers }
+}
+
 const suffix = Date.now()
+
+/**
+ * 冒烟服务端数据库所在目录（TASK-050 第 19 段用）。
+ *
+ * 恢复排程会把 `.restore-pending.json` 写到**数据库同目录**，第 19 段断言其存在后
+ * 必须删掉它，否则标记会残留在磁盘上、被下一次服务启动当成待恢复任务应用。
+ * 冒烟服务端指向快照库时（见 Verification Plan），把该目录一并告知本脚本。
+ */
+const SMOKE_DB_DIR = process.env.SMOKE_DB_DIR ?? 'E:/AiData'
+const RESTORE_MARKER_PATH = join(SMOKE_DB_DIR, '.restore-pending.json')
+
+/** 第 19 段构造非法备份用的临时目录（Task Rules：只允许 E:/AiData 下的临时目录） */
+const FIXTURE_DIR = join(SMOKE_DB_DIR, `task050-smoke-fixtures-${suffix}`)
 
 // ---------- Telegram mock Bot API ----------
 
@@ -369,6 +427,345 @@ function startMockUpstream(): Promise<{ server: Server; port: number } | null> {
       resolve({ server, port })
     })
   })
+}
+
+/** SQLite 数据库文件头（16 字节，含结尾 NUL） */
+const SQLITE_MAGIC = 'SQLite format 3\u0000'
+/** 导入体积上限（与服务端一致，64 MiB） */
+const IMPORT_MAX_BYTES = 64 * 1024 * 1024
+
+/**
+ * 造一个「合法头 + integrity_check 通过、但缺 customers 表」的 SQLite 库。
+ *
+ * 用于验证导入校验链第 ④ 层：`integrity_check` 只证明页结构完好，
+ * 不证明「这是我们系统的库」。必须含其余四张表，才能把失败归因到缺表本身。
+ */
+function buildTableMismatchedBackup(path: string): Uint8Array<ArrayBuffer> {
+  mkdirSync(FIXTURE_DIR, { recursive: true })
+  const handle = new Database(path)
+  try {
+    handle.exec(`
+      CREATE TABLE admins (id INTEGER PRIMARY KEY, username TEXT);
+      CREATE TABLE subscriptions (id INTEGER PRIMARY KEY, name TEXT);
+      CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT);
+      CREATE TABLE logs (id INTEGER PRIMARY KEY, message TEXT);
+    `)
+    handle.prepare('INSERT INTO admins (username) VALUES (?)').run('admin')
+  } finally {
+    handle.close()
+  }
+  return new Uint8Array(readFileSync(path))
+}
+
+/**
+ * 下载备份的原始字节。
+ *
+ * 不能用 `req`：它把响应体当文本解析，UTF-8 解码会破坏 SQLite 的高位字节。
+ */
+async function downloadBackupBytes(
+  filename: string,
+  token: string
+): Promise<{
+    status: number
+    bytes: Uint8Array<ArrayBuffer>
+    cacheControl: string | null
+  }> {
+  const res = await fetch(
+    `${BASE}/api/backups/${encodeURIComponent(filename)}/download`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  )
+  return {
+    status: res.status,
+    bytes: new Uint8Array(await res.arrayBuffer()),
+    cacheControl: res.headers.get('cache-control'),
+  }
+}
+
+/**
+ * 第 19 段：备份导入 + 恢复（TASK-050）。
+ *
+ * 前置条件（由调用方保证）：冒烟服务端以 `RESTORE_AUTO_EXIT=false` 启动，
+ * 否则合法恢复会触发 `process.exit(0)` 把服务端自己杀掉。因此**先断言**
+ * `policy.restoreAutoExit === false`，失败即中止本段并给出明确诊断，不得静默跳过。
+ */
+async function backupImportAndRestore(token: string) {
+  console.log('\n19. 备份导入与恢复（TASK-050）')
+
+  // 19.1 前置断言：本环境必须不会因恢复而自重启
+  const policyProbe = await req('/api/backups', { token })
+  const autoExit = policyProbe.json?.policy?.restoreAutoExit
+  check(
+    '19.1 前置断言 policy.restoreAutoExit === false（否则合法恢复会杀死服务端）',
+    autoExit === false,
+    { restoreAutoExit: autoExit, hint: '启动冒烟服务端时须设 RESTORE_AUTO_EXIT=false' }
+  )
+  if (autoExit !== false) {
+    console.error('  ! 前置断言失败，中止第 19 段（避免恢复触发进程退出）')
+    return
+  }
+
+  // 19.2 现造一份 app- 备份当上传源（VACUUM INTO 快照）
+  const source = await req('/api/backups', { method: 'POST', token })
+  const uploadSourceName: string | undefined = source.json?.filename
+  check(
+    '19.2 现造上传源备份成功',
+    source.status === 201 && typeof uploadSourceName === 'string',
+    source.json
+  )
+  if (!uploadSourceName) return
+
+  const downloaded = await downloadBackupBytes(uploadSourceName, token)
+  check(
+    '19.3 上传源为合法 SQLite 文件',
+    downloaded.status === 200 &&
+      downloaded.bytes.byteLength > 512 &&
+      Buffer.from(downloaded.bytes.subarray(0, 16)).toString('latin1') ===
+        SQLITE_MAGIC,
+    { status: downloaded.status, bytes: downloaded.bytes.byteLength }
+  )
+
+  // 19.4 合法导入：201 + imp- 文件名 + 64 位 sha256 + origin 回显
+  const imported = await reqRaw('/api/backups/import', {
+    body: downloaded.bytes,
+    contentType: 'application/octet-stream',
+    token,
+    headers: { 'X-Backup-Filename': 'offsite-copy.db' },
+  })
+  check(
+    '19.4 合法导入返回 201 + imp- 文件名 + 64 位 sha256 + origin 回显',
+    imported.status === 201 &&
+      /^imp-\d{8}-\d{6}-\d{3}\.db$/.test(
+        String(imported.json?.item?.filename ?? '')
+      ) &&
+      /^[0-9a-f]{64}$/.test(String(imported.json?.sha256 ?? '')) &&
+      imported.json?.origin === 'offsite-copy.db',
+    imported.json
+  )
+  const importedName: string | undefined = imported.json?.item?.filename
+
+  // 19.5 落盘 size 与上传字节数相等 + 列表含该文件
+  const afterImport = await req('/api/backups', { token })
+  const namesAfterImport: string[] = (afterImport.json?.items ?? []).map(
+    (i: { filename: string }) => i.filename
+  )
+  check(
+    '19.5 落盘 size 与上传字节数相等',
+    typeof imported.json?.item?.size === 'number' &&
+      imported.json.item.size === downloaded.bytes.byteLength,
+    { reported: imported.json?.item?.size, uploaded: downloaded.bytes.byteLength }
+  )
+  check(
+    '19.6 备份列表含新导入文件',
+    importedName !== undefined && namesAfterImport.includes(importedName),
+    namesAfterImport
+  )
+
+  // 19.7 三类失败：0 字节 / 无 SQLite 头 / 超过 64 MiB
+  const zeroBytes = await reqRaw('/api/backups/import', {
+    body: new Uint8Array(0),
+    contentType: 'application/octet-stream',
+    token,
+  })
+  const randomBytes = await reqRaw('/api/backups/import', {
+    body: new Uint8Array(1024).fill(0x5a),
+    contentType: 'application/octet-stream',
+    token,
+  })
+  const oversized = await reqRaw('/api/backups/import', {
+    body: new Uint8Array(IMPORT_MAX_BYTES + 1),
+    contentType: 'application/octet-stream',
+    token,
+  })
+  check('19.7 空文件 → 400', zeroBytes.status === 400, {
+    status: zeroBytes.status,
+    body: zeroBytes.json,
+  })
+  check('19.8 无 SQLite 头的随机字节 → 400', randomBytes.status === 400, {
+    status: randomBytes.status,
+    body: randomBytes.json,
+  })
+  check('19.9 超过 64 MiB → 413', oversized.status === 413, {
+    status: oversized.status,
+    body: oversized.json,
+  })
+
+  // 19.10 结构不合规（合法头 + integrity ok + 缺 customers 表）→ 400
+  const mismatchedBytes = buildTableMismatchedBackup(
+    join(FIXTURE_DIR, 'table-mismatch.db')
+  )
+  const mismatched = await reqRaw('/api/backups/import', {
+    body: mismatchedBytes,
+    contentType: 'application/octet-stream',
+    token,
+    headers: { 'X-Backup-Filename': 'other-system.db' },
+  })
+  check('19.10 缺 customers 表的 SQLite 库 → 400', mismatched.status === 400, {
+    status: mismatched.status,
+    body: mismatched.json,
+  })
+
+  // 19.11 三类失败后无残留：imp- 文件仍只有 19.4 那一个
+  const afterFailures = await req('/api/backups', { token })
+  const namesAfterFailures: string[] = (afterFailures.json?.items ?? []).map(
+    (i: { filename: string }) => i.filename
+  )
+  check(
+    '19.11 三类失败均未产生新的 imp- 文件（仅 19.4 那一个）',
+    namesAfterFailures.filter((n) => n.startsWith('imp-')).length === 1 &&
+      namesAfterFailures.includes(importedName ?? ''),
+    namesAfterFailures
+  )
+
+  // 19.12 恢复前置校验：四种情形全部拒绝且不写标记
+  if (existsSync(RESTORE_MARKER_PATH)) rmSync(RESTORE_MARKER_PATH, { force: true })
+  const restoreMissing = await req(
+    '/api/backups/app-20260101-000000-000.db/restore',
+    {
+      method: 'POST',
+      token,
+      body: { confirm: 'app-20260101-000000-000.db' },
+    }
+  )
+  const restoreTraversal = await req(
+    '/api/backups/..%2F..%2Fapp.db/restore',
+    { method: 'POST', token, body: { confirm: '..%2F..%2Fapp.db' } }
+  )
+  const restoreNotWhitelisted = await req(
+    '/api/backups/not-a-backup.db/restore',
+    { method: 'POST', token, body: { confirm: 'not-a-backup.db' } }
+  )
+  check('19.12 不存在的备份 → 404', restoreMissing.status === 404, {
+    status: restoreMissing.status,
+    body: restoreMissing.json,
+  })
+  check(
+    '19.13 路径穿越 / 白名单外文件名 → 404',
+    restoreTraversal.status === 404 && restoreNotWhitelisted.status === 404,
+    {
+      traversal: restoreTraversal.status,
+      notWhitelisted: restoreNotWhitelisted.status,
+    }
+  )
+
+  const restoreMismatch = await req(
+    `/api/backups/${encodeURIComponent(importedName ?? '')}/restore`,
+    { method: 'POST', token, body: { confirm: 'wrong-name.db' } }
+  )
+  check('19.14 confirm 与文件名不一致 → 400', restoreMismatch.status === 400, {
+    status: restoreMismatch.status,
+    body: restoreMismatch.json,
+  })
+  check(
+    '19.15 四种前置校验失败均未写恢复标记',
+    !existsSync(RESTORE_MARKER_PATH)
+  )
+
+  // 19.16 合法恢复排程 → 202 + restartExpected=false
+  const restoreOk = await req(
+    `/api/backups/${encodeURIComponent(importedName ?? '')}/restore`,
+    { method: 'POST', token, body: { confirm: importedName } }
+  )
+  check(
+    '19.16 合法恢复排程返回 202 且 restartExpected=false',
+    restoreOk.status === 202 &&
+      restoreOk.json?.scheduled === true &&
+      restoreOk.json?.filename === importedName &&
+      restoreOk.json?.restartExpected === false,
+    { status: restoreOk.status, body: restoreOk.json }
+  )
+
+  // 19.17 标记内容正确
+  let markerOk = false
+  let markerDetail: unknown = null
+  if (existsSync(RESTORE_MARKER_PATH)) {
+    try {
+      const marker = JSON.parse(readFileSync(RESTORE_MARKER_PATH, 'utf8')) as {
+        filename?: string
+        requestedAt?: string
+        requestedBy?: string
+      }
+      markerOk =
+        marker.filename === importedName &&
+        typeof marker.requestedAt === 'string' &&
+        typeof marker.requestedBy === 'string'
+      markerDetail = marker
+    } catch (err) {
+      markerDetail = err instanceof Error ? err.message : String(err)
+    }
+  }
+  check(
+    '19.17 恢复标记存在且 filename 等于请求目标',
+    markerOk,
+    markerDetail
+  )
+
+  // 19.18 排程后进程未退出（RESTORE_AUTO_EXIT=false 下仍可服务）
+  const healthAfterRestore = await req('/api/health')
+  check(
+    '19.18 排程后进程未退出（健康检查仍 200）',
+    healthAfterRestore.status === 200 && healthAfterRestore.json?.status === 'ok',
+    { status: healthAfterRestore.status }
+  )
+
+  // 19.19 清理：删除标记 + 本段导入/现造的备份 + 临时夹具目录。
+  // 标记必须删——否则残留会被下一次服务启动当成待恢复任务应用。
+  if (existsSync(RESTORE_MARKER_PATH)) rmSync(RESTORE_MARKER_PATH, { force: true })
+  if (importedName) {
+    await req(`/api/backups/${importedName}`, { method: 'DELETE', token })
+  }
+  if (uploadSourceName) {
+    await req(`/api/backups/${uploadSourceName}`, { method: 'DELETE', token })
+  }
+  if (existsSync(FIXTURE_DIR)) rmSync(FIXTURE_DIR, { force: true, recursive: true })
+  const afterCleanup = await req('/api/backups', { token })
+  const namesAfterCleanup: string[] = (afterCleanup.json?.items ?? []).map(
+    (i: { filename: string }) => i.filename
+  )
+  check(
+    '19.19 清理：本段备份已删除、标记已移除',
+    !existsSync(RESTORE_MARKER_PATH) &&
+      importedName !== undefined &&
+      !namesAfterCleanup.includes(importedName) &&
+      !namesAfterCleanup.includes(uploadSourceName ?? ''),
+    namesAfterCleanup
+  )
+
+  // 19.20 审计（AC-9）：导入与下载都应留下 module=backup 的日志
+  const auditLogs = await req('/api/logs?module=backup&page=1&pageSize=10', {
+    token,
+  })
+  const messages: string[] = (auditLogs.json?.items ?? []).map(
+    (i: { message: string }) => i.message
+  )
+  check(
+    '19.20 导入操作已写 module=backup 审计日志',
+    messages.some(
+      (m) => m.includes('导入备份') && m.includes(importedName ?? '@@')
+    ),
+    messages
+  )
+  check(
+    '19.21 下载操作已写 module=backup 审计日志',
+    messages.some(
+      (m) => m.includes('下载备份') && m.includes(uploadSourceName ?? '@@')
+    ),
+    messages
+  )
+
+  // 19.22 下载响应头含 Cache-Control: no-store（AC-9）。
+  // 必须现造一份再下载：19.19 已把本段早前的备份全部删除，404 响应没有该头。
+  const headerProbe = await req('/api/backups', { method: 'POST', token })
+  const headerProbeName: string | undefined = headerProbe.json?.filename
+  const noStoreProbe = await downloadBackupBytes(headerProbeName ?? '', token)
+  check(
+    '19.22 下载响应含 Cache-Control: no-store',
+    noStoreProbe.status === 200 &&
+      String(noStoreProbe.cacheControl ?? '').includes('no-store'),
+    { status: noStoreProbe.status, cacheControl: noStoreProbe.cacheControl }
+  )
+  if (headerProbeName) {
+    await req(`/api/backups/${headerProbeName}`, { method: 'DELETE', token })
+  }
 }
 
 async function main() {
@@ -2799,6 +3196,9 @@ async function main() {
       (afterCleanup.json?.items ?? []).length
     )
   }
+
+  // 19. 备份导入与恢复（TASK-050）
+  await backupImportAndRestore(token)
 
   fsMockServer?.close()
 
