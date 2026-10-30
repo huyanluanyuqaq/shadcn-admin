@@ -3,21 +3,24 @@ import { dirname, join, resolve, sep } from 'node:path'
 import { sqlite, databasePath } from '../db/index.js'
 import { config } from '../env.js'
 import { writeLog } from './logger.js'
+import {
+  BACKUP_FILENAME_RE,
+  buildBackupFilename,
+  isBackupFilename,
+} from './backup-naming.js'
 
 /**
- * 系统备份（TASK-015）。
+ * 系统备份（TASK-015 落地；TASK-050 起文件名规则见 ./backup-naming.ts）。
  *
  * - **在线一致性备份**：`VACUUM INTO` 在写锁内产出一致快照，规避 WAL 模式下
  *   裸拷贝 app.db 丢失未归档写入的问题（ADR-001 / TASK-005 的既有结论）。
  * - **仅本地**：备份落在 `<数据目录>/backups/`（env `BACKUP_DIR` 可覆盖），
  *   随 docker `./data` 卷持久化；异地copy 见 docs/operations/backup-restore.md。
  * - **保留策略**：每次备份后按创建时间排序，超出 `BACKUP_KEEP`（默认 7）删最旧。
- * - **文件名白名单**：只接受 `app-YYYYMMDD-HHmmss-sss.db`（毫秒级防同秒碰撞），
- *   杜绝 `../` 路径穿越；resolve 后仍须位于备份目录内（双保险）。
+ * - **文件名白名单**：只接受 `app-` / `imp-` 前缀的
+ *   `YYYYMMDD-HHmmss-sss.db`（毫秒级防同秒碰撞），杜绝 `../` 路径穿越；
+ *   resolve 后仍须位于备份目录内（双保险）。
  */
-
-/** 备份文件名白名单（同时用于防路径穿越） */
-const FILENAME_RE = /^app-\d{8}-\d{6}-\d{3}\.db$/
 
 export type BackupFile = {
   filename: string
@@ -38,23 +41,10 @@ function ensureBackupDir(): string {
   return dir
 }
 
-function pad(value: number, width = 2): string {
-  return String(value).padStart(width, '0')
-}
-
-/** app-YYYYMMDD-HHmmss-sss.db（毫秒级，避免同秒两次备份碰撞） */
-function timestampFilename(now: Date): string {
-  return (
-    `app-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}` +
-    `-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}` +
-    `-${pad(now.getMilliseconds(), 3)}.db`
-  )
-}
-
 function listFiles(dir: string): BackupFile[] {
   if (!existsSync(dir)) return []
   return readdirSync(dir)
-    .filter((name) => FILENAME_RE.test(name))
+    .filter((name) => isBackupFilename(name))
     .map((name) => {
       const stat = statSync(join(dir, name))
       return { filename: name, size: stat.size, createdAt: stat.mtimeMs }
@@ -80,6 +70,14 @@ function applyRetention(dir: string): string[] {
       removed.push(file.filename)
     } catch (err) {
       console.error(`[backup] 删除旧备份失败（${file.filename}）:`, err)
+      // 保留策略删除失败必须留痕（AC-9）：回退副本与旧备份的清理都依赖这里暴露问题
+      void writeLog(
+        'error',
+        'backup',
+        `保留策略删除旧备份失败（${file.filename}）：${
+          err instanceof Error ? err.message : String(err)
+        }`
+      )
     }
   }
   return removed
@@ -93,7 +91,7 @@ function applyRetention(dir: string): string[] {
  */
 export function runBackup(): BackupFile {
   const dir = ensureBackupDir()
-  const filename = timestampFilename(new Date())
+  const filename = buildBackupFilename('app', new Date())
   const target = join(dir, filename)
   if (existsSync(target)) {
     throw new Error('备份文件已存在，请稍后重试')
@@ -125,7 +123,7 @@ export function listBackups(): BackupFile[] {
  *         ② resolve 后必须严格位于备份目录内。
  */
 export function resolveBackupPath(filename: string): string | null {
-  if (!FILENAME_RE.test(filename)) return null
+  if (!BACKUP_FILENAME_RE.test(filename)) return null
   const dir = backupDir()
   const full = resolve(dir, filename)
   if (full !== join(dir, filename) || !full.startsWith(dir + sep)) return null
