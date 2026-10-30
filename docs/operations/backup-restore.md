@@ -1,4 +1,4 @@
-# 备份与恢复 Runbook（TASK-015）
+# 备份与恢复 Runbook（TASK-015；TASK-050 增加导入与应用内恢复）
 
 ## 1. 机制概览
 
@@ -8,9 +8,11 @@
 | 备份内容 | 仅 SQLite 数据库（`app.db` 单文件即全量） |
 | 默认位置 | `<数据库所在目录>/backups/`；docker 下为卷内 `/app/data/backups`（env `BACKUP_DIR` 可覆盖） |
 | 自动备份 | 每日 03:00（env `BACKUP_CRON`，5 段 cron；容器时区 `TZ`） |
-| 保留策略 | 默认 7 份，超出删最旧（env `BACKUP_KEEP`） |
-| 文件名 | `app-YYYYMMDD-HHmmss-sss.db` |
-| 审计 | 所有备份/删除操作写 `logs`（module=`backup`），管理页「系统备份」可见 |
+| 保留策略 | 默认 7 份，超出删最旧（env `BACKUP_KEEP`）；删除失败写 `error` 级 `logs` |
+| 文件名 | `app-YYYYMMDD-HHmmss-sss.db`（本机生成）/ `imp-YYYYMMDD-HHmmss-sss.db`（外部导入），白名单 `^(app\|imp)-\d{8}-\d{6}-\d{3}\.db$` |
+| 导入 | `POST /api/backups/import`（八位字节流 + 四层校验）；落盘名为 `imp-` 前缀，上传方原名仅入审计 |
+| 恢复 | `POST /api/backups/:filename/restore` → 202 排程，**重启后应用**；env `RESTORE_AUTO_EXIT`（默认 true）控制排程后是否自动退出进程 |
+| 审计 | 备份/导入/恢复/下载/删除均写 `logs`（module=`backup`；恢复另用 module=`restore`），管理页「系统备份」可见 |
 
 备份任务随服务内置调度器注册（`ENABLE_SCHEDULER=false` 时连每日备份一并关闭，
 此时请用外部 cron 调 `POST /api/backups` 或改用宿主机方案，见 §5）。
@@ -20,9 +22,14 @@
 登录后进入侧边栏「系统 → 系统备份」：
 
 - **立即备份**：点击即执行一次 VACUUM INTO 并刷新列表（写入 `logs`）。
-- **下载**：行内下载按钮保存 `.db` 文件到本地。
+- **导入备份**：顶部按钮选择 `.db` 文件上传入列（前端先挡 > 64 MiB；服务端另做
+  四层校验）。文件名旁带「导入」标识的即为外部导入的备份。
+- **恢复**：行内恢复按钮 → 确认对话框（明示覆盖当前数据库、服务重启、
+  恢复点之后数据丢失）→ 202 后排程生效。原数据库留作 `pre-restore-*` 回退副本。
+- **下载**：行内下载按钮保存 `.db` 文件到本地（响应带 `Cache-Control: no-store`）。
 - **删除**：行内删除按钮 → 确认对话框二次确认后删除。
-- 页面顶部展示保留策略（保留份数 + 每日 cron）。
+- 页面顶部展示保留策略（保留份数 + 每日 cron）；若 `RESTORE_AUTO_EXIT=false`，
+  另显示「本环境恢复后不会自动重启，需手动重启服务」提示。
 
 API 等价操作（需 Bearer token）：
 
@@ -31,24 +38,64 @@ API 等价操作（需 Bearer token）：
 curl -X POST http://localhost:3000/api/backups -H "Authorization: Bearer $TOKEN"
 # 列表
 curl http://localhost:3000/api/backups -H "Authorization: Bearer $TOKEN"
+# 导入（原始字节流；X-Backup-Filename 仅用于审计，不参与落盘命名）
+curl -X POST http://localhost:3000/api/backups/import \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/octet-stream" \
+  -H "X-Backup-Filename: offsite-copy.db" \
+  --data-binary @offsite-copy.db
 # 下载
 curl -O http://localhost:3000/api/backups/app-20261011-030000-123.db/download \
   -H "Authorization: Bearer $TOKEN"
+# 恢复排程（confirm 必须与路径参数逐字相等）
+curl -X POST http://localhost:3000/api/backups/app-20261011-030000-123.db/restore \
+  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+  -d '{"confirm":"app-20261011-030000-123.db"}'
 # 删除
 curl -X DELETE http://localhost:3000/api/backups/app-20261011-030000-123.db \
   -H "Authorization: Bearer $TOKEN"
 ```
 
-## 3. 恢复步骤（应用内不做一键恢复，按本流程手工执行）
+## 3. 恢复（应用内恢复为推荐路径，手工兜底仍保留）
 
-> ⚠️ 恢复会用备份**覆盖当前数据库**，恢复点之后的数据将丢失。执行前先在管理页
-> 做一次「立即备份」留存现状，并确认目标备份文件可信。
+> ⚠️ 恢复会用备份**覆盖当前数据库**，恢复点之后的数据将丢失。执行前确认目标备份可信。
 
-### 3.1 直接运行（非 docker）
+### 3.1 应用内恢复（推荐）
+
+管理页「系统备份」行内**恢复**按钮 → 确认对话框确认。等价 API 见 §2。
+
+服务端行为：
+
+1. 前置校验：文件名白名单 + 文件存在 + `integrity_check` + 五表校验。
+   任一不过返回 4xx 且**不写标记**（不会留下半截恢复）。
+2. 写 `<数据库所在目录>/.restore-pending.json`（`filename` / `requestedAt` / `requestedBy`），
+   写 `logs`（module=`restore`，level=`warn`），返回 202。
+3. 若 `RESTORE_AUTO_EXIT` 不为 `false`（默认），延迟约 1.2s 后 `process.exit(0)` ——
+   先让 202 响应与日志落盘。容器 `restart: unless-stopped` 随即拉起进程。
+4. **下一次启动时**、在打开数据库连接**之前**，`db/restore.ts` 的
+   `applyPendingRestore()` 完成替换：现库 `wal_checkpoint(TRUNCATE)` → rename 现库为
+   `backups/pre-restore-<ts>.db` → copy 备份为 `app.db`（**保留备份原件**）→
+   删 `app.db-wal` / `app.db-shm` → 删标记。结果写 `logs`（applied → `warn`，
+   failed → `error`）。任一步失败则回滚已做的 rename、**保留标记**、返回 failed。
+
+**为什么是「标记 + 重启后应用」而不是热替换**：数据库连接在模块加载期建立，
+drizzle 实例与 `services/logger.ts` 等全部绑定该单例，运行期 close 再 open 无法安全
+替换引用。重启式还顺带保证「必须删 `-wal`/`-shm`」这条硬性要求（旧 WAL 与新主库
+不匹配会损坏或回滚数据）。
+
+**环境差异（重要）**：
+
+| 部署形态 | 排程后是否自动应用 |
+|----------|------------------|
+| docker compose（`restart: unless-stopped`） | ✅ 进程退出即自启并应用 |
+| 本地 `pnpm dev:server`（`tsx watch`） | ❌ `tsx watch` 不因 `exit(0)` 重启，需手动重启 |
+| 任意环境设 `RESTORE_AUTO_EXIT=false` | ❌ 只写标记不退出，需手动重启（管理页会提示） |
+
+### 3.2 手工兜底（无宿主机 shell 之外的场景，或恢复标记反复失败时）
 
 ```bash
 # 1) 停止服务（避免恢复过程中仍有写入）
-#    前台 Ctrl-C；或 pm2/systemd 停止对应进程
+#    前台 Ctrl-C；或 pm2/systemd 停止对应进程；docker 用 docker compose stop
 
 # 2) 备份现状（防恢复失败可回退）
 cp data/app.db data/app.db.broken-$(date +%Y%m%d-%H%M%S)
@@ -57,19 +104,28 @@ cp data/app.db data/app.db.broken-$(date +%Y%m%d-%H%M%S)
 cp data/backups/app-20261011-030000-123.db data/app.db
 rm -f data/app.db-wal data/app.db-shm
 
-# 4) 重启服务并验证
+# 4) 若曾用过应用内恢复，先清掉残留标记，否则本次替换会在下次启动时被再次覆盖
+rm -f data/.restore-pending.json
+
+# 5) 重启服务并验证
 #    访问 /api/health 确认 ok；抽查客户/订阅数量是否符合恢复点预期
 ```
 
-### 3.2 docker compose
+### 3.3 导入一份异地备份
 
-```bash
-docker compose stop
-cp data/app.db data/app.db.broken-$(date +%Y%m%d-%H%M%S)
-cp data/backups/app-20261011-030000-123.db data/app.db
-rm -f data/app.db-wal data/app.db-shm
-docker compose start
-```
+灾后从异地取回 `.db` 文件后，**不要**直接手工 cp 进 `backups/` 再手工替换 ——
+走应用内导入，让四层校验先拦掉截断/异库文件：
+
+管理页「导入备份」选择文件，或 §2 的 `curl --data-binary`。导入成功后它即以
+`imp-` 前缀出现在列表中，随后按 §3.1 恢复它。
+
+### 3.4 回退副本与清理
+
+- 每次应用内恢复都会把当时的现库留作 `backups/pre-restore-<ts>.db`。
+- 该前缀**刻意不进文件名白名单**，因此不出现在管理页列表、也不会被保留策略删除 ——
+  否则「恢复失败想回退」时它恰好失效。
+- 代价：长期使用会在 `backups/` 累积，需**人工清理**：
+  `rm -f data/backups/pre-restore-*.db`（确认无需回退后再删）。
 
 ## 4. 验证备份有效性（建议定期演练）
 
@@ -79,6 +135,9 @@ node -e "const D=require('better-sqlite3');const d=new D('data/backups/app-20261
 
 # 抽查行数（与恢复点预期对比）
 node -e "const D=require('better-sqlite3');const d=new D('data/backups/app-20261011-030000-123.db',{readonly:true});console.log('customers:',d.prepare('select count(*) c from customers').get().c);d.close()"
+
+# 启动期恢复逻辑的自动化验证（在临时目录自建场景，不触碰 data/）
+pnpm --filter server exec tsx scripts/restore-apply-check.ts
 ```
 
 ## 5. 异地容灾（宿主机层，应用不内置）
@@ -106,3 +165,8 @@ node -e "const D=require('better-sqlite3');const d=new D('data/backups/app-20261
 | 立即备份 500 | 磁盘满（`df -h`）或备份目录权限不足；具体原因见 `logs` error 级 backup 记录 |
 | 保留份数不生效 | `BACKUP_KEEP` 非正整数时回落默认 7；确认启动环境变量已生效（docker 需在 compose environment 或 .env 传递） |
 | 恢复后数据异常 | 确认恢复时删除了 `app.db-wal`/`app.db-shm`；确认替换的是完整 `.db` 文件而非 0 字节残留 |
+| 点了恢复但服务没重启 | `RESTORE_AUTO_EXIT=false` 时只写标记不退出（管理页有提示）；本地 `tsx watch` 也不会自启。确认后手动重启，启动日志应出现「已应用备份 …」 |
+| 重启后数据没变 | 看 `logs` module=`restore`：若为 `error`，说明 `applyPendingRestore` 校验失败并**保留了标记**，原因在消息里；修掉后重启会重试 |
+| 导入返回 400「缺少必需数据表」 | 上传的不是本系统的库（`integrity_check` 只证明页结构完好）。确认文件来源，或用 §4 的命令核对表名 |
+| 导入返回 413 | 文件超过 64 MiB 上限；确认没有误传全盘镜像/压缩包 |
+| `backups/` 里 `pre-restore-*` 越来越多 | 刻意不被保留策略清理（保回退能力），需人工删除，见 §3.4 |

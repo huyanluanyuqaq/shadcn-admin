@@ -582,9 +582,9 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 
 实现约束同 §12.4：`publish()` 在事务外调用（C1）；阈值状态写库集中单事务（C2）。
 
-### 12.8 系统备份（TASK-015）
+### 12.8 系统备份（TASK-015；TASK-050 补齐导入与恢复）
 
-需求：每日自动备份 + 保留策略 + 前端管理页（立即备份 / 下载 / 删除）。
+需求：每日自动备份 + 保留策略 + 前端管理页（立即备份 / 导入 / 恢复 / 下载 / 删除）。
 
 | 维度 | 决策 |
 |------|------|
@@ -592,14 +592,38 @@ fire-and-forget 发送，失败仅记 `logs`，不阻断主流程。
 | 备份内容 | 仅 SQLite 数据库（`app.db` 单文件即全量：客户/订阅/设置/提醒/日志）；不含前端产物与 node_modules |
 | 备份位置 | `<数据库所在目录>/backups/`（docker 下即卷内 `/app/data/backups`，随 `./data` 持久化）；env `BACKUP_DIR` 可覆盖为任意绝对路径 |
 | 每日任务 | croner job（`{ name: 'db-backup' }`），env `BACKUP_CRON` 默认 `0 3 * * *`，随 `enableScheduler` 注册，`stop()` 一并停 |
-| 保留策略 | 每次备份后按创建时间排序，超出 `BACKUP_KEEP`（默认 7，env 可调）删最旧；排序以文件名时间戳为兜底（防文件系统 mtime 粗粒度误删） |
-| 文件名 | `app-YYYYMMDD-HHmmss-sss.db`（毫秒级防同秒碰撞）；下载/删除一律经白名单正则 + resolve 后目录双保险校验，杜绝 `../` 路径穿越 |
-| 管理页 | `/backups`（侧边栏「系统」组）：列表（文件名/大小/时间）、立即备份、下载、删除（ConfirmDialog 二次确认）、保留策略展示；TASK-014 刷新按钮/错误态重试模式 |
+| 保留策略 | 每次备份后按创建时间排序，超出 `BACKUP_KEEP`（默认 7，env 可调）删最旧；排序以文件名时间戳为兜底（防文件系统 mtime 粗粒度误删）；删除失败写 `error` 级 `logs` |
+| 文件名 | `app-`（本机生成）/ `imp-`（外部导入）双前缀，统一白名单 `^(app\|imp)-\d{8}-\d{6}-\d{3}\.db$`（毫秒级防同秒碰撞）；下载/删除/恢复一律经白名单正则 + resolve 后目录双保险校验，杜绝 `../` 路径穿越 |
+| 管理页 | `/backups`（侧边栏「系统」组）：列表（文件名/大小/时间，`imp-` 文件带「导入」标识）、立即备份、导入备份、行内恢复（ConfirmDialog 二次确认）、下载、删除、保留策略展示；TASK-014 刷新按钮/错误态重试模式 |
 
-服务端 `services/backup.ts` 与调度器、路由、前端查询四层共享同一套文件名白名单；
-所有备份操作（定时/手动/删除）均写 `logs`（module=`backup`）。
+服务端 `services/backup-naming.ts`（零依赖的文件名规则）、`services/backup-inspect.ts`
+（零项目内依赖的内容校验）、`services/backup.ts` 与路由、前端查询共享同一套白名单；
+所有备份操作（定时/手动/导入/恢复/下载/删除）均写 `logs`（module=`backup`，
+恢复另用 module=`restore`）。
+
+**导入（TASK-050）**：`POST /api/backups/import` 收 `application/octet-stream` 原始字节流
+（不引入 multipart 解析），可选头 `X-Backup-Filename` 仅入审计。校验链四层，任一失败
+返回 400/413 且备份目录**不留残留**（先写 `.part`，通过后才原子 rename）：
+① ≤ 64 MiB；② ≥ 512 字节且前 16 字节为 `SQLite format 3\0`；
+③ `PRAGMA integrity_check` = `ok`；④ `sqlite_master` 含 `admins`/`customers`/
+`subscriptions`/`settings`/`logs` 五表（拒绝无关 SQLite 库）。
+落盘名统一为 `imp-<时间戳>.db`，不采用上传方文件名（防路径穿越与不可控字符）。
+
+**恢复（TASK-050）**：应用内提供「标记 + 重启后应用」式恢复
+（`POST /api/backups/:filename/restore` → 202）。**为什么不做热替换**：
+`server/src/db/index.ts` 在模块加载期就建立单例 `new Database(dbPath)`，drizzle 实例与
+`services/logger.ts` 等大量模块全部绑定该连接，运行期 close 再 open 无法安全替换这些
+引用（在途请求会拿到已关闭的连接）。改为请求侧只写 `<db 目录>/.restore-pending.json`
+并退出进程，由 `applyPendingRestore()`（`db/restore.ts`）在**打开连接之前**完成文件替换：
+checkpoint 现库 → rename 现库为 `backups/pre-restore-<ts>.db` → copy 备份为 `app.db`
+（保留备份原件）→ 删 `app.db-wal`/`app.db-shm` → 删标记；任一步失败则回滚已做的 rename、
+保留标记并返回 failed。重启式还顺带保证了「必须删 `-wal`/`-shm`」这条最易漏的硬性要求。
+
+**为什么 `pre-restore-*` 不进文件名白名单**：进白名单就会被保留策略当旧备份删掉，
+恰好在「恢复失败想回退」时失效。代价是它不出现在列表、也不会被自动清理，
+需人工删除（`docs/operations/backup-restore.md` §3.4）。
 
 **边界（刻意不做）**：不上云、不做加密、不做增量；异地容灾由运维层在宿主机
-对备份目录做 rsync/cp 实现，步骤见 `docs/operations/backup-restore.md`。
-恢复为手工流程（停服务 → 替换 app.db → 重启），不做应用内一键恢复——
-避免误操作覆盖实时数据。
+对备份目录做 rsync/rclone 实现，步骤见 `docs/operations/backup-restore.md` §5。
+应用内恢复**依赖进程重启**（容器 `restart: unless-stopped` 退出即自启；本地 `tsx watch`
+不会自启，须手动重启），env `RESTORE_AUTO_EXIT=false` 时可只写标记不退出。

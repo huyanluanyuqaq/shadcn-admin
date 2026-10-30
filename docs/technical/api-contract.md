@@ -279,24 +279,61 @@ HEAD 优先回退 GET · 10s 超时 · 并发上限 5 · jitter 0–10 分钟 ·
 
 ---
 
-## 系统备份（TASK-015）
+## 系统备份（TASK-015；TASK-050 增加导入与恢复）
 
 全部端点位于 authMiddleware 之后（需登录）；备份文件即完整数据库快照，
-下载与删除都必须鉴权。文件名一律经服务端白名单校验（防路径穿越）。
+下载、删除、导入与恢复都必须鉴权。文件名一律经服务端白名单校验（防路径穿越）。
 
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| GET | `/api/backups` | → `{ items: BackupFile[], policy: { keep: number, cron: string } }`，items 按创建时间新→旧 |
+| GET | `/api/backups` | → `{ items: BackupFile[], policy: BackupPolicy }`，items 按创建时间新→旧 |
 | POST | `/api/backups` | 立即执行一次备份（VACUUM INTO），201 → `BackupFile`；失败 500 |
-| GET | `/api/backups/:filename/download` | 下载附件（`application/vnd.sqlite3` + `Content-Disposition: attachment`）；文件名不合法或不存在 404 |
+| POST | `/api/backups/import` | 导入备份（TASK-050），见下方「导入」；成功 201 → `BackupImportResult` |
+| GET | `/api/backups/:filename/download` | 下载附件（`application/vnd.sqlite3` + `Content-Disposition: attachment` + `Cache-Control: no-store`）；文件名不合法或不存在 404 |
+| POST | `/api/backups/:filename/restore` | 排程一次恢复（TASK-050），见下方「恢复」；成功 202 → `BackupRestorePlan` |
 | DELETE | `/api/backups/:filename` | 删除备份；不存在 404 |
 
 `BackupFile`：`{ filename: string, size: number, createdAt: number }`（shared `backupFileSchema`）。
-`filename` 恒为 `app-YYYYMMDD-HHmmss-sss.db`（白名单正则 `^app-\d{8}-\d{6}-\d{3}\.db$`）。
-`policy.cron` 为 env `BACKUP_CRON`（默认 `0 3 * * *`），`policy.keep` 为 env `BACKUP_KEEP`（默认 7）。
+`filename` 恒匹配 `^(app|imp)-\d{8}-\d{6}-\d{3}\.db$`：`app-` = 本机生成，`imp-` = 外部导入。
+`BackupPolicy`：`{ keep: number, cron: string, restoreAutoExit: boolean }`。
+`policy.cron` 为 env `BACKUP_CRON`（默认 `0 3 * * *`），`policy.keep` 为 env `BACKUP_KEEP`（默认 7），
+`policy.restoreAutoExit` 为 env `RESTORE_AUTO_EXIT`（默认 `true`）——供前端提示「本环境恢复后
+不会自动重启」与冒烟避免服务端自杀。
 
 备份位置默认 `<数据库所在目录>/backups/`（env `BACKUP_DIR` 可覆盖）；
 每日自动备份与保留策略见架构 §12.8，恢复步骤见 `docs/operations/backup-restore.md`。
+
+### 导入备份（TASK-050）
+
+`POST /api/backups/import`
+
+- 请求：`Content-Type: application/octet-stream`，请求体即 `.db` 文件原始字节流
+  （**不走 multipart**）。可选头 `X-Backup-Filename: <原始文件名>`，**仅入审计日志**，
+  不参与落盘命名。
+- 响应 201 → `BackupImportResult`：
+  `{ item: BackupFile, origin: string | null, sha256: string }`
+  （`item.filename` 为 `imp-` 前缀，`sha256` 为 64 位十六进制，`origin` 回显 `X-Backup-Filename`）。
+- 失败（任一层不通过均**不在备份目录留任何残留**：先写 `<name>.part`，通过后才原子 rename）：
+
+| 状态 | 条件 |
+|------|------|
+| 413 | `Content-Length` 或实际长度 > 64 MiB |
+| 400 | 长度 < 512 字节，或前 16 字节不等于 `SQLite format 3\0` |
+| 400 | 只读打开后 `PRAGMA integrity_check` 不等于 `ok` |
+| 400 | `sqlite_master` 缺少 `admins` / `customers` / `subscriptions` / `settings` / `logs` 任一表 |
+
+### 恢复备份（TASK-050）
+
+`POST /api/backups/:filename/restore`
+
+- 请求体：`{ "confirm": "<filename>" }`，`confirm` 必须与路径参数**逐字相等**（二次确认，
+  恢复会覆盖当前数据库）。
+- 前置校验：文件名白名单 + 文件存在（否则 404）；`confirm` 不相等 → 400；
+  目标文件 `integrity_check` + 五表校验不过 → 400（**不写标记**）。
+- 响应 202 → `BackupRestorePlan`：`{ scheduled: true, filename: string, restartExpected: boolean }`。
+  排程内容写入 `<数据库所在目录>/.restore-pending.json`，并在**下一次启动、打开数据库
+  连接之前**被应用（现库改名留作 `pre-restore-*` 回退副本、复制备份为 `app.db`、
+  删 `-wal`/`-shm`、删标记）。`restartExpected` 反映本环境是否会自动退出进程以触发重启。
 
 ---
 
