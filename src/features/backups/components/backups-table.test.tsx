@@ -198,4 +198,26 @@ describe('BackupsTable 导入与恢复', () => {
     expect(getByText('imp-20261031-120000-000.db')).toBeTruthy()
     expect(getByText('导入')).toBeTruthy()
   })
+
+  // 锁死 M-1：restoreAutoExit = true 表示「排程后会退出进程以触发重启」，
+  // 此时**不应**出现「不会自动重启」提示；只有 false 才提示。
+  it('shows the no-auto-restart hint only when restoreAutoExit is false', async () => {
+    const HINT = '本环境恢复后不会自动重启'
+
+    queryState.data = {
+      items: sampleItems,
+      policy: { keep: 7, cron: '0 3 * * *', restoreAutoExit: true },
+    }
+    const whenTrue = await render(<BackupsTable />)
+    expect(whenTrue.container.textContent).not.toContain(HINT)
+    // 同一用例内二次 render 前必须卸载，否则两棵树并存、textContent 会混到一起
+    await whenTrue.unmount()
+
+    queryState.data = {
+      items: sampleItems,
+      policy: { keep: 7, cron: '0 3 * * *', restoreAutoExit: false },
+    }
+    const whenFalse = await render(<BackupsTable />)
+    expect(whenFalse.container.textContent).toContain(HINT)
+  })
 })
