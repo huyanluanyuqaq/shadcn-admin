@@ -10,7 +10,7 @@
 Task ID: TASK-049
 Title: 订阅管理搜索支持按客户名称搜索
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P2
 Owner: 执行位 Implementer（claude-code / Opus 5，会话 2026-10-24）
 Owner Since: 2026-10-24T11:20:00+08:00
@@ -287,6 +287,10 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-31 · `DONE`（`tasks/done/`）—— 终态。** PR #24 已由主控位按人类授权执行 rebase-merge
+> （`2026-10-27T07:09:37Z`，`dbb3698`）；`Merge Record` 九要素由 TASK-050 于 2026-10-31 按 D13-C 回填。
+> 以下为实施期历史记录（如实保留，指向当时状态），终态以本段为准。
+
 **已实施完毕；I2 独立审查已 PASS（记录 `handoffs/2026-10-27-review.md`，
 2026-10-27，零阻断项），待人类授权合并（REVIEW）。** 基线与主控位侦查一致（`main` / `origin/main` 均
 `d229ce1`，`git status --short` 仅本任务档案自身）。6 个 File Scope 文件已改，
@@ -364,29 +368,28 @@ AC-1 / AC-2 / AC-4 / AC-5 / AC-6 / AC-7 全部通过；AC-3 的冒烟在**同源
 | 005 | coordinator | implementer | 2026-10-27 | I2 记录合批入库派单：PASS 后的搬运批次 |
 
 **最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`
-**Next Action：** 人类授权合并（`Requires Human Approval: true`）后由主控位执行
-`gh pr merge 24 --rebase`；`Merge Record` 由下一个任务按 D13-C 回填。
+**Next Action：** 无（终态）。人类已授权合并，主控位已执行 rebase-merge：PR #24 于
+`2026-10-27T07:09:37Z` 合并（`dbb3698`）；`Merge Record` 已由 **TASK-050 于 2026-10-31 按 D13-C 回填**
+（九要素实测值）。本档案随之归档至 `tasks/done/`，`Status: DONE`。
 
 ---
 
 ## Merge Record
 
-> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
-> `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
-> 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
-> **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
+> **由 TASK-050（备份导入与恢复）于 2026-10-31 按 D13-C 选项 C 回填。**
+> 九要素全部为 `gh api` / DockerHub Tags API **实测值**（复现命令见各单元格内注释）。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填（无合并前独立审查档时如实写「无（A3 断档）」，不补写） |
+| PR | #24（base `main`，标题 `feat(subscriptions): 支持按绑定客户名称搜索订阅（TASK-049）`；实测 `gh api repos/:owner/:repo/pulls/24`） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认；3 个原提交线性追加，无额外 merge commit） |
+| 提交数 | **3**（实测 `gh api repos/:owner/:repo/pulls/24/commits --jq 'length'` = 3） |
+| merged_at | `2026-10-27T07:09:37Z`（实测 `gh api repos/:owner/:repo/pulls/24 --jq .merged_at`） |
+| merge_commit_sha | `dbb36980f60f2c047f805cfb590800df0e893344`（实测 `gh api …/pulls/24 --jq .merge_commit_sha`） |
+| 合并后 CI run | `40465440584`（Continuous Integration，event=push，conclusion=success，created `2026-10-27T07:09:40Z`，实测 `gh run list --commit dbb3698…`） |
+| 合并后 Docker run | `40465440540`（Build and Push Docker Image，success，created `2026-10-27T07:09:40Z`，与 CI 同批触发；同 head 上另有一个 `40521466025` 为 tag `v1.0.5` 触发的发布 run，非合并 run） |
+| 镜像 tag | `sha-dbb3698`（DockerHub `nomorelatenights/subscription-admin`，Tags API 实测在位，digest `sha256:ecddb54f7a0b…`，last_pushed `2026-10-27T14:33:06Z` —— 由 tag `v1.0.5` 的发布 run `40521466025` 产出）；该 head 另有版本 tag `v1.0.5`。`latest` 当前 digest 与 `sha-dbb3698` 相同（`:latest` 已随 `v1.0.5` 前进到本 head） |
+| 审查记录 | `handoffs/2026-10-27-review.md`（**I2 独立审查**记录，出具方为不携带实现上下文的独立审查位，明示与主控位复审 `2026-10-26-coordinator-review.md` 不得相互替代）；另有主控位 `2026-10-26-coordinator-review.md` |
 
 ---
 

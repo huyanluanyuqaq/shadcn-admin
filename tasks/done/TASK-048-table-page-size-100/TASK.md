@@ -10,7 +10,7 @@
 Task ID: TASK-048
 Title: 客户/订阅列表默认每页 100 行
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P2
 Owner: workbuddy-agent
 Owner Since: 2026-10-23T09:44:00+08:00
@@ -138,6 +138,10 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-31 · `DONE`（`tasks/done/`）—— 终态。** PR #23 已由主控位按人类授权执行 rebase-merge
+> （`2026-10-23T02:05:24Z`，`d229ce1`）；`Merge Record` 九要素由 TASK-050 于 2026-10-31 按 D13-C 回填。
+> ⚠️ 下方「等待独立审查」**始终未满足**（A3 断档）—— 已在该档案 `Merge Record` 审查记录行如实登记。
+
 实现与验证已完成，已提交交接 `HANDOFF-001`，等待独立审查。截图证据在 `E:/AiData/shadcn-pagesize/`（工作区外，不入库）。
 
 ---
@@ -173,26 +177,31 @@ Non-Scope (files):
 | 001 | developer | reviewer | 2026-10-23 | 交付「默认每页 100 行」实现、单测（16 通过）与浏览器端到端取证 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** 独立审查（不携带实现上下文的新实例）核对 AC-1~AC-6 与 Known Issues 第 1 条是否符合期望。
+**Next Action：** 无（终态）。PR #23 已于 `2026-10-23T02:05:24Z` 由主控位按人类授权执行 rebase-merge
+（`d229ce1`）；`Merge Record` 由 **TASK-050 于 2026-10-31 按 D13-C 回填**（九要素实测值）。
+⚠️ 原 Next Action 所要求的「独立审查」**始终未发生**（A3 断档，见 `Merge Record` 审查记录行）——
+如实保留该缺口，不补写、不伪造。本档案随之归档至 `tasks/done/`，`Status: DONE`。
 
 ---
 
 ## Merge Record
 
-> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C，由**下一个任务**回收归档时回填；
-> 在此之前保持 `Status = REVIEW`、留在 `tasks/review/`。**禁止在本任务内自我回写。**
+> **由 TASK-050（备份导入与恢复）于 2026-10-31 按 D13-C 选项 C 回填。**
+> 九要素全部为 `gh api` / DockerHub Tags API **实测值**（复现命令见各单元格内注释）。
+> ⚠️ 原档案「PR 待回填（未推送，分支仅存在于本地）」与实测不符 —— PR **#23 确已存在并已合并**，
+> 已按实测更正（此更正本身即 TASK-047 所终结的「档案失真」类问题，不沿用自述）。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填（未推送，分支仅存在于本地） |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填（无合并前独立审查档时如实写「无」，不补写） |
+| PR | #23（base `main`，标题 `feat(TASK-048): 客户/订阅列表默认每页 100 行`；实测 `gh api repos/:owner/:repo/pulls/23`） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认；3 个原提交线性追加，无额外 merge commit） |
+| 提交数 | **3**（实测 `gh api repos/:owner/:repo/pulls/23/commits --jq 'length'` = 3） |
+| merged_at | `2026-10-23T02:05:24Z`（实测 `gh api repos/:owner/:repo/pulls/23 --jq .merged_at`） |
+| merge_commit_sha | `d229ce1b7fd08ccb3af9b0ed46f054d44ec5da74`（实测 `gh api …/pulls/23 --jq .merge_commit_sha`） |
+| 合并后 CI run | `39887660914`（Continuous Integration，event=push，conclusion=success，created `2026-10-23T02:05:27Z`，实测 `gh run list --commit d229ce1…`） |
+| 合并后 Docker run | `39887660904`（Build and Push Docker Image，success，created `2026-10-23T02:05:27Z`，与 CI 同批触发；同 head 上另有一个 `39888093628` 为 tag `v1.0.4` 触发的发布 run，非合并 run） |
+| 镜像 tag | `sha-d229ce1`（DockerHub `nomorelatenights/subscription-admin`，Tags API 实测在位，digest `sha256:ebbdc32d8521…`，last_pushed `2026-10-23T02:16:30Z` —— 由 tag `v1.0.4` 的发布 run `39888093628` 产出）；该 head 另有版本 tag `v1.0.4` |
+| 审查记录 | **无（A3 断档）**：`handoffs/` 仅 `HANDOFF-001-developer-to-reviewer.md`（执行位交付单），**不存在任何审查档**（既无独立审查，也无主控位审查）。**不补写、不伪造。** |
 
 ---
 
