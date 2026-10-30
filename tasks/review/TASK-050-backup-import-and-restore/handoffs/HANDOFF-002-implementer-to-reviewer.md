@@ -238,6 +238,11 @@ API：  POST /api/backups/app-20261031-000000-000.db/restore  →  202 {"schedul
 
 **执行位侧无剩余工作。** Phase 0~6 与 AC-1~AC-13 均已完成并留证。
 
+**交付请求状态（2026-10-31）**：PR **#25** 已开（base `main`，head `6b5b418`，7 提交 / 42 文件，
+`MERGEABLE`）；CI run `41101392360` 的两个必需检查 `install-lint-build` 与 `audit` 均 **pass**。
+首轮 run `41099616120` 在 knip 步骤失败，已由 `6b5b418` 修复并复跑转绿（详见 AC-13 与 Task Rules 末条）。
+**执行位未合并、未打 tag、未自行判定 PASS。**
+
 后续动作的所有权：
 
 1. **独立审查位**（不携带实现上下文的新实例）按 AC-1~AC-13 复核，给出 PASS / FAIL。
