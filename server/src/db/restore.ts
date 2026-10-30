@@ -1,6 +1,7 @@
 import {
   copyFileSync,
   existsSync,
+  mkdirSync,
   readFileSync,
   renameSync,
   rmSync,
@@ -114,9 +115,12 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
     }
   }
 
-  const dbDir = dirname(dbPath)
+  // 回退副本落**备份目录**（与 app-/imp- 备份同目录），而非数据库同目录：
+  // 这样 runbook 的清理命令与 §5 的异地 rsync 才覆盖得到它（整改 B-2）。
+  const backupDir = resolveBackupDir(dbPath)
+  mkdirSync(backupDir, { recursive: true }) // 幂等：目录可能尚不存在
   const preRestoreName = buildPreRestoreFilename(new Date())
-  const preRestorePath = join(dbDir, preRestoreName)
+  const preRestorePath = join(backupDir, preRestoreName)
   const walPath = `${dbPath}-wal`
   const shmPath = `${dbPath}-shm`
   /**
@@ -181,16 +185,29 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
 }
 
 /**
+ * 备份目录口径（TASK-050 整改 B-2）。
+ *
+ * env `BACKUP_DIR` 优先，否则 `<db 目录>/backups` —— 与 `services/backup.ts`
+ * 的 `backupDir()` 完全一致。**回退副本必须落在这里而不是数据库同目录**：
+ * ① runbook §3.4 的清理命令以 `backups/` 为基准；② §5 建议的 rsync 只同步
+ * `backups/`，而回退副本正是「恢复失败想回退」时唯一的救命文件。
+ *
+ * 与 `services/backup.ts` 的 `backupDir()` 同构但不引用它（成环禁令）；
+ * `BACKUP_DIR` 在启动期已由 `env.ts` 加载进 `process.env`，这里直接读。
+ */
+function resolveBackupDir(dbPath: string): string {
+  const configured = process.env.BACKUP_DIR?.trim()
+  return configured ? join(configured) : join(dirname(dbPath), 'backups')
+}
+
+/**
  * 解析备份文件路径（白名单 + 目录约束双保险）。
  *
- * 与 `services/backup.ts` 的 `resolveBackupPath` 同构但不引用它（成环禁令）；
- * 备份目录口径 = `<db 目录>/backups`，env `BACKUP_DIR` 在启动期由 `env.ts` 已加载，
- * 这里直接读 `process.env` 以保持零项目内依赖。
+ * 与 `services/backup.ts` 的 `resolveBackupPath` 同构但不引用它（成环禁令）。
  */
 function resolveBackupFile(dbPath: string, filename: string): string | null {
   if (!isBackupFilename(filename)) return null
-  const configured = process.env.BACKUP_DIR?.trim()
-  const dir = configured ? join(configured) : join(dirname(dbPath), 'backups')
+  const dir = resolveBackupDir(dbPath)
   const full = join(dir, filename)
   if (!full.startsWith(dir)) return null
   return existsSync(full) ? full : null

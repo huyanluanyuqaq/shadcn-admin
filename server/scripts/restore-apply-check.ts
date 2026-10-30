@@ -79,6 +79,19 @@ function snapshotDir(dir: string): Record<string, number> {
   return out
 }
 
+/**
+ * 同时快照数据库目录与备份目录。
+ *
+ * 回退副本 `pre-restore-*` 自整改 B-2 起落**备份目录**（与 app-/imp- 备份同目录），
+ * 故零副作用断言必须覆盖两个目录，只快照 DB_DIR 会漏掉对备份目录的写入。
+ */
+function snapshotBoth(): string {
+  return JSON.stringify({
+    dbDir: snapshotDir(DB_DIR),
+    backupDir: snapshotDir(BACKUP_DIR),
+  })
+}
+
 function readSettings(dbPath: string): Map<string, string> {
   const handle = new Database(dbPath, { readonly: true, fileMustExist: true })
   try {
@@ -166,13 +179,13 @@ async function main() {
 
   // ---------- A. 无标记 → 零副作用 ----------
   {
-    const before = snapshotDir(DB_DIR)
+    const before = snapshotBoth()
     const outcome = applyPendingRestore(DB_PATH)
-    const after = snapshotDir(DB_DIR)
+    const after = snapshotBoth()
     check('A1 无标记时返回 null', outcome === null, outcome)
     check(
-      'A2 无标记时目录零副作用（文件名与大小均未变）',
-      JSON.stringify(before) === JSON.stringify(after),
+      'A2 无标记时两目录零副作用（文件名与大小均未变）',
+      before === after,
       { before, after }
     )
     check(
@@ -206,12 +219,19 @@ async function main() {
       !existsSync(`${DB_PATH}-wal`) && !existsSync(`${DB_PATH}-shm`)
     )
     check(
-      'B5 pre-restore-*.db 已生成且内容为恢复前的现库',
+      `B5 pre-restore-*.db 已生成于备份目录（${BACKUP_DIR}）且内容为恢复前的现库`,
       preRestoreName.startsWith(PRE_RESTORE_PREFIX) &&
-        existsSync(join(DB_DIR, preRestoreName)) &&
-        countRows(join(DB_DIR, preRestoreName), 'customers') ===
+        existsSync(join(BACKUP_DIR, preRestoreName)) &&
+        countRows(join(BACKUP_DIR, preRestoreName), 'customers') ===
           beforeRestore.customers,
-      { preRestoreName, rows: existsSync(join(DB_DIR, preRestoreName)) ? countRows(join(DB_DIR, preRestoreName), 'customers') : null }
+      {
+        preRestoreName,
+        inBackupDir: existsSync(join(BACKUP_DIR, preRestoreName)),
+        inDbDir: existsSync(join(DB_DIR, preRestoreName)),
+        rows: existsSync(join(BACKUP_DIR, preRestoreName))
+          ? countRows(join(BACKUP_DIR, preRestoreName), 'customers')
+          : null,
+      }
     )
     check('B6 标记已删除', !existsSync(restoreMarkerPath(DB_PATH)))
 
@@ -260,7 +280,7 @@ async function main() {
     const brokenBackup = join(BACKUP_DIR, 'imp-20261031-130000-000.db')
     writeFileSync(brokenBackup, Buffer.alloc(1024, 0x5a)) // 有长度、无 SQLite 头
     writeRestoreMarker(DB_PATH, 'imp-20261031-130000-000.db', 'check-script')
-    const before = snapshotDir(DB_DIR)
+    const before = snapshotBoth()
 
     const outcome = applyPendingRestore(DB_PATH)
     check('D1 备份不可用时返回 failed', outcome?.status === 'failed', outcome)
@@ -271,9 +291,9 @@ async function main() {
     )
     check('D3 保留标记（供下次启动重试/诊断）', existsSync(restoreMarkerPath(DB_PATH)))
     check(
-      'D4 目录内容未被改动（现库与回退副本都在原位）',
-      JSON.stringify(before) === JSON.stringify(snapshotDir(DB_DIR)),
-      { before, after: snapshotDir(DB_DIR) }
+      'D4 两目录内容未被改动（现库与回退副本都在原位）',
+      before === snapshotBoth(),
+      { before, after: snapshotBoth() }
     )
     check(
       'D5 现库仍可读且数据未变',
