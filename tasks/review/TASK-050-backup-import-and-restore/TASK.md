@@ -405,7 +405,12 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 
 ## Current State
 
-> **2026-10-31 · `REVIEW`（`tasks/review/`）—— Phase 0~6 全部完成，等待独立审查与人类授权。**
+> **2026-10-31 · `REVIEW`（`tasks/review/`）—— Phase 0~6 全部完成，PR #25 已开且 CI 全绿，等待独立审查与人类授权。**
+> **PR #25**（base `main`，head `6b5b418`，7 提交 / 42 文件，`MERGEABLE`）：
+> CI run **`41101392360`** 两个必需检查 `install-lint-build` 与 `audit` 均 **pass**
+> （`gh pr checks 25` 可复现）。首轮 run `41099616120` 曾在 knip 步骤失败，
+> 已由提交 `6b5b418` 修复后复跑转绿 —— 见 Task Rules 末条与 AC-13。
+> **执行位未合并、未打 tag、未自行判定 PASS。**
 > 13 项 AC 全部按实测结论勾选（其中 AC-9 后半「未复现」、已如实标注）；冒烟 176 通过 / 7 失败
 > （7 项为 TASK-046 遗留基线，失败集逐字相同）；`restore-apply-check.ts` 20 通过 / 0 失败；
 > 前端单测 26 文件 / 334 用例全通过；静态门禁与 `audit-repo.py` 全绿。
