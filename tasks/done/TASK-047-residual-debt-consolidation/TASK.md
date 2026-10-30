@@ -10,7 +10,7 @@
 Task ID: TASK-047
 Title: 遗留债务一次性收口（档案回写归档 / 制度门禁补洞 / 文档口径统一 / 代码卫生）
 Workflow: chore
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: 主控位（设计，2026-10-21）
 Owner Since: 2026-10-21
@@ -425,6 +425,10 @@ Non-Scope (files):
 
 ## Current State
 
+> **2026-10-31 · `DONE`（`tasks/done/`）—— 终态。** PR #22 已由主控位按人类授权执行 rebase-merge
+> （`2026-10-21T10:40:27Z`，`9429b23`）；`Merge Record` 九要素由 TASK-050 于 2026-10-31 按 D13-C 回填。
+> 以下为实施期历史记录（如实保留，指向当时状态），终态以本段为准。
+
 > **2026-10-21 14:2x · `REVIEW`（`tasks/review/`）—— 主控位第二轮复审已判定 PASS（1 项 M-1），
 > M-1 已由执行位闭合，现**仅待人类显式授权合并**。**
 > 第 2 轮审查：`handoffs/2026-10-21-coordinator-review-round2.md`（**PASS**）；
@@ -627,36 +631,33 @@ Non-Scope (files):
 **审查记录：** `handoffs/2026-10-21-posthoc-recheck.md`（执行位出具的 A3 事后复核，F-8 改名并更正作者）·
 `handoffs/2026-10-21-coordinator-review.md`（主控位第 1 轮，**CHANGES_REQUESTED**）·
 `handoffs/2026-10-21-coordinator-review-round2.md`（主控位第 2 轮，**PASS**，1 项合并前必修 M-1）
-**Next Action：** ⓐ ~~补 M-1~~ ✅ **已闭合** —— 提交 `6ac1183`（AC-20 已勾、判据正文一字未改），
-CI run `39552606374`（`pull_request`，head `6ac1183`）双必需检查 `install-lint-build` / `audit` 均 **success**；
-ⓑ 待**人类显式授权**后，由主控位执行 rebase-merge（PR #22 现 `mergeable=MERGEABLE` / `mergeStateStatus=CLEAN`，未合并）；
-ⓒ 合并后按 D13-C 选项 C 由下一个任务回填本档案 `Merge Record`（第九实例），
-并在回填时以**合并时点**的 `git rev-list --count main..HEAD` 为准（当前 12，档案 `Changed Files` 锚定 `f4b49f5`=10，属 N-4 刻意取舍）。
-**执行位未自行合并、未自行判定 PASS、未代写主控位署名文件。**
+**Next Action：** 无（终态）。ⓐ~~补 M-1~~ ✅ 已闭合；ⓑ 人类已授权、主控位已执行 rebase-merge，
+PR #22 于 `2026-10-21T10:40:27Z` 合并（`9429b23`）；ⓒ `Merge Record` 已由 **TASK-050 于 2026-10-31 按 D13-C 回填**
+（提交数实测 **13**，以合并时点口径为准）。本档案随之归档至 `tasks/done/`，`Status: DONE`。
+**执行位自始至终未自行合并、未自行判定 PASS、未代写主控位署名文件。**
 **前置阻断：** 已解除 —— knip / PyYAML / `audit_framework.py` / F8 / F9 均已在 CI 实跑成功
 （run `39537943459`、`39543828636`、`39544951231`，三批两作业均 success；PEP 668 未构成障碍）。
+> 上方 2026-10-21 的 ⓐ/ⓑ/ⓒ 为**实施期历史记录**（如实保留，指向当时状态）；终态以本段为准。
 
 ---
 
 ## Merge Record
 
-> **按 D13-C 选项 C：本表由下一个任务回填。**
-> **不得在本任务内自我回写**（那将造成档案与提交历史不一致）。
->
-> **本任务自身即为下一个被回写方** —— 与 TASK-043 / 044 / 045 / 046 同机制。
-> 详见 `Known Issues` KI-1，以及本任务 WP-1 正在试图终结该累积（建议见 D-1）。
+> **由 TASK-050（备份导入与恢复）于 2026-10-31 按 D13-C 选项 C 回填。**
+> 九要素全部为 `gh api` / DockerHub Tags API **实测值**（复现命令见各单元格内注释）。
+> 回填动作与本任务的实现同批提交（KI-11），未单独开「回写专用」交接。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待下一个任务回填 |
-| 合并策略 | rebase-merge（预期，`AGENTS.md` §14.2） |
-| 提交数 | 待下一个任务回填 |
-| merged_at | 待下一个任务回填 |
-| merge_commit_sha | 待下一个任务回填 |
-| 合并后 CI run | 待下一个任务回填 |
-| 合并后 Docker run | 待下一个任务回填 |
-| 镜像 tag | 待下一个任务回填 |
-| 审查记录 | 待下一个任务回填 |
+| PR | #22（base `main`，标题 `chore(TASK-047): 遗留债务一次性收口…`；实测 `gh api repos/:owner/:repo/pulls/22`） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认；13 个原提交线性追加，无额外 merge commit） |
+| 提交数 | **13**（实测 `gh api repos/:owner/:repo/pulls/22/commits --jq 'length'` = 13） |
+| merged_at | `2026-10-21T10:40:27Z`（实测 `gh api repos/:owner/:repo/pulls/22 --jq .merged_at`） |
+| merge_commit_sha | `9429b23bb2c793d890537155e8389bb6314e0f44`（实测 `gh api …/pulls/22 --jq .merge_commit_sha`） |
+| 合并后 CI run | `39586307250`（Continuous Integration，event=push，conclusion=success，created `2026-10-21T10:40:30Z`，实测 `gh run list --commit 9429b23…`） |
+| 合并后 Docker run | `39586307264`（Build and Push Docker Image，success，created `2026-10-21T10:40:30Z`，与 CI 同批触发；同 head 上另有一个 `39623104431` 为 tag `v1.0.3` 触发的发布 run，非合并 run） |
+| 镜像 tag | `sha-9429b23`（DockerHub `nomorelatenights/subscription-admin`，Tags API 实测在位，digest `sha256:057a4b6543a7…`，last_pushed `2026-10-21T15:15:18Z` —— 由 tag `v1.0.3` 的发布 run `39623104431` 产出）；该 head 另有版本 tag `v1.0.3` |
+| 审查记录 | ⚠️ **无合并前独立审查档（A3 断档）**：`handoffs/` 有 `2026-10-21-coordinator-review.md` 与 `2026-10-21-coordinator-review-round2.md`（分别审 `897fa8f` 与 PR #22 head `8a6390a`），但二者均由**主控位**出具、与派单实例同源，按 `.agents/protocols/dual-agent-model.md` §5 不变量 I2 **不构成独立审查**。**不补写、不伪造。** |
 
 ---
 
