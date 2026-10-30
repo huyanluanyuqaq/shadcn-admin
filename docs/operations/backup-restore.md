@@ -137,7 +137,7 @@ node -e "const D=require('better-sqlite3');const d=new D('data/backups/app-20261
 node -e "const D=require('better-sqlite3');const d=new D('data/backups/app-20261011-030000-123.db',{readonly:true});console.log('customers:',d.prepare('select count(*) c from customers').get().c);d.close()"
 
 # 启动期恢复逻辑的自动化验证（在临时目录自建场景，不触碰 data/）
-pnpm --filter server exec tsx scripts/restore-apply-check.ts
+pnpm --filter server restore-check
 ```
 
 ## 5. 异地容灾（宿主机层，应用不内置）

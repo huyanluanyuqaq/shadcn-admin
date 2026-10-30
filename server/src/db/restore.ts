@@ -33,7 +33,7 @@ import { buildPreRestoreFilename, isBackupFilename } from '../services/backup-na
 /** 恢复标记文件名（位于数据库同目录，与 app.db / backups/ 平级） */
 const MARKER_FILENAME = '.restore-pending.json'
 
-export type RestoreMarker = {
+type RestoreMarker = {
   /** 恢复目标备份文件名（`app-` / `imp-` 前缀） */
   filename: string
   /** 排程时间（ISO 8601） */

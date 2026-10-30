@@ -96,7 +96,8 @@ TASK-047 / 048 / 049 的 `Merge Record` 九要素按 `gh api` + DockerHub Tags A
 | 2 | 冒烟新增环境变量 `SMOKE_DB_DIR`（默认 `E:/AiData`） | 恢复标记 `.restore-pending.json` 写在**数据库同目录**，第 19 段断言其存在后必须删除，否则残留会被**下一次服务启动**当成待恢复任务应用。冒烟脚本是独立进程，只能靠 env 获知服务端 DB 目录 | 冒烟多一个需传的变量；已在 `smoke.ts` 头部注释与 `backup-restore.md` 之外的文件头说明 |
 | 3 | 冒烟 19.22 的 `no-store` 断言改为「现造一份备份再下载」 | 首版在 19.19 清理**之后**下载已删除的文件，拿到 404（无该响应头）。属实现顺序错误，已修 | 无（用例数不变） |
 | 4 | 前端「导入」测试用 `userEvent.upload` 而非点击按钮 | 隐藏 `input[type=file]` 是 `display:none`，user-event 的指针交互会抛错 | 无；断言按 name/size 而非引用相等（`upload` 会重建 File） |
-| 5 | `Hono<BackupEnv>` 类型参数 | `c.get('auth')` 在无 env 类型的 `Hono()` 下编译不过 | 无 |
+| 5 | `Hono<BackupEnv>` 类型参数 | `c.get('auth')` 在无 env 类型的 `Hono()` 下编译不过 |
+| 6 | 收窄 3 个导出面 + 新增 `server/package.json` 的 `restore-check` 脚本 | CI knip 门禁「新增积压仍会红」：`REQUIRED_BACKUP_TABLES` / `RestoreMarker` 无跨模块消费者（导出即死代码，改模块内可见）；`restore-apply-check.ts` 是独立脚本，不以 package.json script 登记就会被判「未使用文件」。顺带让脚本复用 `restoreMarkerPath` / `PRE_RESTORE_PREFIX` 而非硬编码字面量 | 无 |
 
 **未偏离**：`docker-compose.yml` 未改；`db/schema.ts` / `migrate.ts` 未改（无 schema 变更）；
 `server/data/**` 零写入；未新增任何依赖；既有四端点与 `BackupFile` 结构未变；
@@ -119,7 +120,7 @@ TASK-047 / 048 / 049 的 `Merge Record` 九要素按 `gh api` + DockerHub Tags A
 pnpm build:shared
 
 # 2) AC-6 / AC-7：启动期恢复的独立验证（自建 E:/AiData 临时目录，不触碰 server/data/）
-pnpm --filter server exec tsx scripts/restore-apply-check.ts
+pnpm --filter server restore-check          # 等价 tsx scripts/restore-apply-check.ts
 
 # 3) AC-8：前端浏览器单测
 pnpm exec vitest run --browser.headless src/features/backups/components/backups-table.test.tsx
@@ -148,7 +149,7 @@ SMOKE_BASE_URL=http://127.0.0.1:3002 SMOKE_DB_DIR=E:/AiData pnpm --filter server
 
 | 项 | 命令 | 结果 |
 |----|------|------|
-| AC-6 / AC-7 | `tsx scripts/restore-apply-check.ts` | **20 通过 / 0 失败**，退出码 **0** |
+| AC-6 / AC-7 | `pnpm --filter server restore-check` | **20 通过 / 0 失败**，退出码 **0** |
 | AC-8 | `vitest run … backups-table.test.tsx` | **8 passed (8)**（既有 5 + 新增 3） |
 | 前端全量 | `vitest run --browser.headless` | **26 文件 / 334 用例全通过** |
 | eslint | 14 个改动/新增文件 | 退出码 **0** |
@@ -254,11 +255,12 @@ API：  POST /api/backups/app-20261031-000000-000.db/restore  →  202 {"schedul
 
 1. 读 `tasks/review/TASK-050-backup-import-and-restore/TASK.md`，重点是
    Background 的架构阻塞点、Requirements 2/6/7/8、以及 AC-6 / AC-7 的「数据层证据」判据。
-2. **独立复跑**（不要采信本交接的自述）：
+2. **独立复跑**（不要采信本交接的自述；knip 也必须跑，它现在是本 PR 的红灯来源）：
    ```bash
-   pnpm --filter server exec tsx scripts/restore-apply-check.ts      # 期望 20/0，退出码 0
+   pnpm --filter server restore-check                                # 期望 20/0，退出码 0
    pnpm exec vitest run --browser.headless                          # 期望 26 文件 / 334 用例
    pnpm exec tsc -b && pnpm --filter server typecheck               # 期望 0
+   pnpm knip                                                        # 期望零输出（CI 的 knip 步骤）
    python scripts/audit-repo.py                                     # 期望 PASS=9 FAIL=0
    ```
 3. 冒烟需自建快照库（**不要**用 `server/data/app.db`）：

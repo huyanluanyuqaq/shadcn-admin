@@ -13,7 +13,7 @@ import Database from 'better-sqlite3'
  */
 
 /** 系统库必须具备的五张表；缺任一即判定「不是本系统的备份」 */
-export const REQUIRED_BACKUP_TABLES = [
+const REQUIRED_BACKUP_TABLES = [
   'admins',
   'customers',
   'subscriptions',

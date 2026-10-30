@@ -134,7 +134,7 @@ Requires Human Approval: true
   > 实测：冒烟 19.12 / 19.13 / 19.14 / 19.15 全绿（19.15 显式断言 `.restore-pending.json` 不存在）。
 - [x] AC-5: 合法恢复请求（服务端 `RESTORE_AUTO_EXIT=false`）→ 202，`.restore-pending.json` 存在且 `filename` 字段等于请求目标；进程**未退出**（`GET /api/health` 仍 200）
   > 实测：冒烟 19.16（202 + `restartExpected=false`）、19.17（标记三字段齐全且 `filename` 逐字相等）、19.18（health 仍 200）全绿。
-- [x] AC-6: `pnpm --filter server tsx scripts/restore-apply-check.ts`（在工作区外临时目录内构造场景）退出码 0，且逐项断言：无标记时零副作用；有标记时 `app.db` 被替换、`-wal`/`-shm` 已删除、`pre-restore-*.db` 已生成、标记已删除
+- [x] AC-6: `pnpm --filter server restore-check`（在工作区外临时目录内构造场景）退出码 0，且逐项断言：无标记时零副作用；有标记时 `app.db` 被替换、`-wal`/`-shm` 已删除、`pre-restore-*.db` 已生成、标记已删除
   > 实测：退出码 **0**，**20 通过 / 0 失败**（A1~A3 零副作用、B1~B6 文件替换五要素、D1~D5 回滚路径）。
   > 工作区 `E:/AiData/task050-restore-check-*/`（未清理以供人工复查；已从交付物中排除）。
 - [x] AC-7: 同脚本中抽查：恢复后 `customers` / `subscriptions` 行数与 `settings` 中某键值**等于备份文件内**的取值（证明落的是备份内容，不是原库）
@@ -163,7 +163,7 @@ Requires Human Approval: true
   > 顺带更正两处档案失真：① TASK-048 原写「PR 待回填（未推送，分支仅存在于本地）」与实测不符（PR #23 确已合并）；② 三档 `Next Action` / `Current State` 仍指向「待人类授权合并」，已改为终态描述（§13 否定性断言复核）。
   > 三档 `Status → DONE`、目录 `review/ → done/`（`git mv`）。`audit-repo.py`：**PASS=9 FAIL=0 WARN=0**（F8 / F9 均 PASS）。
 - [x] AC-13: 门禁全绿：`pnpm exec eslint`（改动文件）/ `pnpm exec prettier --check`（改动文件）/ `pnpm exec tsc -b` / `pnpm --filter server typecheck` / 前端单测 / `python scripts/audit-repo.py`；`git status --short` 仅含 File Scope 内文件
-  > `eslint` 14 个改动/新增文件 → 退出码 0；`prettier --check` 同批文件 → 全部合规；`tsc -b` → 0；`--filter server typecheck` → 0；
+  > `eslint` 15 个改动/新增文件 → 退出码 0；`knip` → 零输出（CI 的 knip 步骤，见下）；`prettier --check` 同批文件 → 全部合规；`tsc -b` → 0；`--filter server typecheck` → 0；
   > 前端单测**全量** **26 文件 / 334 用例全通过**；`audit-repo.py` **PASS=9 FAIL=0**；`git diff --check` 无空白错误。
   > `git status --short` 仅含 File Scope 内文件（`__screenshots__` / `dist` 已被 `.gitignore:33` / `:11` 覆盖）。
   > 附加（非门禁项）：`server/scripts/*.ts` 不在 `server/tsconfig.json` 的 `include: ["src"]` 内，故不经 `typecheck` 门禁；已**手工**以相同编译器选项对 `smoke.ts` 与 `restore-apply-check.ts` 各跑一次 `tsc --noEmit`，新增代码**零错误**（`smoke.ts` 残留的 2 处 `boolean | undefined` 报错在未改动的 `main` 上同样存在，非本任务引入）。
@@ -193,6 +193,10 @@ File Scope:
   - server/src/index.ts                      # 改：启动后写 restore outcome 日志
   - server/src/env.ts                        # 改：restoreAutoExit（RESTORE_AUTO_EXIT，默认 true）
   - server/scripts/restore-apply-check.ts    # 新增：启动期应用的独立验证脚本（临时目录，退出码判定）
+  - server/package.json                      # 改（执行位补，CI knip 门禁要求）：新增 restore-check 脚本。
+                                              #   理由：knip 以 package.json scripts 为入口；独立验证脚本
+                                              #   若不以 script 登记就会被判「未使用文件」而使 CI 红。
+                                              #   顺带让 runbook 可用 pnpm --filter server restore-check 调用。
   - server/scripts/smoke.ts                  # 改：第 19 段（导入/恢复）
   # ---- 前端 ----
   - src/features/backups/queries.ts          # 改：uploadBackup / useRestoreBackup
@@ -530,6 +534,11 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 - [补充] 任何「恢复成功」的断言必须同时有数据层证据（AC-7），不得仅有 202 响应。
 - [补充] 任务档案与交接文件随实现**同批提交**（KI-11），不新开「入库专用」交接。
 - [补充] Phase 5 只允许填**实测值**；不确定的字段宁可留「待回填」并上报，不得猜测。
+- [补充] **CI knip 门禁要求零新增未使用导出/未使用文件**（`knip.config.ts` 的「新增积压仍会红」策略）。
+  据此执行位做了三处收窄：`REQUIRED_BACKUP_TABLES` 与 `RestoreMarker` 由 `export` 改为模块内可见
+  （二者均无跨模块消费者，导出即死代码）；`restore-apply-check.ts` 经 `server/package.json`
+  的 `restore-check` 脚本登记为 knip 入口，并改为复用 `restoreMarkerPath` 与 `PRE_RESTORE_PREFIX`
+  （单一事实来源，不再硬编码字面量）。**行为零变化**，仅收窄导出面。
 
 ---
 
