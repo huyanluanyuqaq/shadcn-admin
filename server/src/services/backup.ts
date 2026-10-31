@@ -81,7 +81,9 @@ export function applyRetention(dir: string, deps: RetentionDeps = {}): string[] 
     } catch (err) {
       console.error(`[backup] 删除旧备份失败（${file.filename}）:`, err)
       // 保留策略删除失败必须留痕（AC-9）：回退副本与旧备份的清理都依赖这里暴露问题
-      void writeLog(
+      // 直接调用（不加 `void`）：writeLog 是同步函数（logger.ts 内部 .run()），
+      // `void` 运算符在此会误导读者以为它是「未 await 的异步调用」。
+      writeLog(
         'error',
         'backup',
         `保留策略删除旧备份失败（${file.filename}）：${
