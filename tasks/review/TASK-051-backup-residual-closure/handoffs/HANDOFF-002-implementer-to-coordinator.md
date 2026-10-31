@@ -152,7 +152,7 @@ server/src/db/index.ts:44:  ? resolve(config.backupDir)
 库与目录均在 `E:\NDLDSN-WORKSPACE\.i2-review-tmp\task051\wp1-migrate\`。
 9 份白名单场景改为：现库 3 客户、备份 7 客户、标记指向该备份。
 
-**红（修复前代码，`git checkout HEAD -- restore.ts index.ts`）：**
+**红（暂存修复版后，检出 `2fdd2c9`（= 修复前）版本的 `restore.ts` / `index.ts`）：**
 
 ```text
 $ pnpm --filter server db:migrate
@@ -186,6 +186,11 @@ pre-restore-20261031-120845-451.db    ← 回退副本落在**注入的**备份�
 临时 `.env` 已删除（`Test-Path .env` = False）。
 **还原复核**：红/绿切换用的两份修复版文件还原后 SHA-256 与暂存副本逐字相同
 （`restore.ts` `9045EE21…`、`index.ts` `EBE7B0B3…`）。
+**〔2026-10-31 更正（R-6）〕** 本节原标题写作「红（修复前代码，`git checkout HEAD -- restore.ts index.ts`）」，
+语义相反：`git checkout HEAD -- …` 是**还原到 HEAD（修复版）**的步骤，不是「切到修复前」。
+实际操作是：先把修复版复制到沙箱暂存 → `git checkout HEAD -- server/src/db/restore.ts server/src/db/index.ts`
+（得到 `2fdd2c9` 时点的旧代码）→ 跑红 → 再从暂存副本复制回来（SHA-256 复验一致）。
+红本身的可信度不受影响（输出显示 `customers=3`、标记未消费、无 `pre-restore-*`）。
 
 ### 3.4 无回归（AC-6）
 
@@ -331,8 +336,14 @@ $ git diff --stat main...HEAD
  server/src/db/restore.ts                           |  41 +-
  server/src/services/backup.ts                      |  14 +-
  tasks/{review => done}/TASK-050-…                   |  48 +-
- 16 files changed, 719 insertions(+), 50 deletions(-)
+ 20 files changed, 1670 insertions(+), 52 deletions(-)
 ```
+
+> 〔2026-10-31 主控位第 1 轮审查后更正（R-1）〕上面这行数字首次写的是
+> `16 files changed, 719 insertions(+), 50 deletions(-)`——那是**档案提交之前**的时点
+> （KI-11 型：档案自身也在 diff 里，写的时候就已在变）。上表已换成 `56b2200` 时点重跑的
+> 实测值 **20 文件 / +1670 / −52**（主控位独立复跑一致）。引用本表的数字时，请以
+> 「`<sha>` 时点」为前提，diff 会随后续提交继续变大。
 
 无 `.github/workflows/**`、无 `docker-compose.yml`、无 `schema.ts`、无迁移文件（AC-12）。
 前端未改动，未跑前端套件（本任务不改前端；前端回归由 CI 覆盖）。
