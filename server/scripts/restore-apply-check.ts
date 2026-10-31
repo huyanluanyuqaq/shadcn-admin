@@ -180,7 +180,7 @@ async function main() {
   // ---------- A. 无标记 → 零副作用 ----------
   {
     const before = snapshotBoth()
-    const outcome = applyPendingRestore(DB_PATH)
+    const outcome = applyPendingRestore(DB_PATH, BACKUP_DIR)
     const after = snapshotBoth()
     check('A1 无标记时返回 null', outcome === null, outcome)
     check(
@@ -204,7 +204,7 @@ async function main() {
           'imp-20261031-120000-000.db'
     )
 
-    const outcome = applyPendingRestore(DB_PATH)
+    const outcome = applyPendingRestore(DB_PATH, BACKUP_DIR)
     check('B2 返回 applied', outcome?.status === 'applied', outcome)
 
     const preRestoreName =
@@ -282,7 +282,7 @@ async function main() {
     writeRestoreMarker(DB_PATH, 'imp-20261031-130000-000.db', 'check-script')
     const before = snapshotBoth()
 
-    const outcome = applyPendingRestore(DB_PATH)
+    const outcome = applyPendingRestore(DB_PATH, BACKUP_DIR)
     check('D1 备份不可用时返回 failed', outcome?.status === 'failed', outcome)
     check(
       'D2 失败原因非空',
@@ -319,7 +319,7 @@ async function main() {
     const shaBefore = sha256(DB_PATH)
 
     writeRestoreMarker(DB_PATH, 'imp-20261031-120000-000.db', 'check-script')
-    const outcome = applyPendingRestore(DB_PATH)
+    const outcome = applyPendingRestore(DB_PATH, BACKUP_DIR)
 
     check(
       'E1 现库不可 checkpoint 时返回 failed',
