@@ -89,7 +89,10 @@ Requires Human Approval: true
 7. **启动期应用**（`db/index.ts` 在 `new Database` **之前**调用）：存在标记时 —— ① 打开现库跑 `wal_checkpoint(TRUNCATE)` 后 close；② `rename` 现库为 `backups/pre-restore-<ts>.db`；③ `copy` 备份文件为 `app.db`（**保留备份原件**）；④ 删除 `app.db-wal` / `app.db-shm`；⑤ 删除标记；⑥ 返回 outcome 供 `index.ts` 写 `logs`（module=`restore`）。任一步骤失败 → 回滚已做的 rename、**保留标记**、返回 failed。
 8. **启动期零副作用**：无标记时函数必须只做一次 `existsSync` 判定，不创建/改名/删除任何文件。
 9. **文件名白名单**：`^(app|imp)-\d{8}-\d{6}-\d{3}\.db$`；`resolve` 后仍须位于备份目录内（沿用 TASK-015 双保险）。`pre-restore-*` **不匹配**该正则（故不出现在列表、不被保留策略删除）。
-10. **前端**：顶部「导入备份」（隐藏 file input，`accept=".db,application/vnd.sqlite3"`，前端先挡 > 64 MiB）；行内「恢复」按钮 → ConfirmDialog（destructive，文案含「覆盖当前数据库、服务重启、恢复点之后数据丢失」）；`imp-` 文件在文件名旁显示「导入」标识；`policy.restoreAutoExit === true` 时页面顶部提示「本环境恢复后不会自动重启，需手动重启服务」。
+10. **前端**：顶部「导入备份」（隐藏 file input，`accept=".db,application/vnd.sqlite3"`，前端先挡 > 64 MiB）；行内「恢复」按钮 → ConfirmDialog（destructive，文案含「覆盖当前数据库、服务重启、恢复点之后数据丢失」）；`imp-` 文件在文件名旁显示「导入」标识；`policy.restoreAutoExit === false` 时页面顶部提示「本环境恢复后不会自动重启，需手动重启服务」。
+    > **措辞更正（2026-10-31，主控位审查 R-1）**：本条原文写作 `=== true`，与 `restoreAutoExit` 的语义
+    > （`true` = 排程后退出进程以触发重启）自相矛盾，属**派单缺陷**。执行位按字面实现致 UI 提示条件反转
+    > （审查记录 B-1 之外的 M-1），已按更正后语义派整改。原文以本注记保留，不静默改词。
 11. **恢复后的前端行为**：收到 202 后 toast 提示，并按 2s 间隔轮询 `GET /api/health` 最多 30s，成功后刷新页面；超时则提示手动刷新。
 12. **审计**：导入（成功/失败）、恢复排程、恢复应用（成功/失败）、下载，全部写 `logs`（module 分别为 `backup` / `restore`）。
 
@@ -135,14 +138,15 @@ Requires Human Approval: true
 - [x] AC-5: 合法恢复请求（服务端 `RESTORE_AUTO_EXIT=false`）→ 202，`.restore-pending.json` 存在且 `filename` 字段等于请求目标；进程**未退出**（`GET /api/health` 仍 200）
   > 实测：冒烟 19.16（202 + `restartExpected=false`）、19.17（标记三字段齐全且 `filename` 逐字相等）、19.18（health 仍 200）全绿。
 - [x] AC-6: `pnpm --filter server restore-check`（在工作区外临时目录内构造场景）退出码 0，且逐项断言：无标记时零副作用；有标记时 `app.db` 被替换、`-wal`/`-shm` 已删除、`pre-restore-*.db` 已生成、标记已删除
-  > 实测：退出码 **0**，**20 通过 / 0 失败**（A1~A3 零副作用、B1~B6 文件替换五要素、D1~D5 回滚路径）。
+  > 实测：退出码 **0**，**24 通过 / 0 失败**（A1~A3 零副作用、B1~B6 文件替换五要素、C1~C6 数据层取证、D1~D5 回滚路径、**E1~E4 回滚护栏**）。
+  > E 段为整改 B-1 新增：把现库写成 4096 字节 `0x5A`（`new Database` 能打开、`wal_checkpoint` 抛 `SQLITE_NOTADB` ⇒ 失败点确在 ①），断言 `failed` + 现库文件仍在 + 字节逐字未变 + 标记保留。
   > 工作区 `E:/AiData/task050-restore-check-*/`（未清理以供人工复查；已从交付物中排除）。
 - [x] AC-7: 同脚本中抽查：恢复后 `customers` / `subscriptions` 行数与 `settings` 中某键值**等于备份文件内**的取值（证明落的是备份内容，不是原库）
   > 实测：C1（customers 7）、C2（subscriptions 3）、C3（settings `site_name`=`RESTORED-FROM-BACKUP`）均等于备份内取值；
   > C4 反向证明恢复前原库取值为 20 / 9 / `CURRENT-BEFORE-RESTORE`（三者确有不同 ⇒ 断言有区分力）；
   > C6 **恢复后 `app.db` 与备份文件 `sha256` 逐字节相同**。
 - [x] AC-8: `backups-table.test.tsx` 新增三例通过：点击「导入备份」触发上传且带正确文件；点击「恢复」弹 ConfirmDialog，确认后调用恢复 mutation 且参数为文件名；`imp-` 文件渲染出「导入」标识
-  > 实测：`vitest run --browser.headless src/features/backups/components/backups-table.test.tsx` → **8 passed (8)**（既有 5 例一字未改 + 新增 3 例）。
+  > 实测：`vitest run --browser.headless src/features/backups/components/backups-table.test.tsx` → **9 passed (9)**（既有 5 例一字未改 + 新增 3 例 + 整改 M-1 新增 1 例）。
   > 导入例经隐藏 `input[type=file]` 用 `userEvent.upload` 触发；该 API 会重建 File 实例，故按 name/size 断言而非引用相等。
 - [x] AC-9: 下载端点调用后 `logs` 新增一条 module=`backup` 的记录，且响应头含 `Cache-Control: no-store`；保留策略删除失败时 `logs` 出现 `error` 级记录
   > **前半已通过**：冒烟 19.21（`logs` module=`backup` 含「下载备份 <name>」）、19.20（含「导入备份 <name>」）、19.22（响应头 `cache-control: no-store`）全绿。
@@ -164,7 +168,7 @@ Requires Human Approval: true
   > 三档 `Status → DONE`、目录 `review/ → done/`（`git mv`）。`audit-repo.py`：**PASS=9 FAIL=0 WARN=0**（F8 / F9 均 PASS）。
 - [x] AC-13: 门禁全绿：`pnpm exec eslint`（改动文件）/ `pnpm exec prettier --check`（改动文件）/ `pnpm exec tsc -b` / `pnpm --filter server typecheck` / 前端单测 / `python scripts/audit-repo.py`；`git status --short` 仅含 File Scope 内文件
   > `eslint` 15 个改动/新增文件 → 退出码 0；`knip` → 零输出（CI 的 knip 步骤，见下）；`prettier --check` 同批文件 → 全部合规；`tsc -b` → 0；`--filter server typecheck` → 0；
-  > 前端单测**全量** **26 文件 / 334 用例全通过**；`audit-repo.py` **PASS=9 FAIL=0**；`git diff --check` 无空白错误。
+  > 前端单测**全量** **26 文件 / 335 用例全通过**（整改 M-1 新增 1 例）；`audit-repo.py` **PASS=9 FAIL=0**；`knip` 零输出；`git diff --check` 无空白错误。
   > `git status --short` 仅含 File Scope 内文件（`__screenshots__` / `dist` 已被 `.gitignore:33` / `:11` 覆盖）。
   > 附加（非门禁项）：`server/scripts/*.ts` 不在 `server/tsconfig.json` 的 `include: ["src"]` 内，故不经 `typecheck` 门禁；已**手工**以相同编译器选项对 `smoke.ts` 与 `restore-apply-check.ts` 各跑一次 `tsc --noEmit`，新增代码**零错误**（`smoke.ts` 残留的 2 处 `boolean | undefined` 报错在未改动的 `main` 上同样存在，非本任务引入）。
 
@@ -353,7 +357,8 @@ export function buildPreRestoreFilename(now: Date): string { /* `${PRE_RESTORE_P
      `window.location.reload()`，超时提示手动刷新；
    - 文件名列：`item.filename.startsWith('imp-')` 时在文件名后渲染
      `<span className='...'>导入</span>` 标识；
-   - `data.policy.restoreAutoExit === true` 时表格上方渲染 `Alert`（提示本环境恢复后不会自动重启）。
+   - `data.policy.restoreAutoExit === false` 时表格上方渲染 `Alert`（提示本环境恢复后不会自动重启；
+     与 Requirement 10 的更正一致，见 R-1）。
 
 3. `backups-table.test.tsx`：新增 `describe('BackupsTable 导入与恢复')` 三例。注意本仓库
    浏览器单测的既有约束：`render()` 结果**无** `getByRole`/`getByText`（用
@@ -405,18 +410,32 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 
 ## Current State
 
-> **2026-10-31 · `REVIEW`（`tasks/review/`）—— Phase 0~6 全部完成，PR #25 已开且 CI 全绿，等待独立审查与人类授权。**
-> **PR #25**（base `main`，head `6b5b418`，7 提交 / 42 文件，`MERGEABLE`）：
-> CI run **`41101392360`** 两个必需检查 `install-lint-build` 与 `audit` 均 **pass**
-> （`gh pr checks 25` 可复现）。首轮 run `41099616120` 曾在 knip 步骤失败，
-> 已由提交 `6b5b418` 修复后复跑转绿 —— 见 Task Rules 末条与 AC-13。
-> **执行位未合并、未打 tag、未自行判定 PASS。**
-> 13 项 AC 全部按实测结论勾选（其中 AC-9 后半「未复现」、已如实标注）；冒烟 176 通过 / 7 失败
-> （7 项为 TASK-046 遗留基线，失败集逐字相同）；`restore-apply-check.ts` 20 通过 / 0 失败；
-> 前端单测 26 文件 / 334 用例全通过；静态门禁与 `audit-repo.py` 全绿。
-> **恢复成功已有数据层证据**（AC-7 的 sha256 逐字节相同 + 行数/键值比对，以及一次经真实
-> 服务启动路径的端到端验证：18 → 17 客户、哨兵行消失、`pre-restore-*` 生成、`logs` 落
-> module=`restore` 的 applied 记录）。执行位**未合并、未打 tag、未自行判定 PASS**。
+> **2026-10-31 · `CHANGES_REQUESTED` 整改完成（`tasks/review/`）—— 等主控位复审，再转 I2 独立审查与人类授权。**
+>
+> 主控位审查（`handoffs/2026-10-31-coordinator-review.md`）判定 **CHANGES_REQUESTED**：
+> 2 阻断（B-1 回滚分支会删掉唯一现库、B-2 回退副本落盘位置与三处文档不符）+ 1 必须修
+> （M-1 前端环境提示条件反转，含派单措辞缺陷 R-1）+ 建议 M-2 / M-3 / L-1 / L-2。
+> **7 项全部整改完毕**，逐条闭环证据见 `handoffs/HANDOFF-004-implementer-to-coordinator.md`。
+>
+> **B-1 的红/绿两步实测**（硬证据，证明缺陷真实存在且已修）：
+> - **未修**：`restore-check` **22 通过 / 2 失败**、退出码 1；E2 `exists=false`、E3 `after=null`；
+>   独立 `ls` 复核 `app.db` **GONE**（4096 字节现库被回滚分支真删，未被本机 safe-delete 掩盖）；
+> - **修后**：**24 通过 / 0 失败**、退出码 0；`app.db` 仍在且 `sha256` 与写入前逐字相同
+>   （`f302957da5220938a7e3e51a8718c79b9e00dc13ab2119e8cfc978f041720382` = 4096×`0x5A` 的期望值）。
+>
+> **整改后全量验收**：`restore-check` **24/0**（含 E1~E4、B5 指向备份目录）；冒烟 **176 通过 / 7 失败**
+> （第 19 段 22 项全绿，7 项失败为 TASK-046 遗留基线、逐字相同）；前端单测 **26 文件 / 335 用例**；
+> eslint / prettier / `tsc -b` / server typecheck / `knip` / `audit-repo.py`（PASS=9）全绿；
+> `git status --short` 仅含 File Scope 内文件。
+>
+> **PR 状态**：#25（base `main`），head 与提交数随整改推进 —— **以合并时点 head 的 CI run 为准**，
+> 不再在档案里写死 head 与提交数（整改项 N-1）。
+>
+> **执行位未合并、未打 tag、未自行判定 PASS、未夹带 `docker-compose.yml` 或跨任务基础设施改动。**
+>
+> 2026-10-31 · 首轮交付完成（`REVIEW`）—— Phase 0~6 与 AC-1~AC-13 全部完成，PR #25 已开。
+> 首轮 CI run `41101392360` 双必需检查 pass；首轮 `41099616120` 曾在 knip 步骤失败，
+> 已由 `6b5b418` 修复后复跑转绿。冒烟 176/7、`restore-check` 20/0、前端 334 用例。
 >
 > 2026-10-30：主控位完成现状核查（导出完整 / 导入与恢复零实现）并起草本任务，`Status: READY`，
 > 待执行位领取。所有设计结论以 `main dbb3698` 为实测基线。
@@ -449,6 +468,15 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 | `tasks/done/TASK-048-table-page-size-100/TASK.md` | 改 + 迁移 | 同上；并更正原「PR 待回填（未推送，分支仅存在于本地）」的失真（PR #23 确已合并） |
 | `tasks/done/TASK-049-subscription-search-customer-name/TASK.md` | 改 + 迁移 | 同上 |
 | `tasks/review/TASK-050-backup-import-and-restore/**` | 新增 + 迁移 | 任务档案与交接（领取后 `backlog/ → active/`，交付后 `active/ → review/`） |
+| `server/src/db/restore.ts` | 修改（整改 B-1/B-2/M-3/L-2） | ① 回滚分支删除判据由「`dbPath` 是否存在」改为「原库是否已被 rename 走」（`liveRenamed`）；② 抽 `resolveBackupDir()`，回退副本改落**备份目录**；③ `readRestoreMarker` 两条不可解析分支补 `console.error` 留痕；④ 目录约束 `dir` → `dir + sep` |
+| `server/scripts/restore-apply-check.ts` | 修改（整改 B-1/B-2） | 新增 **E 段**（E1~E4 回滚护栏：现库不可 checkpoint 时不得删除现库）；B5 断言改指备份目录并在断言名写明口径；A2 / D4 的零副作用快照扩为「数据库目录 + 备份目录」 |
+| `src/features/backups/components/backups-table.tsx` | 修改（整改 M-1） | 环境提示条件 `restoreAutoExit === true` → `=== false`（与 `restoreAutoExit` 语义一致） |
+| `src/features/backups/components/backups-table.test.tsx` | 修改（整改 M-1） | 新增 1 例锁死提示条件（`true` 不出现 / `false` 出现），已验证该例对条件反转有感知 |
+| `server/src/routes/backups.ts` | 修改（整改 L-1） | 导入路径补 `existsSync(finalPath)` 同名冲突保护，冲突返回 409 并写 error 审计（与 `runBackup()` 对齐） |
+| `docs/operations/backup-restore.md` | 修改（整改 M-2） | §3.1 补「取消待恢复任务」：删除 `.restore-pending.json` 即可，无需重启 |
+| `tasks/review/TASK-050-backup-import-and-restore/handoffs/2026-10-31-coordinator-review.md` | 新增（主控位） | 主控位复审记录：CHANGES_REQUESTED（2 阻断 + 1 必须修 + 3 建议 + 4 记录项） |
+| `tasks/review/TASK-050-backup-import-and-restore/handoffs/HANDOFF-003-coordinator-to-implementer.md` | 新增（主控位） | 整改派单（B-1 → B-2 → M-1 → M-2 → M-3 → L-1 → L-2） |
+| `tasks/review/TASK-050-backup-import-and-restore/handoffs/HANDOFF-004-implementer-to-coordinator.md` | 新增（执行位） | 整改闭环报告：7 项逐条证据 + 红/绿两步原始输出 |
 
 ---
 
@@ -485,7 +513,13 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
    若审查认为应回补指针，属独立小改动。
 9. **`E:/AiData/task050-restore-check-*/` 工作区未清理**：`restore-apply-check.ts` 刻意保留
    现场供人工复查（脚本末尾打印路径）。长期累积需人工删除。
-10. **端到端恢复验证用的一次性脚本未入库**：为证明「经 `db/index.ts` 启动路径生效」
+10. **回滚护栏已有常驻回归，但「现库被占用导致 ② rename 失败」仍未直接覆盖**：E 段覆盖的是
+    ① checkpoint 失败（现库内容非 SQLite）。主控位探针构造的是「另持连接占住现库使 ② rename
+    失败」，该场景依赖 Windows 文件锁语义、跨平台不稳定，故未纳入常驻脚本。两者走的是**同一条
+    回滚分支**，且修复后该分支的删除判据已与「是否已 rename」绑定，故 ② 失败同样不会删现库。
+11. **L-2 的 `dir + sep` 无可观测行为变化**：白名单正则 + `join` 归一化已保证 `full` 必在
+    `dir` 之下，路径穿越不可达；该改动纯属与 `services/backup.ts:129` 的纵深防御口径对齐。
+12. **端到端恢复验证用的一次性脚本未入库**：为证明「经 `db/index.ts` 启动路径生效」
     （而非仅单元级），执行位在 `E:/AiData/task050-e2e/` 起了一次真实服务、走 API 排程恢复、
     重启后复核数据（18 → 17 客户、哨兵行消失、`logs` 落 applied 记录），完成后已清理该目录。
     该脚本为临时取证用，**不在 File Scope 内故未入库**；其覆盖的能力已由
@@ -500,10 +534,12 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 |---|------|----|------|------|
 | 001 | coordinator | implementer | 2026-10-30 | 派单：现状核查结论 + 设计定稿（重启式恢复）+ 分相实施计划 + 归档回写 |
 | 002 | implementer | reviewer | 2026-10-31 | 交付：Phase 0~6 与 AC-1~AC-13 全部完成并留证；5 条与设计的偏离；3 项需审查位特别核实的问题 |
+| 003 | coordinator | implementer | 2026-10-31 | 整改派单：2 阻断（回滚删现库 / 回退副本路径失真）+ 1 必须修（UI 提示条件反转）+ 建议与记录项 |
+| 004 | implementer | coordinator | 2026-10-31 | 整改闭环：B-1/B-2/M-1/M-2/M-3/L-1/L-2 七项全清，含 B-1 红/绿两步原始输出 |
 
-**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-reviewer.md`
-**Next Action：** 独立审查位（不携带实现上下文的新实例）按 AC-1~AC-13 复核并给出 PASS / FAIL；
-**执行位已停下，未合并、未打 tag、未自行判定 PASS。**
+**最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
+**Next Action：** 主控位按 `HANDOFF-004` 复审 7 项整改的闭环证据；通过后转 I2 独立审查与人类授权。
+**当前整改已完成并推送，执行位已停下：未合并、未打 tag、未自行判定 PASS。**
 
 ---
 
