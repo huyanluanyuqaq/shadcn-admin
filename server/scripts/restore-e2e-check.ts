@@ -49,6 +49,8 @@ const HEALTH_TIMEOUT_MS = 60_000
 const KILL_GRACE_MS = 8_000
 /** 单次 HTTP 请求超时（含健康探测） */
 const REQUEST_TIMEOUT_MS = 20_000
+/** 健康就绪后等待子进程 stdout/stderr 经管道到达的时间 */
+const LOG_DRAIN_MS = 300
 /** 整脚本看门狗：任何挂起都不允许无限期占住终端与子进程 */
 const OVERALL_TIMEOUT_MS = 240_000
 
@@ -136,7 +138,24 @@ async function stopServer(handle: ServerHandle): Promise<void> {
   clearTimeout(timer)
 }
 
-async function waitForHealth(handle: ServerHandle): Promise<boolean> {
+/**
+ * 打印子进程最近的 stdout/stderr（AC-7 要求「输出含两次启动的日志片段」）。
+ *
+ * 只在**成功路径**打印：失败路径已由 `check(..., handle.log.slice(-5))` 作为 detail 输出。
+ * 先等一小会儿让管道数据到达——`[server] listening on …` 由 serve 的回调打印，理论上早于
+ * 健康探测成功，但父子进程之间是异步管道，不留 settle 时间可能抓到空数组。
+ */
+async function printStartupLog(label: string, handle: ServerHandle): Promise<void> {
+  await new Promise((r) => setTimeout(r, LOG_DRAIN_MS))
+  const tail = handle.log.slice(-3)
+  if (tail.length === 0) {
+    console.log(`  · 启动日志[${label}]：（子进程未产生 stdout/stderr 输出）`)
+    return
+  }
+  for (const line of tail) console.log(`  · 启动日志[${label}] ${line}`)
+}
+
+async function waitForHealth(handle: ServerHandle, label: string): Promise<boolean> {
   const deadline = Date.now() + HEALTH_TIMEOUT_MS
   while (Date.now() < deadline) {
     if (handle.child.exitCode !== null) return false
@@ -144,7 +163,10 @@ async function waitForHealth(handle: ServerHandle): Promise<boolean> {
       const res = await fetch(`${handle.base}/api/health`, {
         signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       })
-      if (res.status === 200) return true
+      if (res.status === 200) {
+        await printStartupLog(label, handle)
+        return true
+      }
     } catch {
       // 尚未起来，继续等
     }
@@ -280,7 +302,7 @@ async function main(): Promise<void> {
   const first = startServer(mainEnv(port))
   let second: ServerHandle | null = null
   try {
-    check('1 第一次启动：/api/health 就绪', await waitForHealth(first), first.log.slice(-5))
+    check('1 第一次启动：/api/health 就绪', await waitForHealth(first, '1'), first.log.slice(-5))
 
     const login = await req(first.base, '/api/auth/login', {
       method: 'POST',
@@ -346,7 +368,7 @@ async function main(): Promise<void> {
 
     // ---------- 第二次启动：启动期自行消费标记 ----------
     second = startServer(mainEnv(port))
-    check('13 第二次启动：/api/health 就绪', await waitForHealth(second), second.log.slice(-5))
+    check('13 第二次启动：/api/health 就绪', await waitForHealth(second, '2'), second.log.slice(-5))
 
     const token2 = (await req(second.base, '/api/auth/login', {
       method: 'POST',

@@ -5,11 +5,16 @@
  *   pnpm --filter server retention-check
  *
  * **为什么单独写脚本**：`applyRetention()` catch 分支里的 `writeLog('error','backup',…)`
- * 自 TASK-015 起就在位，但复现它需要同时满足 ① `unlinkSync` 失败、② 现有份数超出
- * `BACKUP_KEEP`；而冒烟第 18 段的保留策略断言依赖 `keep=7` 与同一个服务端进程，
- * 改 env 需重启服务端 ⇒ 该分支**从未被实测**（TASK-050 Known Issues 第 7 条如实登记
+ * 由 **TASK-050 的 PR #25**（提交 `df06dbe`）新增——当时补了日志但**未补测试**；
+ * 复现它需要同时满足 ① `unlinkSync` 失败、② 现有份数超出 `BACKUP_KEEP`，
+ * 而冒烟第 18 段的保留策略断言依赖 `keep=7` 与同一个服务端进程，改 env 需重启服务端
+ * ⇒ 该分支**从未被实测**（TASK-050 Known Issues 第 7 条如实登记
  * 「不得据此认为它已生效」）。本脚本用**注入抛错 stub** 稳定命中 catch，
  * 把这条分支变成可重复验证的断言。
+ *
+ * 溯源依据（可复现）：`git log -S "保留策略删除旧备份失败" -- server/src/services/backup.ts`
+ * → `df06dbe`；`git cat-file -p $(git rev-parse 00345ff:server/src/services/backup.ts)`
+ * 中该分支**只有** `console.error`（TASK-015 时确实没有 `writeLog`）。
  *
  * 场景：临时库 + 临时备份目录，造 9 个白名单文件名（默认 keep=7 ⇒ 超额 2 个），
  * 令**第 1 个**被删文件的 unlink 抛 `EACCES: injected`，其余透传真实 `unlinkSync`。
@@ -84,6 +89,20 @@ function readBackupLogs(): LogRow[] {
     .all() as LogRow[]
 }
 
+/**
+ * `logs` 表是否已就位。
+ *
+ * 把原先恒真的 `check('0 临时库已迁移…', true)` 换成**真断言**（R-5）：迁移若失败，
+ * 这里立刻红，而不是让断言 8/9 以「表不存在」的形式失败——那种失败信息会误导排查方向。
+ */
+function hasLogsTable(): boolean {
+  return (
+    sqlite
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'logs'")
+      .get() !== undefined
+  )
+}
+
 /** 迁移期间关闭外键（与 db/migrate.ts 同一理由：重建表会触发级联删除） */
 function migrateTempDatabase(): void {
   const migrationsFolder = resolve(
@@ -126,7 +145,7 @@ function main(): void {
 
   mkdirSync(DB_DIR, { recursive: true })
   migrateTempDatabase()
-  check('0 临时库已迁移（logs 表存在，否则 writeLog 会失败并掩盖断言）', true)
+  check('0 临时库已迁移且 logs 表就位（否则 writeLog 会失败并掩盖断言）', hasLogsTable())
 
   const keep = backupKeep()
   check('1 保留份数为 7（场景前提：9 份 ⇒ 超额 2 份）', keep === 7, { keep })
