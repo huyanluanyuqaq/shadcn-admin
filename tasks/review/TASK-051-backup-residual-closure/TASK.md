@@ -16,7 +16,7 @@ Owner: "Codex / 执行位 Implementer"
 Owner Since: "2026-10-31T11:58:00+08:00"
 Assigned Role: developer
 Created: 2026-10-31T10:20:00+08:00
-Updated: 2026-10-31T16:20:00+08:00
+Updated: 2026-10-31T18:40:00+08:00
 Branch: feat/TASK-051-backup-residual-closure
 Requires Human Approval: false
 ```
@@ -346,6 +346,19 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 > 零成本路径亦已试过并失败：`gh run rerun 41178010478 --failed` → attempt 2 仍 fail，镜像仍 26.04。
 > 对 I2 三记录项的处置：5-1 采纳（AC-12 引注不再写死数字）、5-2 采纳并加强（见上，A 是「不可执行」而非
 > 「需授权」）、5-3 记录属实但不构成可行路径（scope 与仓库写权限是两件事，禁止切换账号推送）。
+>
+> 2026-10-31：**E-1 已修复（路径 B）且 CI 转绿。** 执行位按 `HANDOFF-005` 只把根
+> `package.json` 的 `devDependencies.playwright` 从 `1.59.1` 升到 `1.64.1` 并提交
+> `pnpm install` 生成的 lockfile（**未改** `.github/workflows/**`、`server/**`、`src/**`、
+> 任何测试断言；**未升** vitest / `@vitest/browser-playwright`，其 peer 对 playwright 为 `*`）。
+> 前端全量与基线**逐文件零差异**（均 26 文件 / 335 用例 / 0 失败，`Compare-Object` 的 26 行
+> 「文件名+用例数+状态」三元组无差异；两次运行均未出现 `shared/dist` 重复收集）；
+> chromium 已随 1.64.1 重装（headless-shell v1248）。五项门禁退出码全 0
+> （`audit-repo.py` PASS=9 FAIL=0 WARN=0）；`restore-check` 24/0、`retention-check` 10/0、
+> `restore-e2e` 21/0；`server/data/app.db` mtime 仍 `2026-10-13 23:04:22`（长度 266240）。
+> **`install-lint-build` 已转绿**（run `41192636024`，head `dbbf284`，两作业均 success）。
+> 四份未跟踪审查档案已随 `dbbf284` 入库（KI-11：不宣称「工作区干净」）。
+> 逐项留证见 `handoffs/HANDOFF-006-implementer-to-coordinator.md`。
 
 ---
 
@@ -418,6 +431,7 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 | 004 | implementer | coordinator | 2026-10-31 | 整改闭环：M-1 12 条 AC 全勾 + 证据引注；M-2 附三条溯源命令；M-3 选方案 A（补启动日志输出）；R-1~R-6 全清（R-5 附变异探针）；门禁全绿 + 三脚本重跑 |
 | — | I2 reviewer | coordinator | 2026-10-31 | 独立审查 **PASS**（0 阻断 / 0 必须修 / 3 记录项），`handoffs/2026-10-31-review.md`；独立裁定 E-1 为环境侧；补验 DockerHub digest；6 项未做事项如实降权 |
 | 005 | coordinator | implementer | 2026-10-31 | E-1 修复派单：升 `playwright` 1.59.1 → 1.64.1（路径 B，不撞 HD-2）；含对 I2 三记录项的处置与前端基线对照要求 |
+| 006 | implementer | coordinator | 2026-10-31 | E-1 修复交付：两提交（deps + 档案入库），前端全量与基线逐文件零差异，五项门禁全 0，三脚本重跑通过，`install-lint-build` 转绿（run `41192636024`） |
 
 **最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（E-1 修复派单；
 最新审查：`handoffs/2026-10-31-review.md` = I2 独立审查 PASS）
