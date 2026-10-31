@@ -61,12 +61,22 @@ export function backupKeep(): number {
   return Number.isInteger(value) && value > 0 ? value : 7
 }
 
+/**
+ * 保留策略的可注入依赖（TASK-051）。
+ *
+ * 只为让「删除失败」分支可被**确定性**触发：默认 `unlinkSync` 即生产行为，
+ * 测试侧注入抛错 stub 命中 catch，从而断言 error 日志确实落库
+ * （TASK-050 Known Issues 第 7 条：该分支此前从未实测）。
+ */
+export type RetentionDeps = { unlink?: (path: string) => void }
+
 /** 按创建时间排序，删除超出保留份数的最旧备份，返回被删文件名 */
-function applyRetention(dir: string): string[] {
+export function applyRetention(dir: string, deps: RetentionDeps = {}): string[] {
+  const unlink = deps.unlink ?? unlinkSync
   const removed: string[] = []
   for (const file of listFiles(dir).slice(backupKeep())) {
     try {
-      unlinkSync(join(dir, file.filename))
+      unlink(join(dir, file.filename))
       removed.push(file.filename)
     } catch (err) {
       console.error(`[backup] 删除旧备份失败（${file.filename}）:`, err)
