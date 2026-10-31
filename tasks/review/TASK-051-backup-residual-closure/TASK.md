@@ -16,7 +16,7 @@ Owner: "Codex / 执行位 Implementer"
 Owner Since: "2026-10-31T11:58:00+08:00"
 Assigned Role: developer
 Created: 2026-10-31T10:20:00+08:00
-Updated: 2026-10-31T12:45:00+08:00
+Updated: 2026-10-31T15:05:00+08:00
 Branch: feat/TASK-051-backup-residual-closure
 Requires Human Approval: false
 ```
@@ -176,14 +176,14 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 - [x] **AC-7（WP-2）** `pnpm --filter server restore-e2e` 退出码 0；输出含**两次启动**的日志片段、
       恢复后 `customers` 行数等于备份内取值、`GET /api/logs?module=restore` 命中 `applied` 记录。
       > **证据**：命令与完整输出见 `HANDOFF-004` §五-3。期望 21/0 × 2 + 三样取证，
-      > **实际 21 通过 / 0 失败、退出码 0**（两次，端口 56691 / 见交接）；
+      > **实际 21 通过 / 0 失败、退出码 0**（两次，端口 60626 / 39150，见 HANDOFF-004 §五-3）；
       > 输出含 `· 启动日志[1] …` 与 `· 启动日志[2] [restore] 已应用备份 app-…db，原库留作 pre-restore-…db`
       > 两组片段；断言 14/15（服务层与数据层行数回到备份时点值）、19/20（`logs` 命中 `已应用备份恢复`）。
       > **M-3 处置**：选**方案 A（改实现）**——`waitForHealth` 成功后打印子进程最近 3 行 stdout/stderr，
       > 理由见 `HANDOFF-004` §二-M-3。AC 措辞保持原样（未改）。
 - [x] **AC-8（WP-2）** 连续跑两次 e2e 均成功（证明端口动态、临时目录不冲突、进程被回收）；
       运行后 `netstat`/`lsof` 无遗留监听，`tasklist`/`ps` 无遗留 `tsx` 子进程。
-      > **证据**：两次运行端口分别为 **10753** 与 **52054**（不同 ⇒ 端口确为动态选取）；
+      > **证据**：两次运行端口分别为 **60626** 与 **39150**（不同 ⇒ 端口确为动态选取）；
       > `netstat -ano | Select-String "LISTENING"` 对两个端口均无命中；`Get-Process node`
       > 计数运行前后不变；脚本断言 9/10/11（进程退出、端口释放、进程消失）两次全绿，
       > 且两次末行均打印「端口 … 已释放，两个子进程均已回收」。
@@ -293,6 +293,14 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 > `restore-e2e` 连续两次 21/0。红/绿实测各一组（WP-1 的 `db:migrate` 入口、
 > WP-3 的 catch 分支），原始输出见 `handoffs/HANDOFF-002-implementer-to-coordinator.md`。
 
+> 2026-10-31：执行位完成第 1 轮整改（M-1~M-3 + R-1~R-6 全闭环），新增 4 个提交
+> （`3583816` / `d695184` / `e6c69b9` / `546cd22`），PR #26 已更新，**待主控位复审**。
+> 12 条 AC 已全部勾选并附证据引注；M-3 选**方案 A（改实现）**，`restore-e2e` 现在会打印
+> 两次启动的子进程日志片段（第二次那几行直接显示 `[restore] 已应用备份 …`）。
+> 三个验证脚本在整改后重跑：`restore-check` 24/0、`retention-check` 10/0、
+> `restore-e2e` 21/0 ×2（端口 60626 / 39150）；门禁全绿（含 `audit-repo.py` PASS=9 FAIL=0）。
+> 逐条证据见 `handoffs/HANDOFF-004-implementer-to-coordinator.md`。
+>
 > 2026-10-31：主控位第 1 轮审查 → **CHANGES_REQUESTED**（**0 阻断** + 3 必须修 + 6 记录项）。
 > 记录 `handoffs/2026-10-31-coordinator-review.md`，整改派单 `handoffs/HANDOFF-003-coordinator-to-implementer.md`。
 > 技术交付被判**可合并级**：三个脚本主控位均独立复跑通过（24/0、10/0、21/0 ×2，端口 57860/34580），
@@ -371,11 +379,13 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 | 001 | coordinator | implementer | 2026-10-31 | 派单：WP-0 回写（第十二实例）+ WP-1 目录注入 + WP-2 启动级 e2e + WP-3 保留策略失败留痕 |
 | 002 | implementer | coordinator | 2026-10-31 | 交付：四提交（WP-0/WP-1/WP-3/WP-2），门禁全绿 + 红/绿实测两组；两处与派单的偏差已上报（`resolveBackupFile` 去 `dbPath` 形参、子进程用 `node --import tsx` 取代 pnpm） |
 | 003 | coordinator | implementer | 2026-10-31 | 整改：M-1 AC 全量勾选 + 证据指针、M-2 更正「自 TASK-015 起」事实错误（2 处）、M-3 AC-7 与实现择一处理；R-1~R-6 六项记录项同批 |
+| 004 | implementer | coordinator | 2026-10-31 | 整改闭环：M-1 12 条 AC 全勾 + 证据引注；M-2 附三条溯源命令；M-3 选方案 A（补启动日志输出）；R-1~R-6 全清（R-5 附变异探针）；门禁全绿 + 三脚本重跑 |
 
-**最新 Handoff：** `handoffs/HANDOFF-003-coordinator-to-implementer.md`
-**Next Action：** 执行位按 `HANDOFF-003` 完成 M-1~M-3 与 R-1~R-6 并留证 → 主控位复审 →
-I2 独立审查（不携带实现上下文的新实例，记录另名 `handoffs/YYYY-MM-DD-review.md`）→
-**人类显式授权** → rebase-merge。执行位未合并、未打 tag、未自行判定 PASS。
+**最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
+**Next Action：** 主控位复审本轮整改（重点：M-3 选 A 的理由、M-2 的溯源命令与判据、
+R-5 的变异探针）→ I2 独立审查（不携带实现上下文的新实例，记录另名
+`handoffs/YYYY-MM-DD-review.md`）→ **人类显式授权** → rebase-merge。
+执行位已停下：未合并、未打 tag、未自行判定 PASS。
 
 ---
 
