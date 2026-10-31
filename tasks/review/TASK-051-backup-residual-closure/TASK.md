@@ -16,7 +16,7 @@ Owner: "Codex / 执行位 Implementer"
 Owner Since: "2026-10-31T11:58:00+08:00"
 Assigned Role: developer
 Created: 2026-10-31T10:20:00+08:00
-Updated: 2026-10-31T18:40:00+08:00
+Updated: 2026-10-31T19:15:00+08:00
 Branch: feat/TASK-051-backup-residual-closure
 Requires Human Approval: false
 ```
@@ -360,6 +360,27 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 > 四份未跟踪审查档案已随 `dbbf284` 入库（KI-11：不宣称「工作区干净」）。
 > 逐项留证见 `handoffs/HANDOFF-006-implementer-to-coordinator.md`。
 
+> 2026-10-31：主控位第 3 轮审查（E-1 修复复审，head `e1be4be`）→ **技术交付 PASS**，
+> **1 必须修（M-1，档案层）** + 2 记录项。记录 `handoffs/2026-10-31-coordinator-review-round3.md`。
+> 独立复跑（未采信交接自述）：`pnpm test` **26 文件 / 335 passed**（与交接、CI 三方一致）、
+> eslint / prettier / `tsc -b` / knip 均 0、`audit-repo.py` PASS=9 FAIL=0 WARN=0、
+> `restore-check` 24/0、`retention-check` 10/0；`git diff --name-only a17a6ab..HEAD` 仅 10 个文件
+> （2 依赖 + 8 档案）⇒ **零越界**；`server/data/app.db` mtime 仍 `2026-10-13 23:04:22`；工作区干净。
+> **E-1 修复有效性判据 = 同一坏镜像上转绿**（不是「CI 绿了」）：失败 run `41178010478` 与绿 run
+> `41193005395` 的 `Image:` 行**均为 `ubuntu-26.04`**，仅 playwright 由 1.59.1 → 1.64.1
+> （`chromium v1248` 安装成功），测试从「未执行」变为 `Test Files 26 passed / Tests 335 passed`
+> ⇒ 环境未变、只换工具链版本、结果由红转绿，**修复成立，非碰运气**。
+> **M-1（必须修）**：`TASK.md:436/438` 的「最新 Handoff」仍指 `HANDOFF-005`，
+> `Next Action` 仍写「执行位按 `HANDOFF-005` 升 playwright」——该动作已由 `4867a34` 完成，
+> 违反 `AGENTS.md` §13 的 DoD 检查项「Next Action 指向未完成动作」。**由执行位以单个 docs 提交修正**
+> （主控位不推任务分支），不新开 HANDOFF 文件（KI-11）。
+> 记录项：4-1 `HANDOFF-006` 引用的 run `41192636024` 属 `dbbf284`（写交接时末提交未推，KI-11 型），
+> 合并时点 head 为 `e1be4be` / run `41193005395`；4-2 基线未另开 worktree 的简化经独立验证**可接受**
+> （`a17a6ab..HEAD` 在 `src/ shared/ server/` 与三处 config 上全空）。
+> 另记：本地复跑首次 `no tests` 的根因是**本机 safe-delete 护栏**拦截 vite 批量清理
+> `node_modules/.vite`（119 > 阈值 50），非代码问题；处置 `mv node_modules/.vite /tmp/…` 后 335 通过。
+> 该坑写入审查记录 §1.1，供后续复跑者避坑。
+
 ---
 
 ## Changed Files
@@ -432,16 +453,24 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 | — | I2 reviewer | coordinator | 2026-10-31 | 独立审查 **PASS**（0 阻断 / 0 必须修 / 3 记录项），`handoffs/2026-10-31-review.md`；独立裁定 E-1 为环境侧；补验 DockerHub digest；6 项未做事项如实降权 |
 | 005 | coordinator | implementer | 2026-10-31 | E-1 修复派单：升 `playwright` 1.59.1 → 1.64.1（路径 B，不撞 HD-2）；含对 I2 三记录项的处置与前端基线对照要求 |
 | 006 | implementer | coordinator | 2026-10-31 | E-1 修复交付：两提交（deps + 档案入库），前端全量与基线逐文件零差异，五项门禁全 0，三脚本重跑通过，`install-lint-build` 转绿（run `41192636024`） |
+| — | coordinator | — | 2026-10-31 | 第 3 轮审查（E-1 修复复审）：**技术 PASS** + 1 必须修（M-1：`Next Action` 仍停在派单阶段）+ 2 记录项，`handoffs/2026-10-31-coordinator-review-round3.md` |
 
-**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（E-1 修复派单；
-最新审查：`handoffs/2026-10-31-review.md` = I2 独立审查 PASS）
-**Next Action：** ① 执行位按 `HANDOFF-005` 升 `playwright` 1.59.1 → 1.64.1（两个提交：deps + docs），
-前端全量须与**基线对照**（`shared/dist` 会重复收集测试，禁止只看总数）；② 待新 head 的
-`install-lint-build` 转绿 → 主控位复审该依赖提交（小范围）；③ **人类显式授权** →
-`gh pr merge 26 --rebase --delete-branch`；④ 合并后本任务按 D13-C 选项 C 保持 `Status: REVIEW`、
-留 `tasks/review/`，由**下一个任务**以第十三实例回填 Merge Record。
-E-1 的路径 A（钉 `runs-on: ubuntu-24.04`）已裁定为**当前身份下不可执行**（`ndldsn` 对该仓库 `push: false`），
-故不列入本次动作；若人类日后愿意调整权限，可另立任务补做「钉 runner 防漂移」。
+**最新 Handoff：** `handoffs/HANDOFF-006-implementer-to-coordinator.md`（E-1 修复交付；
+最新审查：`handoffs/2026-10-31-review.md` = I2 独立审查 **PASS**、
+`handoffs/2026-10-31-coordinator-review-round3.md` = 主控位第 3 轮复审 **PASS** + M-1）
+**Next Action：** 只剩三步，均**未完成**（M-1 档案收口已由本次 docs 提交处理，不在此列）：
+
+1. **人类显式授权**（不可由 Agent 代替）；
+2. `gh pr merge 26 --rebase --delete-branch`，合并后本地 ff 并核对 `main` head；
+3. 合并后本任务按 D13-C 选项 C 保持 `Status: REVIEW`、留在 `tasks/review/`，
+   由**下一个任务**以**第十三实例**回填 `Merge Record`（head 与提交数以合并时点为准，不写死）。
+
+> 已竣工故不再列为动作：E-1 依赖升级（`4867a34`）、四份审查档案入库（`dbbf284`）、
+> E-1 交接（`e1be4be`）、CI 双绿（head `e1be4be` → run `41193005395`）、
+> 主控位第 3 轮复审 PASS。E-1 的路径 A（钉 `runs-on: ubuntu-24.04`）已裁定为
+> **当前身份下不可执行**（`ndldsn` 对该仓库 `push: false`），故不作为本任务动作；
+> 若人类日后愿意调整权限，可另立任务补做「钉 runner 防漂移」。
+
 执行位已停下：未合并、未打 tag、未自行判定 PASS。
 
 ---
