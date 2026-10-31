@@ -410,7 +410,25 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 
 ## Current State
 
-> **2026-10-31 · 主控位复审 PASS（第二轮，`tasks/review/`）—— 等 I2 独立审查与人类授权。**
+> **2026-10-31 · I2 独立审查 PASS，等人类显式授权后合并。**
+>
+> 记录 `handoffs/2026-10-31-review.md`（不携带实现上下文的新实例）。结论 **PASS**：
+> 0 阻断 / 0 必须修，2 项非阻断观察 + 1 项环境性说明。I2 自跑的关键证据：
+> `restore-check` 24/0、`backups-table` 9/9、`audit-repo` PASS=9、冒烟第 19 段 19.1~19.22 全绿
+> （176/7，且以 `main` 原版 `smoke.ts` 打同一服务端得 154/7、失败集逐字相同，独立证成「基线」）、
+> 红灯复现（暂存 `ba8537e` 的 `restore.ts` → E2/E3 双红 → 当场还原并以 SHA-256 + `git status` 复验）。
+> 隔离合规：全程只动自建快照（`E:\NDLDSN-WORKSPACE\.i2-review-tmp\`），`server/data/app.db`
+> mtime 保持 `2026-10-13` 未变（主控位已复核）。
+>
+> 主控位对 I2 记录的复核（记录亦在被审范围）：规模 47 文件 / 3968 增行 / 15 提交与 `gh` 实测一致；
+> 引用的 6 处行号与 run `41149900892`（head `4d936e1`，success）逐一可复现；
+> I2 对 `liveRenamed` 五个失败点、`pre-restore-*` 三处文档覆盖、`restoreAutoExit === false`
+> 三处语义均给出自己的推演，非引用我的结论。
+>
+> **待办（合并前置）**：`handoffs/2026-10-31-review.md` 目前**未被跟踪**（KI-11 型：记录自身
+> 晚于「工作区干净」的检查），须以单个 docs 提交纳入 PR 后再合并，否则合并后的 `main` 不含该审查记录。
+>
+> 2026-10-31 · 主控位复审 PASS（第二轮，`tasks/review/`）—— 等 I2 独立审查与人类授权。
 >
 > 记录 `handoffs/2026-10-31-coordinator-review-round2.md`。7 项整改逐条闭环，
 > 且**红灯由主控位在未修代码上独立复现**（`git checkout ba8537e -- server/src/db/restore.ts`
@@ -561,9 +579,10 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 | 003 | coordinator | implementer | 2026-10-31 | 整改派单：2 阻断（回滚删现库 / 回退副本路径失真）+ 1 必须修（UI 提示条件反转）+ 建议与记录项 |
 | 004 | implementer | coordinator | 2026-10-31 | 整改闭环：B-1/B-2/M-1/M-2/M-3/L-1/L-2 七项全清，含 B-1 红/绿两步原始输出 |
 | 005 | coordinator | implementer | 2026-10-31 | 复审 PASS：红灯独立复现、绿灯 24/0；仅要求以单个 docs 提交收口记录改动，无代码改动 |
+| 006 | reviewer（I2） | coordinator | 2026-10-31 | I2 独立审查 **PASS**（0 阻断 / 0 必须修）：自跑 24/0、9/9、PASS=9、冒烟 19.1~19.22 + 基线 154/7 交叉验证、红灯复现；记录 `2026-10-31-review.md` |
 
-**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`
-**Next Action：** 执行位提交并推送本轮记录改动后停下 → 转 I2 独立审查（不携带实现上下文的新实例，记录另名 `handoffs/YYYY-MM-DD-review.md`）→ PASS + 人类显式授权后 rebase-merge，并按 D13-C 以第十二实例回写 Merge Record。
+**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（其后为 I2 审查记录 `2026-10-31-review.md`）
+**Next Action：** ① 执行位以单个 docs 提交把 `handoffs/2026-10-31-review.md` 与本档案改动纳入 PR 并推送（否则合并后 `main` 无该审查记录）；② **人类显式授权**；③ 主控位 rebase-merge 并删分支；④ 按 D13-C 由下一个任务以第十二实例回写 Merge Record（head/提交数以合并时点为准）。
 **当前整改已完成并推送，执行位已停下：未合并、未打 tag、未自行判定 PASS。**
 
 ---
