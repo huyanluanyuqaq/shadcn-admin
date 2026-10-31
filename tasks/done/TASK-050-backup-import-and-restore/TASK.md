@@ -10,13 +10,13 @@
 Task ID: TASK-050
 Title: 备份导入与备份恢复（补齐导出之外的两项能力）
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: "Claude Code (Opus 5) / 执行位 Implementer"
 Owner Since: "2026-10-31T00:00:00+08:00"
 Assigned Role: developer
 Created: 2026-10-30T23:59:00+08:00
-Updated: 2026-10-31T08:20:00+08:00
+Updated: 2026-10-31T12:10:00+08:00
 Branch: feat/TASK-050-backup-import-and-restore
 Requires Human Approval: true
 ```
@@ -410,6 +410,17 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 
 ## Current State
 
+> **2026-10-31 · DONE（终态）。** 人类已显式授权，主控位已执行 rebase-merge：
+> PR #25 于 `2026-10-31T01:37:54Z` 合并，`merge_commit_sha` `2fdd2c93bbea0ff4ec8bf3a763ede79f24e9d30a`，
+> 并已发布 `v1.0.6`。本档案 `Merge Record` 九要素由 **TASK-051 于 2026-10-31 按 D13-C 选项 C
+> （第十二实例）以 `gh api` / DockerHub Tags API 实测回填**（非沿用自述）；本档案随之归档至
+> `tasks/done/`。以下各条为任务执行期的过程记录，按时间倒序保留、不再更新。
+>
+> **关于 `Known Issues` 第 7 / 12 / 13 条**：这三条已由 **TASK-051（备份残留收口）** 收口
+> （保留策略失败留痕 / 启动级端到端 / 备份目录注入）。按「不改写已归档档案」原则
+> （同 TASK-050 对 TASK-015 Non-Scope 的处置），此处**保留原文**并加本指针，
+> 当前能力状态以 TASK-051 档案与 `docs/operations/backup-restore.md` 为准。
+
 > **2026-10-31 · I2 独立审查 PASS，等人类显式授权后合并。**
 >
 > 记录 `handoffs/2026-10-31-review.md`（不携带实现上下文的新实例）。结论 **PASS**：
@@ -582,31 +593,30 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 | 006 | reviewer（I2） | coordinator | 2026-10-31 | I2 独立审查 **PASS**（0 阻断 / 0 必须修）：自跑 24/0、9/9、PASS=9、冒烟 19.1~19.22 + 基线 154/7 交叉验证、红灯复现；记录 `2026-10-31-review.md` |
 
 **最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（其后为 I2 审查记录 `2026-10-31-review.md`）
-**Next Action：** ① 执行位以单个 docs 提交把 `handoffs/2026-10-31-review.md` 与本档案改动纳入 PR 并推送（否则合并后 `main` 无该审查记录）；② **人类显式授权**；③ 主控位 rebase-merge 并删分支；④ 按 D13-C 由下一个任务以第十二实例回写 Merge Record（head/提交数以合并时点为准）。
-**当前整改已完成并推送，执行位已停下：未合并、未打 tag、未自行判定 PASS。**
+**Next Action：** 无（终态）。PR #25 已由主控位按人类显式授权执行 rebase-merge，工作分支已删；
+`v1.0.6` 已发布。`Merge Record` 九要素已由 **TASK-051 于 2026-10-31 按 D13-C 选项 C
+（第十二实例）以 `gh api` / DockerHub Tags API 实测值回填**。本档案随之归档至 `tasks/done/`，
+`Status: DONE`。`Known Issues` 第 7 / 12 / 13 条由 TASK-051 收口，其状态以该任务档案为准。
 
 ---
 
 ## Merge Record
 
-> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
-> `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
-> 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
-> **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
-> 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
-> 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
+> **由 TASK-051（备份残留收口）于 2026-10-31 按 D13-C 选项 C 回填（第十二实例）。**
+> 九要素全部为 `gh api` / DockerHub Tags API **实测值**（复现命令见各单元格内注释），
+> **未沿用本档案自述**。原「待回填」状态至此终止，任务转入终态。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填 |
+| PR | #25（base `main`，标题 `feat(TASK-050): 备份导入与备份恢复，闭合容灾链下游`，created `2026-10-30T17:31:47Z`；实测 `gh api repos/:owner/:repo/pulls/25 --jq '{merged:.merged,title:.title,base:.base.ref}'`） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认；实测 `.merged = true`，PR head `8ef856e` 的 16 个提交被线性追加到 `main`，无额外 merge commit） |
+| 提交数 | **16**（实测 `gh api repos/:owner/:repo/pulls/25/commits --jq 'length'` = 16；`.commits` 同为 16，`.changed_files` = 48、`.additions` = 4249、`.deletions` = 143） |
+| merged_at | `2026-10-31T01:37:54Z`（实测 `gh api repos/:owner/:repo/pulls/25 --jq .merged_at`） |
+| merge_commit_sha | `2fdd2c93bbea0ff4ec8bf3a763ede79f24e9d30a`（实测 `gh api repos/:owner/:repo/pulls/25 --jq .merge_commit_sha`；与 annotated tag `v1.0.6`（tag object `c571798f`）解引用后的 commit 逐字相同，实测 `gh api repos/:owner/:repo/git/tags/c571798f… --jq .object.sha`） |
+| 合并后 CI run | `41156271179`（Continuous Integration，event=push，head_branch=main，conclusion=success，created `2026-10-31T01:37:57Z`；实测 `gh api "repos/:owner/:repo/actions/runs?head_sha=2fdd2c93…"`） |
+| 合并后 Docker run | `41156271209`（Build and Push Docker Image，event=push，head_branch=main，conclusion=success，created `2026-10-31T01:37:57Z`，与 CI 同批触发）；同 head 上另有 `41158945149`（Build and Push Docker Image，event=push，head_branch=`v1.0.6`，conclusion=success，created `2026-10-31T02:12:39Z`）为 **tag 发布 run**，**不是**合并 run |
+| 镜像 tag | DockerHub `nomorelatenights/subscription-admin`（Tags API 实测）：`sha-2fdd2c9` / `v1.0.6` / `latest` 三者 digest 同为 `sha256:edd1338b784f205bae677d012089abee8793938962d1706d884d34778fdecf5f`，`tag_last_pushed` `2026-10-31T02:18:5xZ`。两次构建的区分：合并 run `41156271209` 只推 `sha-2fdd2c9`（`latest` 受 `github.ref_type == 'tag'` 门禁约束不前进）；tag run `41158945149` 推 `v1.0.6` + `latest` + `sha-2fdd2c9`（同 digest） |
+| 审查记录 | 三份，均在 `handoffs/`：`2026-10-31-coordinator-review.md`（主控位首轮，判定 `CHANGES_REQUESTED`：2 阻断 + 1 必须修）、`2026-10-31-coordinator-review-round2.md`（主控位第二轮复审，**PASS**，红灯在未修代码上独立复现）、`2026-10-31-review.md`（**I2 独立审查**，**PASS**，0 阻断 / 0 必须修；出具方为不携带实现上下文的独立审查位） |
 
 ---
 
