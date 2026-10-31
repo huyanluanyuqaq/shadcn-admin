@@ -16,7 +16,7 @@ Owner: "Codex / 执行位 Implementer"
 Owner Since: "2026-10-31T11:58:00+08:00"
 Assigned Role: developer
 Created: 2026-10-31T10:20:00+08:00
-Updated: 2026-10-31T15:05:00+08:00
+Updated: 2026-10-31T16:20:00+08:00
 Branch: feat/TASK-051-backup-residual-closure
 Requires Human Approval: false
 ```
@@ -208,7 +208,9 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
       > 判据 `git grep -rn "自 TASK-015 起"` 排除 `tasks/` 后**零命中**。
 - [x] **AC-12（WP-0 边界）** 未改动 047/048/049 的既有回写；未改 `.github/workflows/**`；
       `git diff --stat main...HEAD` 无 `docker-compose.yml` / `schema.ts` / 迁移文件。
-      > **证据**：`git diff --stat main...HEAD` 的 20 个文件里，047/048/049 三个档案**零变动**；
+      > **证据**：对 `git diff --name-only main...HEAD` 的**全量清单**逐项核对（**不写死文件数** ——
+      > 该数字每轮都会因档案提交而变化，I2 记录项 5-1 已指出「20 个文件」在 head 上已过期），
+      > 047/048/049 三个档案**零变动**；
       > 无 `.github/workflows/**`、`docker-compose.yml`、`Dockerfile`、`server/src/db/schema.ts`、
       > `server/drizzle/**` 任何一行（完整清单见 `HANDOFF-004` §五-6）。
 
@@ -293,14 +295,6 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 > `restore-e2e` 连续两次 21/0。红/绿实测各一组（WP-1 的 `db:migrate` 入口、
 > WP-3 的 catch 分支），原始输出见 `handoffs/HANDOFF-002-implementer-to-coordinator.md`。
 
-> 2026-10-31：执行位完成第 1 轮整改（M-1~M-3 + R-1~R-6 全闭环），新增 4 个提交
-> （`3583816` / `d695184` / `e6c69b9` / `546cd22`），PR #26 已更新，**待主控位复审**。
-> 12 条 AC 已全部勾选并附证据引注；M-3 选**方案 A（改实现）**，`restore-e2e` 现在会打印
-> 两次启动的子进程日志片段（第二次那几行直接显示 `[restore] 已应用备份 …`）。
-> 三个验证脚本在整改后重跑：`restore-check` 24/0、`retention-check` 10/0、
-> `restore-e2e` 21/0 ×2（端口 60626 / 39150）；门禁全绿（含 `audit-repo.py` PASS=9 FAIL=0）。
-> 逐条证据见 `handoffs/HANDOFF-004-implementer-to-coordinator.md`。
->
 > 2026-10-31：主控位第 1 轮审查 → **CHANGES_REQUESTED**（**0 阻断** + 3 必须修 + 6 记录项）。
 > 记录 `handoffs/2026-10-31-coordinator-review.md`，整改派单 `handoffs/HANDOFF-003-coordinator-to-implementer.md`。
 > 技术交付被判**可合并级**：三个脚本主控位均独立复跑通过（24/0、10/0、21/0 ×2，端口 57860/34580），
@@ -310,6 +304,48 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 > 「保留策略失败写日志的分支自 TASK-015 起就在位」为可复现的事实错误（实测由 TASK-050 的
 > `df06dbe` 引入）；**M-3** AC-7「输出含两次启动的日志片段」在成功路径下不成立（`log` 仅在
 > health 失败时作 detail 打印）。记录项 R-1~R-6 见审查记录 §三。
+>
+> 2026-10-31：执行位完成第 1 轮整改（M-1~M-3 + R-1~R-6 全闭环），新增 4 个提交
+> （`3583816` / `d695184` / `e6c69b9` / `546cd22`），PR #26 已更新，**待主控位复审**。
+> 12 条 AC 已全部勾选并附证据引注；M-3 选**方案 A（改实现）**，`restore-e2e` 现在会打印
+> 两次启动的子进程日志片段（第二次那几行直接显示 `[restore] 已应用备份 …`）。
+> 三个验证脚本在整改后重跑：`restore-check` 24/0、`retention-check` 10/0、
+> `restore-e2e` 21/0 ×2（端口 60626 / 39150）；门禁全绿（含 `audit-repo.py` PASS=9 FAIL=0）。
+> 逐条证据见 `handoffs/HANDOFF-004-implementer-to-coordinator.md`。
+
+
+> 2026-10-31：主控位第 2 轮审查（复审，head `a17a6ab`）→ **整改 PASS**（0 必须修 / 0 阻断）。
+> 记录 `handoffs/2026-10-31-coordinator-review-round2.md`。M-1~M-3 与 R-1~R-6 全闭环，
+> 且三处关键声明由主控位**自建探针**复现：R-5 变异注入 → 9 通过/1 失败（仅断言 0 变红，还原后
+> sha256 `c2bfd5ec…5B0` 与交接逐字一致）；M-2 溯源 → `56b2200` 时点实测 `20 files / +1670 / −52`，
+> 且 `91b7149` 提交信息里的旧表述属实（禁 force-push，未改历史）；M-3 → 实跑日志含
+> `启动日志[1]`/`启动日志[2]`，第二次直接打印 `[restore] 已应用备份 …`。
+> 主控位独立复跑：`restore-check` 24/0、`retention-check` 10/0、`restore-e2e` 21/0 ×2（端口 9175/33365）、
+> eslint / `tsc -b` / `typecheck:server` / knip 均 0、`audit-repo.py` PASS=9 FAIL=0 WARN=0。
+> **合并被外部 CI 故障阻断（E-1，非本 PR 引入）**：`ci.yml` 的 `runs-on: ubuntu-latest` 已滚到
+> `ubuntu-26.04`，仓库钉的 `playwright@1.59.1` 不支持该系统 ⇒ `install-lint-build` 在 run
+> `41169151883` / `41178010478` 上均失败（`audit` 仍 pass）；main 上一次 CI（`41156271179`，01:37）
+> 为 success，故属环境侧在 01:37~04:34 之间变化。修复需改 `.github/workflows/**`（钉 `ubuntu-24.04`）
+> 或升 `playwright`，两者都撞 HD-2（无 `workflow` scope，禁网页绕过）⇒ **由人类决定，执行位未动**。
+> 记录项 R-7（`HANDOFF-004` §七 写「8 提交」实测 10，KI-11 型滞后）、R-8（`Current State` 时序倒置）
+> 不阻断，随下一动作处理。
+
+> 2026-10-31：**I2 独立审查完成 → PASS**（0 阻断 / 0 必须修 / 3 记录项），
+> 记录 `handoffs/2026-10-31-review.md`（29 KB）。主控位核验该记录自身（审查记录亦在被审范围）：
+> 抽查的可复现字面量全部一致 —— `sha256(retention-log-check.ts)` = `c2bfd5ec…5b0`、
+> `git diff --shortstat 2fdd2c9 HEAD` = `21 files / +2207 / −53`、`gh auth status` 两账号与 §5-3 自述一致、
+> `server/data/app.db` 的 mtime 仍 `2026-10-13 23:04:22`（真实库未被碰）。该记录**不自述工作区干净**，
+> 而是主动披露「四份审查档案未跟踪」，KI-11 处置正确；并补验了主控位明示未验的 DockerHub digest。
+> **E-1 独立裁定：环境侧**（I2 与我各自独立得出同一结论）—— main 的 run `41156271179`（01:38）日志为
+> `Image: ubuntu-24.04`，PR 的 run `41178010478`（06:47）为 `Image: ubuntu-26.04`，两者之间代码与依赖版本未变。
+> **E-1 决定（主控位）：走路径 B —— 升 `playwright` 1.59.1 → 1.64.1。** 派单 `handoffs/HANDOFF-005`。
+> 三个依据：① 路径 A 在当前身份下**不可执行** —— 活动账号无 `workflow` scope，唯一有 scope 的 `ndldsn`
+> 对该仓库实测 `push: false`（仅 `pull: true`），它连分支都推不了；② 路径 B 只改根 `package.json` +
+> lockfile，不撞 HD-2；③ B 的成本比预估低 —— `@vitest/browser-playwright@4.1.4` 的 peer 对 playwright 是 `*`，
+> 故**无需**升 vitest 插件链。版本支持已解包核对：1.59.1 只到 `ubuntu24.04`，1.64.1 含 `ubuntu26.04`。
+> 零成本路径亦已试过并失败：`gh run rerun 41178010478 --failed` → attempt 2 仍 fail，镜像仍 26.04。
+> 对 I2 三记录项的处置：5-1 采纳（AC-12 引注不再写死数字）、5-2 采纳并加强（见上，A 是「不可执行」而非
+> 「需授权」）、5-3 记录属实但不构成可行路径（scope 与仓库写权限是两件事，禁止切换账号推送）。
 
 ---
 
@@ -380,11 +416,18 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 | 002 | implementer | coordinator | 2026-10-31 | 交付：四提交（WP-0/WP-1/WP-3/WP-2），门禁全绿 + 红/绿实测两组；两处与派单的偏差已上报（`resolveBackupFile` 去 `dbPath` 形参、子进程用 `node --import tsx` 取代 pnpm） |
 | 003 | coordinator | implementer | 2026-10-31 | 整改：M-1 AC 全量勾选 + 证据指针、M-2 更正「自 TASK-015 起」事实错误（2 处）、M-3 AC-7 与实现择一处理；R-1~R-6 六项记录项同批 |
 | 004 | implementer | coordinator | 2026-10-31 | 整改闭环：M-1 12 条 AC 全勾 + 证据引注；M-2 附三条溯源命令；M-3 选方案 A（补启动日志输出）；R-1~R-6 全清（R-5 附变异探针）；门禁全绿 + 三脚本重跑 |
+| — | I2 reviewer | coordinator | 2026-10-31 | 独立审查 **PASS**（0 阻断 / 0 必须修 / 3 记录项），`handoffs/2026-10-31-review.md`；独立裁定 E-1 为环境侧；补验 DockerHub digest；6 项未做事项如实降权 |
+| 005 | coordinator | implementer | 2026-10-31 | E-1 修复派单：升 `playwright` 1.59.1 → 1.64.1（路径 B，不撞 HD-2）；含对 I2 三记录项的处置与前端基线对照要求 |
 
-**最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
-**Next Action：** 主控位复审本轮整改（重点：M-3 选 A 的理由、M-2 的溯源命令与判据、
-R-5 的变异探针）→ I2 独立审查（不携带实现上下文的新实例，记录另名
-`handoffs/YYYY-MM-DD-review.md`）→ **人类显式授权** → rebase-merge。
+**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`（E-1 修复派单；
+最新审查：`handoffs/2026-10-31-review.md` = I2 独立审查 PASS）
+**Next Action：** ① 执行位按 `HANDOFF-005` 升 `playwright` 1.59.1 → 1.64.1（两个提交：deps + docs），
+前端全量须与**基线对照**（`shared/dist` 会重复收集测试，禁止只看总数）；② 待新 head 的
+`install-lint-build` 转绿 → 主控位复审该依赖提交（小范围）；③ **人类显式授权** →
+`gh pr merge 26 --rebase --delete-branch`；④ 合并后本任务按 D13-C 选项 C 保持 `Status: REVIEW`、
+留 `tasks/review/`，由**下一个任务**以第十三实例回填 Merge Record。
+E-1 的路径 A（钉 `runs-on: ubuntu-24.04`）已裁定为**当前身份下不可执行**（`ndldsn` 对该仓库 `push: false`），
+故不列入本次动作；若人类日后愿意调整权限，可另立任务补做「钉 runner 防漂移」。
 执行位已停下：未合并、未打 tag、未自行判定 PASS。
 
 ---
