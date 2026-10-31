@@ -12,6 +12,7 @@
     "db:migrate": "tsx src/db/migrate.ts",
     "smoke": "tsx scripts/smoke.ts",
     "restore-check": "tsx scripts/restore-apply-check.ts",
+    "restore-e2e": "tsx scripts/restore-e2e-check.ts",
     "retention-check": "tsx scripts/retention-log-check.ts"
   },
   "dependencies": {
