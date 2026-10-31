@@ -102,12 +102,23 @@ function readRestoreMarker(dbPath: string): RestoreMarker | null {
  *
  * 由 `db/index.ts` 在 `new Database` **之前**调用。任一步骤失败都会回滚已做的
  * rename、**保留标记**（下次启动重试）并返回 `{ status: 'failed' }`。
+ *
+ * @param dbPath    现库绝对路径（标记文件即其同目录的 `.restore-pending.json`）
+ * @param backupDir 备份目录**绝对路径**，由调用方注入（TASK-051）：本模块**不再读取**
+ *                  环境变量 `BACKUP_DIR`。理由：`db/index.ts` 的调用方包括
+ *                  `pnpm db:migrate`（不经 `env.ts`），直读 env 会让两个入口解析到
+ *                  不同目录（TASK-050 Known Issues 第 13 条）。目录口径与
+ *                  `services/backup.ts` 的 `backupDir()` 一致：`config.backupDir`
+ *                  已配置则 `resolve()` 之，否则 `<db 目录>/backups`。
  */
-export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
+export function applyPendingRestore(
+  dbPath: string,
+  backupDir: string
+): RestoreOutcome | null {
   const marker = readRestoreMarker(dbPath)
   if (!marker) return null
 
-  const backupPath = resolveBackupFile(dbPath, marker.filename)
+  const backupPath = resolveBackupFile(marker.filename, backupDir)
   if (!backupPath) {
     return {
       status: 'failed',
@@ -129,7 +140,7 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
 
   // 回退副本落**备份目录**（与 app-/imp- 备份同目录），而非数据库同目录：
   // 这样 runbook 的清理命令与 §5 的异地 rsync 才覆盖得到它（整改 B-2）。
-  const backupDir = resolveBackupDir(dbPath)
+  // 目录来自入参（TASK-051），不再由本模块自行推导。
   mkdirSync(backupDir, { recursive: true }) // 幂等：目录可能尚不存在
   const preRestoreName = buildPreRestoreFilename(new Date())
   const preRestorePath = join(backupDir, preRestoreName)
@@ -197,29 +208,17 @@ export function applyPendingRestore(dbPath: string): RestoreOutcome | null {
 }
 
 /**
- * 备份目录口径（TASK-050 整改 B-2）。
- *
- * env `BACKUP_DIR` 优先，否则 `<db 目录>/backups` —— 与 `services/backup.ts`
- * 的 `backupDir()` 完全一致。**回退副本必须落在这里而不是数据库同目录**：
- * ① runbook §3.4 的清理命令以 `backups/` 为基准；② §5 建议的 rsync 只同步
- * `backups/`，而回退副本正是「恢复失败想回退」时唯一的救命文件。
- *
- * 与 `services/backup.ts` 的 `backupDir()` 同构但不引用它（成环禁令）；
- * `BACKUP_DIR` 在启动期已由 `env.ts` 加载进 `process.env`，这里直接读。
- */
-function resolveBackupDir(dbPath: string): string {
-  const configured = process.env.BACKUP_DIR?.trim()
-  return configured ? join(configured) : join(dirname(dbPath), 'backups')
-}
-
-/**
  * 解析备份文件路径（白名单 + 目录约束双保险）。
+ *
+ * `backupDir` 由调用方注入（TASK-051）——**本模块不读环境变量 `BACKUP_DIR`**，
+ * 目录口径的唯一推导点在 `db/index.ts`（与 `services/backup.ts` 的 `backupDir()`
+ * 同口径），避免 `db:migrate` 入口与服务器解析到不同目录。
  *
  * 与 `services/backup.ts` 的 `resolveBackupPath` 同构但不引用它（成环禁令）。
  */
-function resolveBackupFile(dbPath: string, filename: string): string | null {
+function resolveBackupFile(filename: string, backupDir: string): string | null {
   if (!isBackupFilename(filename)) return null
-  const dir = resolveBackupDir(dbPath)
+  const dir = backupDir
   const full = join(dir, filename)
   // 与 services/backup.ts:129 的 dir + sep 对齐（整改 L-2）：少了分隔符时
   // `/x/backups` 会把 `/x/backups-evil/…` 也判为「在目录内」。白名单正则已使

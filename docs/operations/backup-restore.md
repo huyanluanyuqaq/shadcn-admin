@@ -1,4 +1,4 @@
-# 备份与恢复 Runbook（TASK-015；TASK-050 增加导入与应用内恢复）
+# 备份与恢复 Runbook（TASK-015；TASK-050 增加导入与应用内恢复；TASK-051 目录注入与两级验证）
 
 ## 1. 机制概览
 
@@ -7,6 +7,7 @@
 | 备份方式 | `VACUUM INTO` 在线一致性快照（不阻塞读写；持写锁毫秒~百毫秒） |
 | 备份内容 | 仅 SQLite 数据库（`app.db` 单文件即全量） |
 | 默认位置 | `<数据库所在目录>/backups/`；docker 下为卷内 `/app/data/backups`（env `BACKUP_DIR` 可覆盖） |
+| 目录口径 | **单一推导点 + 调用方注入**（TASK-051）：`db/index.ts` 从 `config.backupDir` 推导（已配置则 `resolve()`，否则 `<数据库所在目录>/backups`），再作为入参传给 `db/restore.ts`；`db/restore.ts` **不读**环境变量。服务进程与 `pnpm db:migrate` 入口因此解析到**同一目录** |
 | 自动备份 | 每日 03:00（env `BACKUP_CRON`，5 段 cron；容器时区 `TZ`） |
 | 保留策略 | 默认 7 份，超出删最旧（env `BACKUP_KEEP`）；删除失败写 `error` 级 `logs` |
 | 文件名 | `app-YYYYMMDD-HHmmss-sss.db`（本机生成）/ `imp-YYYYMMDD-HHmmss-sss.db`（外部导入），白名单 `^(app\|imp)-\d{8}-\d{6}-\d{3}\.db$` |
@@ -73,7 +74,8 @@ curl -X DELETE http://localhost:3000/api/backups/app-20261011-030000-123.db \
 3. 若 `RESTORE_AUTO_EXIT` 不为 `false`（默认），延迟约 1.2s 后 `process.exit(0)` ——
    先让 202 响应与日志落盘。容器 `restart: unless-stopped` 随即拉起进程。
 4. **下一次启动时**、在打开数据库连接**之前**，`db/restore.ts` 的
-   `applyPendingRestore()` 完成替换：现库 `wal_checkpoint(TRUNCATE)` → rename 现库为
+   `applyPendingRestore(dbPath, backupDir)` 完成替换（`backupDir` 由 `db/index.ts`
+   从 `config.backupDir` 推导后注入，TASK-051）：现库 `wal_checkpoint(TRUNCATE)` → rename 现库为
    `backups/pre-restore-<ts>.db` → copy 备份为 `app.db`（**保留备份原件**）→
    删 `app.db-wal` / `app.db-shm` → 删标记。结果写 `logs`（applied → `warn`，
    failed → `error`）。任一步失败则回滚已做的 rename、**保留标记**、返回 failed。
@@ -145,6 +147,55 @@ node -e "const D=require('better-sqlite3');const d=new D('data/backups/app-20261
 pnpm --filter server restore-check
 ```
 
+### 4.1 启动级端到端：真实服务进程 × 2（TASK-051 新增）
+
+```bash
+pnpm --filter server restore-e2e
+```
+
+`restore-check` 是**单元级**的（直接调 `applyPendingRestore`）；本脚本补上
+「进程启动 → `db/index.ts` 读取标记 → 建连接 → 服务可用」这条真实链路：
+**两次真实启动服务进程**（动态端口，`node --import tsx src/index.ts`），走完
+「登录 → 建备份 → 记下 `customers` 行数 → 新建一行客户 → 排程恢复（202）→
+kill 子进程 → 同 env 重启 → 取证」。
+
+- **数据层取证**（直接读库文件，不只看 HTTP 202）：恢复后 `customers` 行数
+  **等于备份时点值**、备份后新增的那一行消失、`.restore-pending.json` 已被
+  启动期消费（删除）、`backups/pre-restore-*.db` 已生成；
+- **审计取证**：`GET /api/logs?module=restore` 出现 `已应用备份恢复：…` 记录
+  （脚本打印原文）；
+- **两次启动的日志片段**：每次健康就绪后打印子进程最近 3 行 stdout/stderr
+  （`· 启动日志[1] …` / `· 启动日志[2] …`）。第二次那几行里能看到
+  `[restore] 已应用备份 app-…db，原库留作 pre-restore-…db` —— 即「启动期真的做了恢复」
+  在输出里可肉眼确认，不必只信断言。
+
+**判据**：退出码 0，且末行 `结果：21 通过 / 0 失败`；输出须含 `启动日志[1]` 与
+`启动日志[2]` 两组片段，且两次的端口与 `logs` 文件名不同。
+脚本自建临时库与临时备份目录（`AI_DATA_DIR`，默认 `E:/AiData`），**不触碰**
+`server/data/app.db`；结尾打印临时目录供人工复查、**不自动删**；子进程以
+`SIGTERM` → 宽限 → `SIGKILL` 回收，并断言端口已释放、进程已消失。
+**本脚本未纳入 CI**（纳入需改 `.github/workflows/**`，而当前 `gh` 缺 `workflow`
+scope，见 TASK-051 Known Issues 第 1 条）——请以本机手动执行为准。
+
+### 4.2 保留策略「删除失败」留痕（TASK-051 新增）
+
+```bash
+pnpm --filter server retention-check
+```
+
+保留策略删除失败时写 `error` 级 `logs` 的分支由 **TASK-050 的 PR #25**（提交 `df06dbe`）
+新增——当时补了日志但未补测试；复现它需要同时满足「`unlinkSync` 失败」与「份数超出
+`BACKUP_KEEP`」，冒烟脚本的保留策略断言又依赖 `keep=7` 与同一个服务端进程，故该分支
+长期**未被实测**。本脚本用**注入的 unlink stub** 稳定命中 catch：造 9 份白名单备份
+（`keep=7` ⇒ 超额 2），令**第 1 个**被删文件的 unlink 抛 `EACCES: injected`，
+其余透传真实删除。
+
+**判据**：退出码 0，且末行 `结果：10 通过 / 0 失败`；输出中须含
+① 注入失败的文件名、② `removed` 列表、③ `logs` 中新增 error 行的原文
+（形如 `保留策略删除旧备份失败（app-…db）：EACCES: injected`）。
+脚本同样只用临时库与临时备份目录，先对临时库跑迁移（否则 `logs` 表不存在、
+`writeLog` 失败会掩盖断言）。
+
 ## 5. 异地容灾（宿主机层，应用不内置）
 
 本地备份与数据库同盘，磁盘故障会同时丢掉两者。**强烈建议**在宿主机把备份目录
@@ -175,3 +226,6 @@ pnpm --filter server restore-check
 | 导入返回 400「缺少必需数据表」 | 上传的不是本系统的库（`integrity_check` 只证明页结构完好）。确认文件来源，或用 §4 的命令核对表名 |
 | 导入返回 413 | 文件超过 64 MiB 上限；确认没有误传全盘镜像/压缩包 |
 | `backups/` 里 `pre-restore-*` 越来越多 | 刻意不被保留策略清理（保回退能力），需人工删除，见 §3.4 |
+| 跑了 `pnpm db:migrate` 但恢复没发生 | 自 TASK-051 起该入口也经 `env.ts` 解析 `.env`，`BACKUP_DIR` 口径与服务器一致；若仍失败，看 `logs` module=`restore` 的 `error` 行与 `.restore-pending.json` 是否仍在（标记保留 = 启动期应用失败） |
+| 想确认恢复真的生效 | 跑 §4.1 的 `restore-e2e`（两次真实启动 + 数据层取证），不要只看 HTTP 202 |
+| 想确认保留策略失败会留痕 | 跑 §4.2 的 `retention-check`（注入失败 + 断言 logs error 行） |
