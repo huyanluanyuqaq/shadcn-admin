@@ -16,7 +16,7 @@ Owner: "Claude Code (Opus 5) / 执行位 Implementer"
 Owner Since: "2026-10-31T00:00:00+08:00"
 Assigned Role: developer
 Created: 2026-10-30T23:59:00+08:00
-Updated: 2026-10-30T23:59:00+08:00
+Updated: 2026-10-31T08:20:00+08:00
 Branch: feat/TASK-050-backup-import-and-restore
 Requires Human Approval: true
 ```
@@ -410,7 +410,21 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 
 ## Current State
 
-> **2026-10-31 · `CHANGES_REQUESTED` 整改完成（`tasks/review/`）—— 等主控位复审，再转 I2 独立审查与人类授权。**
+> **2026-10-31 · 主控位复审 PASS（第二轮，`tasks/review/`）—— 等 I2 独立审查与人类授权。**
+>
+> 记录 `handoffs/2026-10-31-coordinator-review-round2.md`。7 项整改逐条闭环，
+> 且**红灯由主控位在未修代码上独立复现**（`git checkout ba8537e -- server/src/db/restore.ts`
+> 后跑脚本 → `E2 exists:false`、`E3 after:null`，现场 `app.db` 确实消失；第三项失败为 B5 口径差），
+> 绿灯独立复跑 **24 通过 / 0 失败**，`backups-table` 单测 **9/9**，`audit-repo.py` **PASS=9**，
+> PR #25 head `0d275d1` 的 `install-lint-build` + `audit` 双 pass（run `41147908524`）。
+> **冒烟第 19 段（176/7）与前端全量（335 用例）本轮未由主控位复跑**，以执行位留证 + CI 为准。
+>
+> 复审另记：**R-2**（主控位更正 `Changed Files` 首轮行的 `=== true` 残留、两处「20 项」计数、
+> `Meta.Updated`）；**N-4**（`HANDOFF-004` 引用的 B5 输出未存档，与存档绿日志非同一次运行，不改写）；
+> **L-3**（`resolveBackupDir()` 读 `process.env.BACKUP_DIR` 与 `config.backupDir` 构成第二处双来源，
+> `db:migrate` 入口未加载 `env` 时会 fail-closed 且无日志 ⇒ 见 Known Issues 第 13 条，不阻断）。
+>
+> 2026-10-31 · `CHANGES_REQUESTED` 整改完成（`tasks/review/`）—— 等主控位复审，再转 I2 独立审查与人类授权。
 >
 > 主控位审查（`handoffs/2026-10-31-coordinator-review.md`）判定 **CHANGES_REQUESTED**：
 > 2 阻断（B-1 回滚分支会删掉唯一现库、B-2 回退副本落盘位置与三处文档不符）+ 1 必须修
@@ -449,7 +463,7 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 | `server/src/services/backup-naming.ts` | **新增** | 零依赖文件名规则：`BACKUP_FILENAME_RE`（`app`/`imp` 双前缀）、`PRE_RESTORE_PREFIX`、`buildBackupFilename` / `buildPreRestoreFilename` / `isBackupFilename`。同时被 `services/backup.ts`（运行期）与 `db/restore.ts`（启动期）引用，故刻意零 import 以避开「restore → backup → db/index → restore」环 |
 | `server/src/services/backup-inspect.ts` | **新增** | 零项目内依赖的备份内容校验：`assertImportableBackup()` + `REQUIRED_BACKUP_TABLES` + `BackupValidationError`。导入端点与恢复启动期共用同一套 `integrity_check` + 五表校验 |
 | `server/src/db/restore.ts` | **新增** | 恢复标记读写 + 启动期应用。`applyPendingRestore(dbPath)` 严格按 ①~⑥ 顺序，先做全部前置校验再动文件；失败分支回滚 rename、保留标记。含「为何不做热替换」的架构说明 |
-| `server/scripts/restore-apply-check.ts` | **新增** | 启动期恢复的独立验证脚本（AC-6 / AC-7）。在 `E:/AiData/task050-restore-check-*/` 自建场景，20 项断言，退出码判定 |
+| `server/scripts/restore-apply-check.ts` | **新增** | 启动期恢复的独立验证脚本（AC-6 / AC-7）。在 `E:/AiData/task050-restore-check-*/` 自建场景，24 项断言（首轮 20 项 + 整改新增 E1~E4），退出码判定 |
 | `server/src/db/index.ts` | 改 | `new Database` **之前**调用 `applyPendingRestore(dbPath)` 并导出 `restoreOutcome`；附「为何必须在打开连接前」的注释 |
 | `server/src/index.ts` | 改 | 启动后消费 `restoreOutcome` 写 `logs`（applied→`warn`、failed→`error`，module=`restore`）+ 控制台一行。放在 `服务启动` 日志之前 |
 | `server/src/env.ts` | 改 | 新增 `restoreAutoExit`（env `RESTORE_AUTO_EXIT`，默认 `true`） |
@@ -457,7 +471,7 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 | `server/src/services/backup.ts` | 改 | 删除本地 `FILENAME_RE` 与 `timestampFilename`，改引 `backup-naming.ts`；`applyRetention()` 删除失败补 `writeLog('error','backup',…)`（AC-9 后半，**未复现**） |
 | `server/scripts/smoke.ts` | 改 | 新增第 19 段（22 项）：导入成功/三类失败/缺表库拒绝/无残留/恢复前置校验四项/排程与标记/进程未退出/清理/导入与下载审计/`no-store`；新增 `reqRaw`（八位字节流）与 `downloadBackupBytes`（ArrayBuffer，避免 UTF-8 解码破坏 SQLite 高位字节）；新增 `SMOKE_DB_DIR` 环境变量说明（恢复标记清理） |
 | `src/features/backups/queries.ts` | 改 | 新增 `uploadBackup()`（原生 fetch + octet-stream + `X-Backup-Filename`）、`useRestoreBackup()`、`BACKUP_IMPORT_MAX_BYTES` 常量 |
-| `src/features/backups/components/backups-table.tsx` | 改 | 「导入备份」按钮 + 隐藏 file input + 前端 64 MiB 预检；行内「恢复」按钮 + destructive ConfirmDialog；202 后 toast + 2s/30s 健康轮询 + 刷新；`imp-` 文件的「导入」标识；`restoreAutoExit === true` 时的环境提示 Alert |
+| `src/features/backups/components/backups-table.tsx` | 改 | 「导入备份」按钮 + 隐藏 file input + 前端 64 MiB 预检；行内「恢复」按钮 + destructive ConfirmDialog；202 后 toast + 2s/30s 健康轮询 + 刷新；`imp-` 文件的「导入」标识；`restoreAutoExit === false` 时的环境提示 Alert（首轮此处误写为 `=== true`，由整改 M-1 更正，见本表末段同一文件的整改行） |
 | `src/features/backups/components/backups-table.test.tsx` | 改 | mock 补 `useRestoreBackup` / `uploadBackup`；新增 `describe('BackupsTable 导入与恢复')` 三例。既有 5 例**一字未改** |
 | `shared/src/schema/entities.ts` | 改 | `backupPolicySchema` 补 `restoreAutoExit`；新增 `backupImportResultSchema` 与 `backupRestorePlanSchema` |
 | `docs/technical/api-contract.md` | 改 | 「系统备份」节补 import / restore 两端点、`BackupPolicy` 三字段、导入四层校验表、恢复请求/响应与启动期语义 |
@@ -523,8 +537,18 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
     （而非仅单元级），执行位在 `E:/AiData/task050-e2e/` 起了一次真实服务、走 API 排程恢复、
     重启后复核数据（18 → 17 客户、哨兵行消失、`logs` 落 applied 记录），完成后已清理该目录。
     该脚本为临时取证用，**不在 File Scope 内故未入库**；其覆盖的能力已由
-    `restore-apply-check.ts`（20 项断言）持续保障，但**「真实服务启动路径」这一层没有
+    `restore-apply-check.ts`（24 项断言）持续保障，但**「真实服务启动路径」这一层没有
     常驻自动化覆盖** —— 若审查认为需要，应另立任务补一个启动级集成测试。
+13. **`resolveBackupDir()` 读 `process.env.BACKUP_DIR` 而非 `config.backupDir`（复审新发现，L-3）**：
+    `services/backup.ts` 经 `config.backupDir` 推导，`db/restore.ts` 直接读 `process.env`。
+    主服务入口 `index.ts` 先 import `env.js`（内含 `.env` 加载），故两者在**服务进程内等价**；
+    但 `db/migrate.ts`（`pnpm db:migrate`）**直接 import `db/index.js`**、不经 `env.js`，
+    于是以 `.env` 文件配置 `BACKUP_DIR` 的场景下，该入口解析出的备份目录与服务器不同：
+    待恢复标记会因「备份文件不存在」而失败（**fail-closed，不动任何文件、标记保留**），
+    且该入口不消费 `restoreOutcome`，失败不留任何日志 ⇒ 表现为「跑了 migrate，恢复却没发生」。
+    容器内不受影响（`BACKUP_DIR` 若配置则是 OS 级环境变量，与 `env.ts` 是否加载无关）。
+    建议（不在本任务范围）：让 `applyPendingRestore(dbPath, backupDir)` 由调用方从 `config`
+    注入目录，消除第二处「双来源」；`db/index.ts` import `env.js` 不构成环（`env.ts` 无项目内 import）。
 
 ---
 
@@ -536,9 +560,10 @@ gh run list --commit <merge_sha> --limit 5 --json databaseId,conclusion,name
 | 002 | implementer | reviewer | 2026-10-31 | 交付：Phase 0~6 与 AC-1~AC-13 全部完成并留证；5 条与设计的偏离；3 项需审查位特别核实的问题 |
 | 003 | coordinator | implementer | 2026-10-31 | 整改派单：2 阻断（回滚删现库 / 回退副本路径失真）+ 1 必须修（UI 提示条件反转）+ 建议与记录项 |
 | 004 | implementer | coordinator | 2026-10-31 | 整改闭环：B-1/B-2/M-1/M-2/M-3/L-1/L-2 七项全清，含 B-1 红/绿两步原始输出 |
+| 005 | coordinator | implementer | 2026-10-31 | 复审 PASS：红灯独立复现、绿灯 24/0；仅要求以单个 docs 提交收口记录改动，无代码改动 |
 
-**最新 Handoff：** `handoffs/HANDOFF-004-implementer-to-coordinator.md`
-**Next Action：** 主控位按 `HANDOFF-004` 复审 7 项整改的闭环证据；通过后转 I2 独立审查与人类授权。
+**最新 Handoff：** `handoffs/HANDOFF-005-coordinator-to-implementer.md`
+**Next Action：** 执行位提交并推送本轮记录改动后停下 → 转 I2 独立审查（不携带实现上下文的新实例，记录另名 `handoffs/YYYY-MM-DD-review.md`）→ PASS + 人类显式授权后 rebase-merge，并按 D13-C 以第十二实例回写 Merge Record。
 **当前整改已完成并推送，执行位已停下：未合并、未打 tag、未自行判定 PASS。**
 
 ---
