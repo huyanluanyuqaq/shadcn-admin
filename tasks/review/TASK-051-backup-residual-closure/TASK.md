@@ -138,30 +138,79 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 
 ## Acceptance Criteria
 
-- [ ] **AC-1（WP-0）** `tasks/done/TASK-050-backup-import-and-restore/TASK.md` 的 `Merge Record` 九要素
+- [x] **AC-1（WP-0）** `tasks/done/TASK-050-backup-import-and-restore/TASK.md` 的 `Merge Record` 九要素
       全部为实测值，且逐项可用命令复现：PR `25`、提交数 `16`、`merged_at 2026-10-31T01:37:54Z`、
       `merge_commit_sha 2fdd2c93bbea0ff4ec8bf3a763ede79f24e9d30a`、合并后 CI run `41156271179`（success）、
       合并后 Docker run `41156271209`（success）+ tag 触发的 `41158945149`、镜像 tag 含 `v1.0.6`/`latest`/`sha-2fdd2c9`、
       审查记录三份文件路径。**执行位须自行 `gh api` 复核后填写，不得抄本清单。**
-- [ ] **AC-2（WP-0）** `Status: DONE`，目录已在 `tasks/done/`；`tasks/review/` 下不再有 TASK-050。
-- [ ] **AC-3（WP-0）** `Next Action` 为终态文案且**不含**写死的 head/提交数（可见文本里无 `4d936e1`/`8ef856e`/`2fdd2c9` 之外的「当前 N 提交」表述）。
-- [ ] **AC-4（WP-1）** `grep -n "process.env.BACKUP_DIR" server/src/db/restore.ts` **零命中**；
+      > **证据**：命令 `gh api repos/:owner/:repo/pulls/25 --jq '{merged,merged_at,sha,commits,title,base}'`
+      > → `{"base":"main","commits":16,"merged":true,"merged_at":"2026-10-31T01:37:54Z","number":25,"sha":"2fdd2c93bbea0ff4ec8bf3a763ede79f24e9d30a"}`；
+      > `gh api …/pulls/25/commits --jq 'length'` → `16`；
+      > `gh api "…/actions/runs?head_sha=2fdd2c93…"` → `41156271179`（CI，push/main，success）、
+      > `41156271209`（Docker，push/main，success）、`41158945149`（Docker，push/**v1.0.6**，success，判为 tag 发布 run）；
+      > DockerHub Tags API → `sha-2fdd2c9`/`v1.0.6`/`latest` 同 digest `sha256:edd1338b…`；
+      > `gh api …/git/tags/c571798f…` → `.object.sha = 2fdd2c93…`（与 merge_commit_sha 逐字相同）。
+      > 档案实际填写位置：`tasks/done/TASK-050-…/TASK.md` 的 `## Merge Record` 表（九行）。
+- [x] **AC-2（WP-0）** `Status: DONE`，目录已在 `tasks/done/`；`tasks/review/` 下不再有 TASK-050。
+      > **证据**：`git ls-files tasks/done/TASK-050-backup-import-and-restore` → 9 个文件（TASK.md + 8 份 handoff）；
+      > `git ls-files tasks/review/` → 仅 TASK-051 与本任务 handoff，无 TASK-050；
+      > `git grep -n "^Status:" -- tasks/done/TASK-050-backup-import-and-restore/TASK.md` → `Status: DONE`。
+- [x] **AC-3（WP-0）** `Next Action` 为终态文案且**不含**写死的 head/提交数（可见文本里无 `4d936e1`/`8ef856e`/`2fdd2c9` 之外的「当前 N 提交」表述）。
+      > **证据**：`tasks/done/TASK-050-…/TASK.md` 的 `**Next Action：**` 行为「无（终态）。…」；
+      > 全文 `4d936e1`/`8ef856e` 仅出现在审查叙述与 `Merge Record` 的事实陈述中，不在 Next Action；
+      > 该行**未**出现任何「当前 N 提交」式表述。
+- [x] **AC-4（WP-1）** `grep -n "process.env.BACKUP_DIR" server/src/db/restore.ts` **零命中**；
       `grep -n "config.backupDir" server/src/db/index.ts` 命中。
-- [ ] **AC-5（WP-1）** 全量调用点核对留证：`grep -rn "applyPendingRestore\|resolveBackupFile" server/src server/scripts`
+      > **证据**：`git grep -n "process.env.BACKUP_DIR" -- server/src/db/restore.ts` → **零命中**（退出码 1）；
+      > `git grep -n "config.backupDir" -- server/src/db/index.ts` → `:6`（注释）、`:35`（注释）、`:43`、`:44`（代码）共 4 处命中。
+- [x] **AC-5（WP-1）** 全量调用点核对留证：`grep -rn "applyPendingRestore\|resolveBackupFile" server/src server/scripts`
       逐条列出行号与传入的**参数名**（不是「看起来对」）。
-- [ ] **AC-6（WP-1）** `pnpm --filter server restore-check` 仍 **24 通过 / 0 失败**、退出码 0。
-- [ ] **AC-7（WP-2）** `pnpm --filter server restore-e2e` 退出码 0；输出含**两次启动**的日志片段、
+      > **证据**：`git grep -n "applyPendingRestore\|resolveBackupFile" -- server/src server/scripts` 共 6 处代码命中
+      > （另 2 处为注释/import）。逐点实参：
+      > `db/index.ts:57` `applyPendingRestore(dbPath, backupDir)` ← `dbPath` = `resolveDbPath()`、`backupDir` = 同文件 `:43` 由 `config.backupDir` 推导；
+      > `restore.ts:121` `resolveBackupFile(marker.filename, backupDir)` ← 透传上层入参；
+      > `restore-apply-check.ts:183/207/285/322` `applyPendingRestore(DB_PATH, BACKUP_DIR)` ← 两个均为脚本既有常量（临时库 / 临时备份目录）。
+      > 顺序正确性另由 WP-1 红/绿兜底（若写反，恢复会因「备份文件不存在」失败）。
+- [x] **AC-6（WP-1）** `pnpm --filter server restore-check` 仍 **24 通过 / 0 失败**、退出码 0。
+      > **证据**：命令与完整输出见 `HANDOFF-004` §五-1。期望 24/0，**实际 24 通过 / 0 失败，退出码 0**。
+- [x] **AC-7（WP-2）** `pnpm --filter server restore-e2e` 退出码 0；输出含**两次启动**的日志片段、
       恢复后 `customers` 行数等于备份内取值、`GET /api/logs?module=restore` 命中 `applied` 记录。
-- [ ] **AC-8（WP-2）** 连续跑两次 e2e 均成功（证明端口动态、临时目录不冲突、进程被回收）；
+      > **证据**：命令与完整输出见 `HANDOFF-004` §五-3。期望 21/0 × 2 + 三样取证，
+      > **实际 21 通过 / 0 失败、退出码 0**（两次，端口 56691 / 见交接）；
+      > 输出含 `· 启动日志[1] …` 与 `· 启动日志[2] [restore] 已应用备份 app-…db，原库留作 pre-restore-…db`
+      > 两组片段；断言 14/15（服务层与数据层行数回到备份时点值）、19/20（`logs` 命中 `已应用备份恢复`）。
+      > **M-3 处置**：选**方案 A（改实现）**——`waitForHealth` 成功后打印子进程最近 3 行 stdout/stderr，
+      > 理由见 `HANDOFF-004` §二-M-3。AC 措辞保持原样（未改）。
+- [x] **AC-8（WP-2）** 连续跑两次 e2e 均成功（证明端口动态、临时目录不冲突、进程被回收）；
       运行后 `netstat`/`lsof` 无遗留监听，`tasklist`/`ps` 无遗留 `tsx` 子进程。
-- [ ] **AC-9（WP-3）** `pnpm --filter server retention-check` 退出码 0；输出含
+      > **证据**：两次运行端口分别为 **10753** 与 **52054**（不同 ⇒ 端口确为动态选取）；
+      > `netstat -ano | Select-String "LISTENING"` 对两个端口均无命中；`Get-Process node`
+      > 计数运行前后不变；脚本断言 9/10/11（进程退出、端口释放、进程消失）两次全绿，
+      > 且两次末行均打印「端口 … 已释放，两个子进程均已回收」。
+- [x] **AC-9（WP-3）** `pnpm --filter server retention-check` 退出码 0；输出含
       「注入失败文件名」「removed 列表」「logs 中新出现的 error 行原文」三项证据。
-- [ ] **AC-10（门禁）** eslint / prettier / `tsc -b` / `pnpm --filter server typecheck` / `pnpm knip` /
+      > **证据**：命令与完整输出见 `HANDOFF-004` §五-2。三项齐备：
+      > 注入失败文件名 `app-20261031-120001-000.db`；`removed` 长度 1 且逐字断言（不含失败文件）；
+      > `logs` error 行原文 `level=error module=backup message=保留策略删除旧备份失败（app-20261031-120001-000.db）：EACCES: injected`。
+      > 实际 **10 通过 / 0 失败，退出码 0**（R-5 把恒真断言换成真断言后条数不变）。
+- [x] **AC-10（门禁）** eslint / prettier / `tsc -b` / `pnpm --filter server typecheck` / `pnpm knip` /
       `python scripts/audit-repo.py`（`PASS=9 FAIL=0`）全绿；`git status --short` 仅 File Scope 内文件。
-- [ ] **AC-11（文档）** `docs/operations/backup-restore.md` 有「备份目录由调用方注入」的说明，
+      > **证据**：六项退出码与 `audit-repo.py` 的 `PASS=9 FAIL=0 WARN=0` 见 `HANDOFF-004` §五-4；
+      > `git status --short` 仅 `server/scripts/restore-e2e-check.ts`、`server/scripts/retention-log-check.ts`、
+      > `server/src/services/backup.ts`、`docs/operations/backup-restore.md` 与 `tasks/review/TASK-051-…/**`
+      > —— 全部在 File Scope 内。
+- [x] **AC-11（文档）** `docs/operations/backup-restore.md` 有「备份目录由调用方注入」的说明，
       并给出 `restore-e2e` / `retention-check` 两条命令与各自的判据；无失效的否定性断言残留。
-- [ ] **AC-12（WP-0 边界）** 未改动 047/048/049 的既有回写；未改 `.github/workflows/**`；
+      > **证据**：§1 表格「目录口径」行 = 「单一推导点 + 调用方注入…」；§3.1 第 4 步写明
+      > `applyPendingRestore(dbPath, backupDir)` 及 `backupDir` 由 `db/index.ts` 从 `config.backupDir` 推导后注入；
+      > §4.1 / §4.2 分别给出两条命令与判据（21 通过 / 10 通过）。M-2 已把两处失真的
+      > 「自 TASK-015 起就在位」改为 TASK-050 `df06dbe` 引入的实测表述；
+      > 判据 `git grep -rn "自 TASK-015 起"` 排除 `tasks/` 后**零命中**。
+- [x] **AC-12（WP-0 边界）** 未改动 047/048/049 的既有回写；未改 `.github/workflows/**`；
       `git diff --stat main...HEAD` 无 `docker-compose.yml` / `schema.ts` / 迁移文件。
+      > **证据**：`git diff --stat main...HEAD` 的 20 个文件里，047/048/049 三个档案**零变动**；
+      > 无 `.github/workflows/**`、`docker-compose.yml`、`Dockerfile`、`server/src/db/schema.ts`、
+      > `server/drizzle/**` 任何一行（完整清单见 `HANDOFF-004` §五-6）。
 
 ---
 
@@ -244,6 +293,16 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 > `restore-e2e` 连续两次 21/0。红/绿实测各一组（WP-1 的 `db:migrate` 入口、
 > WP-3 的 catch 分支），原始输出见 `handoffs/HANDOFF-002-implementer-to-coordinator.md`。
 
+> 2026-10-31：主控位第 1 轮审查 → **CHANGES_REQUESTED**（**0 阻断** + 3 必须修 + 6 记录项）。
+> 记录 `handoffs/2026-10-31-coordinator-review.md`，整改派单 `handoffs/HANDOFF-003-coordinator-to-implementer.md`。
+> 技术交付被判**可合并级**：三个脚本主控位均独立复跑通过（24/0、10/0、21/0 ×2，端口 57860/34580），
+> `process.env.BACKUP_DIR` 在 `db/restore.ts` 零命中，6 处调用点实参顺序逐点核对无误，
+> 并另行确认 `env.ts:36` 顶层 `loadDotEnv()` ⇒ WP-1 的修复**实质有效**（非把双来源挪位）。
+> 拦下的三项全在档案层：**M-1** 12 条 AC 一条未勾却已宣告交付；**M-2**
+> 「保留策略失败写日志的分支自 TASK-015 起就在位」为可复现的事实错误（实测由 TASK-050 的
+> `df06dbe` 引入）；**M-3** AC-7「输出含两次启动的日志片段」在成功路径下不成立（`log` 仅在
+> health 失败时作 detail 打印）。记录项 R-1~R-6 见审查记录 §三。
+
 ---
 
 ## Changed Files
@@ -280,14 +339,17 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
    故 WP-2 的回收一律走 Node 的信号通道，**没有**用 `taskkill` 杀进程树。
    `node --import tsx src/index.ts` 的 loader 在进程内注册（无孙子进程），杀单个 PID 即够；
    脚本仍以「端口可再监听 + 进程确已消失」两条断言兜底（实测运行前后 node 进程数不变）。
-3. **本沙箱内 `pnpm` 的 deps-status 检查会中止**：workspace 级命令需加
-   `--config.verify-deps-before-run=false`；子进程里无法稳定传该参数，故 WP-2 用
-   `node --import tsx src/index.ts` 直接起服务（同一解释器、同一份源码）。
-   交接与验证记录中的 pnpm 命令均已带该参数。
-4. **`E:/AiData` 在本沙箱不可写**：三个脚本默认目录为 `AI_DATA_DIR ?? E:/AiData`
-   （与 `restore-apply-check.ts` 一致，Task Rules 要求）。本机验证统一以
-   `AI_DATA_DIR=E:/NDLDSN-WORKSPACE/.i2-review-tmp/task051` 运行；
-   在 `E:/AiData` 可写的机器上无需设该变量。
+3. **`pnpm` 是否需要 `--config.verify-deps-before-run=false` 取决于环境**：执行位所在沙箱内
+   workspace 级 pnpm 命令会触发 deps-status 检查并在非 TTY 下中止，需加该参数；
+   而主控位本机**不加也能直接跑通**（`retention-check` / `restore-e2e` 均成功）。
+   子进程里无法稳定传该参数，故 WP-2 用 `node --import tsx src/index.ts` 直接起服务
+   （同一解释器、同一份源码）。本文档 §4.1/§4.2 因此刻意**不写**该参数——
+   写死会让可正常运行的机器以为必须额外配置。
+4. **`E:/AiData` 的可写性取决于环境**：三个脚本默认目录为 `AI_DATA_DIR ?? E:/AiData`
+   （与 `restore-apply-check.ts` 一致，Task Rules 要求）。主控位本机**可直接写入**
+   （产物落在 `E:\AiData\task051-*`，`touch` 探针通过）；执行位所在沙箱内则**不可写**
+   （实测 `EPERM: operation not permitted, mkdir 'E:\AiData\…'`），此时设
+   `AI_DATA_DIR` 指向可写目录即可（脚本本来就优先读该变量），无需改代码。
 5. **WP-1 的副作用（超出原表述，如实登记）**：`db/index.ts` import `env.js` 后，
    `pnpm db:migrate` 入口**也开始**从 `.env` 读取 `DATABASE_URL`（此前它只读 OS env，
    没有 `.env` 时回落 `server/data/app.db`）。这正是「两个入口口径一致」的目标，
@@ -308,11 +370,12 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 |---|------|----|------|------|
 | 001 | coordinator | implementer | 2026-10-31 | 派单：WP-0 回写（第十二实例）+ WP-1 目录注入 + WP-2 启动级 e2e + WP-3 保留策略失败留痕 |
 | 002 | implementer | coordinator | 2026-10-31 | 交付：四提交（WP-0/WP-1/WP-3/WP-2），门禁全绿 + 红/绿实测两组；两处与派单的偏差已上报（`resolveBackupFile` 去 `dbPath` 形参、子进程用 `node --import tsx` 取代 pnpm） |
+| 003 | coordinator | implementer | 2026-10-31 | 整改：M-1 AC 全量勾选 + 证据指针、M-2 更正「自 TASK-015 起」事实错误（2 处）、M-3 AC-7 与实现择一处理；R-1~R-6 六项记录项同批 |
 
-**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
-**Next Action：** 主控位对本 PR 做第一轮审查（读实际差异，不读描述）；如需整改，执行位按
-`HANDOFF-003` 闭环后复审；再转 I2 独立审查；**合并需人类显式授权**，执行位未合并、未打 tag、
-未自行判定 PASS。
+**最新 Handoff：** `handoffs/HANDOFF-003-coordinator-to-implementer.md`
+**Next Action：** 执行位按 `HANDOFF-003` 完成 M-1~M-3 与 R-1~R-6 并留证 → 主控位复审 →
+I2 独立审查（不携带实现上下文的新实例，记录另名 `handoffs/YYYY-MM-DD-review.md`）→
+**人类显式授权** → rebase-merge。执行位未合并、未打 tag、未自行判定 PASS。
 
 ---
 
