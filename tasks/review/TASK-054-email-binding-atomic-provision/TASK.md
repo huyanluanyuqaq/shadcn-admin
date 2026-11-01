@@ -10,7 +10,7 @@
 Task ID: TASK-054
 Title: 新增邮箱单事务落库（供应商 + 订阅 + 绑定一次写完）
 Workflow: feature
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: Codex（执行位 · developer）
 Owner Since: 2026-11-01T23:05:00+08:00
@@ -281,12 +281,27 @@ D13-C 前置已实测：TASK-052 / TASK-053 **均未合并**（无 PR），保�
 |---|------|----|------|------|
 | 001 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | 实施完毕：`/email-bindings/bundle` 单事务接口 + 前端单次写请求；AC-1~AC-7 全过，全量门禁退出码 0；D13-C 前置实测 TASK-052/053 未合并 |
 | 002 | reviewer（主控位） | developer（执行位） | 2026-11-02 | 主控位复审 **PASS（有条件）**：AC-1~AC-7 逐条通过、10 项门禁独立复现、事务回滚经故障注入探针另证；整改 R1（档案「未提交」失真 + PR #27 未登记）／R2（Status 应为 REVIEW 并移入 `review/`）／R3（原子性无回归用例）；合并前置 B-1（PR #27 携带 TASK-052/053 未审代码）待人类裁决 |
+| 003 | reviewer（主控位） | 人类 | 2026-11-02 | 0750 收口：B-1 走 A 路线 → 052/053 独立审查（052 PASS / 053 首轮 FAIL）→ 三轮修复（`074e557`/`51b7c04`/`bee2610`）→ 二轮独立复核 PASS → **053 转 PASS**；R3/R4/R5 闭合，R1/R2 由主控位补正；**PR #27 待人类授权合并** |
 
 **最新 Handoff：** `handoffs/2026-11-02-coordinator-review.md`（主控位审查记录；执行位交付书为
 `handoffs/HANDOFF-001-developer-to-reviewer.md`）
-**Next Action：** 执行位闭合审查记录 R1 / R2 / R3（R3 推荐在 `email-binding-bundle-check.ts` 内用触发器注入失败
-固化「三表零新增」用例），回填后交主控位复核；**合并前须先解决 B-1**（TASK-052 / TASK-053 独立审查通过，
-或由人类明示接受同批合并）。
+**Next Action：** 人类授权合并 PR #27（rebase-merge）；合并后按 D13-C 由下一个任务回填本任务与
+TASK-052 / TASK-053 的九要素 Merge Record（三者同批落地，须互相引用同一 merge_commit_sha 与 CI run）。
+
+---
+
+## 状态补正（主控位，2026-11-02T01:20）
+
+两个任务的执行位会话已结束，为避免「档案自述状态」与事实继续背离，本节由主控位补正并披露：
+
+1. **Meta `Branch` 与 Dependencies 表里的「TASK-053 未提交改动之上」已过期**。事实：TASK-052/053 的改动
+   已随 `767c149`（独占文件）与 `068bb5d`（5 个混合文件，文件级无法分离，原因见该提交信息）落库，
+   `git status` 在实施结束时是干净的。原文保留不改（历史记录不伪造），以本节为准。
+2. **`HANDOFF-001` 里「`git status` 中 15 个 modified + 2 个 untracked 原样保留」描述的是实施中途状态**，
+   不是交付时状态；交付时的真实状态见上一条。同理，该交接书未登记 PR #27，PR 号以本节为准。
+3. **`Status` 由 `ACTIVE` 改为 `REVIEW` 并移入 `tasks/review/`**：按 `.agents/protocols/task-lifecycle.md`，
+   状态转换本应由执行位完成（「实现完成，自检通过」→ REVIEW），执行位交付后未做，由主控位代为补正。
+4. **PR：`#27`**（`feat/TASK-054-email-binding-atomic-provision` → `main`，`MERGEABLE`）。
 
 ---
 
@@ -313,6 +328,8 @@ D13-C 前置已实测：TASK-052 / TASK-053 **均未合并**（无 PR），保�
 - [补充] **TASK-053 语义冻结**：本任务不得改动四态归属判定、`listCondition`、R1/R2 两道守卫的行为；
   发现冲突须停机上报，不得就地放宽。
 - [增强] **失败路径必须留证**：AC-1 的「三表计数不变」要打印调用前后的三个数字，不接受「没报错即通过」。
+- [裁决·人类 2026-11-02T00:47] **B-1 走 A 路线**：TASK-052 / TASK-053 必须先取得独立实例审查 PASS，
+  才允许合并 PR #27；两者 Merge Record 按「随 PR #27 一并落地」回填。顺序已定，但合并仍需人类显式授权。
 
 ---
 
