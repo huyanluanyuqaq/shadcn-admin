@@ -1,4 +1,5 @@
-import { Fragment, useEffect, useMemo, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
+import { useNavigate } from '@tanstack/react-router'
 import {
   type ColumnFiltersState,
   type OnChangeFn,
@@ -89,6 +90,23 @@ export function SubscriptionsTable() {
     [customers.data]
   )
 
+  // 「分配」（TASK-053）：未分配行 → 客户管理新建页，按该订阅的邮箱/链接/供应商预填。
+  // 保存后既有保存流按 URL 命中该订阅回填 customerId，订阅即从「未分配」变为有主。
+  const navigate = useNavigate()
+  const handleAssign = useCallback(
+    (row: Subscription) => {
+      void navigate({
+        to: '/customers',
+        search: {
+          assignUrl: row.url,
+          assignEmail: row.email ?? undefined,
+          assignPoolId: row.poolId ?? undefined,
+        },
+      })
+    },
+    [navigate]
+  )
+
   const columns = useMemo(
     () =>
       getSubscriptionsColumns({
@@ -96,8 +114,9 @@ export function SubscriptionsTable() {
         poolNameById: new Map(
           (pools.data?.items ?? []).map((item) => [item.id, item.name])
         ),
+        onAssign: handleAssign,
       }),
-    [customerNameById, pools.data]
+    [customerNameById, pools.data, handleAssign]
   )
 
   const filterOptions = useMemo(

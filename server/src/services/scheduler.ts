@@ -3,6 +3,7 @@ import { Cron } from 'croner'
 import { db } from '../db/index.js'
 import { subscriptions } from '../db/schema.js'
 import { runBackup } from './backup.js'
+import { runCustomerArchiveScan } from './customer-archive.js'
 import { writeLog } from './logger.js'
 import { runReminderScan } from './reminder-scan.js'
 import { syncOne } from './subscription-sync.js'
@@ -89,6 +90,7 @@ export function stop(): void {
   stopAll()
   stopReminderScanJob()
   stopBackupJob()
+  stopCustomerArchiveJob()
 }
 
 // ---------- 提醒扫描（每日，TASK-013） ----------
@@ -174,4 +176,56 @@ export function stopBackupJob(): void {
     console.error('[scheduler] 停止数据库备份任务失败:', err)
   }
   backupJob = null
+}
+
+// ---------- 客户到期自动归档（每日，TASK-053） ----------
+
+/** 客户归档 cron（5 段：分 时 日 月 周）；默认每天 04:00（排在 03:00 备份之后） */
+const CUSTOMER_ARCHIVE_CRON = process.env.CUSTOMER_ARCHIVE_CRON?.trim() || '0 4 * * *'
+
+let customerArchiveJob: Cron | null = null
+
+/** 注册每日客户到期归档任务（语义见 services/customer-archive.ts） */
+export function startCustomerArchiveJob(): void {
+  stopCustomerArchiveJob()
+  try {
+    customerArchiveJob = new Cron(
+      CUSTOMER_ARCHIVE_CRON,
+      { name: 'customer-archive' },
+      () => {
+        try {
+          const result = runCustomerArchiveScan()
+          if (result.archived > 0) {
+            void writeLog(
+              'info',
+              'archive',
+              `定时归档完成：客户 ${result.archived} 个，保留订阅 ${result.subscriptionsKept} 条`
+            )
+          }
+        } catch (err) {
+          void writeLog(
+            'error',
+            'archive',
+            `定时归档失败：${err instanceof Error ? err.message : String(err)}`
+          )
+        }
+      }
+    )
+  } catch (err) {
+    void writeLog('error', 'scheduler', `客户归档 cron 表达式无效：${CUSTOMER_ARCHIVE_CRON}`)
+    console.error(`[scheduler] 客户归档 cron 表达式无效 (${CUSTOMER_ARCHIVE_CRON}):`, err)
+    return
+  }
+  void writeLog('info', 'scheduler', `已注册每日客户归档任务（${CUSTOMER_ARCHIVE_CRON}）`)
+}
+
+/** 停止客户归档任务 */
+export function stopCustomerArchiveJob(): void {
+  if (!customerArchiveJob) return
+  try {
+    customerArchiveJob.stop()
+  } catch (err) {
+    console.error('[scheduler] 停止客户归档任务失败:', err)
+  }
+  customerArchiveJob = null
 }

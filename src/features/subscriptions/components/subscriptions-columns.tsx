@@ -2,6 +2,7 @@ import type { ColumnDef } from '@tanstack/react-table'
 import type { Subscription } from '@shared/index'
 import { cn } from '@/lib/utils'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Checkbox } from '@/components/ui/checkbox'
 import { DataTableColumnHeader } from '@/components/data-table'
 import { LongText } from '@/components/long-text'
@@ -17,11 +18,14 @@ import { DataTableRowActions } from './data-table-row-actions'
 export type SubscriptionColumnMaps = {
   customerNameById: Map<number, string>
   poolNameById: Map<number, string>
+  /** 「分配」入口（TASK-053）：跳客户管理新建页并预填该订阅的邮箱/链接/供应商 */
+  onAssign: (row: Subscription) => void
 }
 
 export function getSubscriptionsColumns({
   customerNameById,
   poolNameById,
+  onAssign,
 }: SubscriptionColumnMaps): ColumnDef<Subscription>[] {
   return [
     {
@@ -98,7 +102,30 @@ export function getSubscriptionsColumns({
       ),
       cell: ({ row }) => {
         const id = row.original.customerId
-        const name = id ? customerNameById.get(id) : undefined
+        // TASK-052：未绑定客户时统一显示「未分配」（此前为 `-`），
+        // 与邮箱管理页「所属客户」列的口径一致——旧邮箱/旧订阅解绑后
+        // 在两处页面都呈现为「未分配」而非空白。
+        // TASK-053：未分配行就地提供「分配」入口（跳客户管理新建页并预填），
+        // 保存后由既有保存流按订阅链接回填 customerId。
+        if (id == null) {
+          return (
+            <div
+              className='flex items-center gap-2 text-nowrap'
+              onClick={(event) => event.stopPropagation()}
+            >
+              <span className='text-muted-foreground'>未分配</span>
+              <Button
+                variant='outline'
+                size='sm'
+                className='h-7 px-2 text-xs'
+                onClick={() => onAssign(row.original)}
+              >
+                分配
+              </Button>
+            </div>
+          )
+        }
+        const name = customerNameById.get(id)
         return <div className='text-nowrap'>{name ?? '-'}</div>
       },
       enableSorting: false,

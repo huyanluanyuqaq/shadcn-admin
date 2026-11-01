@@ -57,6 +57,32 @@ export interface CrudOptions {
    * 钩子异常只记录不抛出——写入已成功，不应让客户端看到 500 误判失败而重试。
    */
   afterWrite?: () => void
+  /**
+   * 写入前的校验钩子（TASK-052 强绑定：客户邮箱全局唯一）。
+   *
+   * 返回 `{ status, message }` 即中断写入并原样返回该响应；返回 null 继续写入。
+   * 与 `afterWrite` 不同，本钩子的异常**不**被吞掉——校验失败必须让客户端看到，
+   * 否则会出现「写入被静默跳过」。
+   *
+   * @param values 已过 zod 与时间戳转换的待写字段（partial 更新时**只含入参出现的键**）
+   * @param id     更新时的记录 id；创建时为 null（用于排除自身）
+   */
+  beforeWrite?: (
+    values: Record<string, unknown>,
+    id: number | null
+  ) => { status: 400 | 409; message: string } | null
+
+  /**
+   * 列表的**固定**附加条件（TASK-053：邮箱管理的归属派生）。
+   *
+   * 与 `filterCols` 的区别：本项不接受用户入参、始终生效，且以函数形式提供——
+   * 条件里可能含 `Date.now()` 等随时间变化的值，必须在**每次请求**时重新求值，
+   * 不能在注册路由时固化成常量。
+   *
+   * 只作用于 `GET /`（列表与 total 同步收敛），**不作用于** `GET /:id` / 写入 / 删除：
+   * 否则列表外的记录会连带无法查看与编辑，语义过强。
+   */
+  listCondition?: () => SQL | undefined
 }
 
 function serialize<T>(row: Record<string, unknown>): T {
@@ -144,6 +170,8 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     uniqueHint,
     createDefaults,
     afterWrite,
+    beforeWrite,
+    listCondition,
   } = opts
 
   const app = new Hono()
@@ -156,6 +184,9 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     const { page, pageSize, sortBy, sortOrder } = parsed.data
 
     const conditions: SQL[] = []
+    // 固定归属条件先入链：它与关键字/筛选是 AND 关系（不属于关键字 OR 组）
+    const baseCondition = listCondition?.()
+    if (baseCondition) conditions.push(baseCondition)
     const keyword = (query.q ?? '').trim()
     if (keyword) {
       // 本表 like 条件 + 跨表钩子条件，统一 OR 后作为**单一**条件进入 AND 链——
@@ -212,6 +243,12 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
       return badRequest(c, parsed.error.issues[0]?.message ?? '入参校验失败')
     }
     const values = toDb(parsed.data as Record<string, unknown>, dateKeys)
+    const blocked = beforeWrite?.(values, null)
+    if (blocked) {
+      return blocked.status === 409
+        ? conflict(c, blocked.message)
+        : badRequest(c, blocked.message)
+    }
     let row: Record<string, unknown>
     try {
       row = db
@@ -240,6 +277,12 @@ export function createCrudRoutes(opts: CrudOptions): Hono {
     }
     const values = toDb(parsed.data as Record<string, unknown>, dateKeys)
     if (Object.keys(values).length === 0) return badRequest(c, '没有需要更新的字段')
+    const blocked = beforeWrite?.(values, id)
+    if (blocked) {
+      return blocked.status === 409
+        ? conflict(c, blocked.message)
+        : badRequest(c, blocked.message)
+    }
     let row: Record<string, unknown> | null
     try {
       row = db
