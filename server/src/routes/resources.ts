@@ -306,23 +306,34 @@ resourceRoutes.route(
      * （邮箱管理页「编辑」保存正是走 CRUD 的 PATCH）。此外 `pool_id` 为 NULL 时唯一索引
      * 视各行互异，库里同样挡不住「同一邮箱两条未指定供应商」的绑定。
      * 只阻止新引入的重复，不改动历史数据；比较用 trim + lower，落库保留原样大小写。
+     *
+     * 判重前先与**本行现值**比「身份」：`PATCH` 可以只带部分字段（只改 `remark`、只改 `poolId`），
+     * 故改动后的 `(邮箱, 供应商)` 要由 `values` 与现值拼出来。身份没变就不算「引入重复」，直接放行——
+     * 既不放过「只改 poolId 挪进别人格子」，也不让存量重复行（历史缺陷产物）连 `remark` 都改不动。
      */
     beforeWrite: (values, id) => {
-      const raw = values.email
-      if (typeof raw !== 'string') return null
-      const email = raw.trim()
+      // PATCH 可能只带部分字段：先取本行现值（创建时 id 为 null，无现值）
+      const current =
+        id === null
+          ? null
+          : (db
+              .select({ email: emailBindings.email, poolId: emailBindings.poolId })
+              .from(emailBindings)
+              .where(eq(emailBindings.id, id))
+              .get() ?? null)
+      // 本次改动后的身份：字段出现在 values 里就用新值，否则沿用现值
+      const emailRaw = 'email' in values ? values.email : current?.email
+      if (typeof emailRaw !== 'string') return null
+      const email = emailRaw.trim()
       if (!email) return null
-      // PATCH 未携带 poolId 时按库中现值比较，避免「只改邮箱」被误判成跨供应商
       const poolId =
-        'poolId' in values
-          ? ((values.poolId ?? null) as number | null)
-          : id === null
-            ? null
-            : ((db
-                .select({ poolId: emailBindings.poolId })
-                .from(emailBindings)
-                .where(eq(emailBindings.id, id))
-                .get()?.poolId ?? null) as number | null)
+        'poolId' in values ? ((values.poolId ?? null) as number | null) : (current?.poolId ?? null)
+      // 身份未变 ⇒ 本次不是「引入重复」，放行（存量重复行仍可改 remark 等非身份字段）
+      if (current) {
+        const sameEmail = (current.email ?? '').trim().toLowerCase() === email.toLowerCase()
+        const samePool = (current.poolId ?? null) === poolId
+        if (sameEmail && samePool) return null
+      }
       const dup = db
         .select({ id: emailBindings.id })
         .from(emailBindings)
