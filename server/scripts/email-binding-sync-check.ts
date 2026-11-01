@@ -23,6 +23,8 @@
  *   ⑨ `/email-bindings` 的 CRUD 写入（PATCH / POST）同样按 trim + lower 判重：
  *      同供应商下的大小写变体 409、跨供应商仍放行（TASK-054：唯一索引区分大小写，
  *      必须由 `beforeWrite` 兜住，邮箱管理页「编辑」保存正走这条路径）。
+ *   ⑩ 判重以「本次改动后的身份是否变化」为准：PATCH 只改 `poolId` 挪进别人的格子仍 409（N1）；
+ *      存量重复行只改 `remark` 等非身份字段则放行，不再恒 409（N2）。
  *
  * 隔离：库文件位于 `AI_DATA_DIR ?? E:/AiData` 下的临时目录，**不触碰** `server/data/app.db`；
  * 目录末尾打印、**不自动删**（供人工复查，与 `restore-apply-check.ts` 一致）。
@@ -504,6 +506,81 @@ async function main() {
         .from(emailBindings)
         .all()
         .some((row) => row.email === 'a@x.com' && row.poolId === otherPoolId)
+    )
+  }
+
+  // —— 场景 10：PATCH 只改 poolId（不带 email）也必须判重（TASK-054 N1）——
+  // 缺陷形态：守卫第一句是「values.email 不是字符串就放行」，故只改 `poolId` 时直接越过判重，
+  // 把一行挪进另一行的格子（同供应商下出现同邮箱两行）。断言行数与落库值都要对得上。
+  console.log('\n场景 10：PATCH 只改 poolId，把行挪进另一行的格子 ⇒ 409')
+  {
+    reset()
+    const poolId = seedPool()
+    const otherPoolId = seedPool('P2')
+    seedBinding('a@x.com', poolId, null)
+    // 第二行同邮箱、另一供应商：只改 poolId 就会与第一行撞成「同供应商 + 同邮箱」
+    const targetId = seedBinding('A@X.COM', otherPoolId, null)
+
+    const countBindings = () => db.select().from(emailBindings).all().length
+    const before = countBindings()
+    console.log(`  调用前 email_bindings 行数=${before}`)
+
+    const res = await patchJson(`/email-bindings/${targetId}`, { poolId })
+
+    const after = countBindings()
+    console.log(`  调用后 email_bindings 行数=${after}`)
+
+    check('只改 poolId（不带 email）挪进同供应商同邮箱 → 409', res.status === 409, res)
+    check('email_bindings 行数不变（未落出同格第二行）', after === before, { before, after })
+    check(
+      '被拦下的行仍留在原供应商（写入未落库）',
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .some((row) => row.id === targetId && row.poolId === otherPoolId && row.email === 'A@X.COM'),
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .map((row) => [row.email, row.poolId])
+    )
+  }
+
+  // —— 场景 11：存量重复行改非身份字段不得恒 409（TASK-054 N2）——
+  // 缺陷形态：`ne(id)` 只排除自己，另一条重复行仍在 ⇒ 存量重复行哪怕只改 remark 也必然命中判重，
+  // 脏数据在 UI 里改不动、只能删。修复是「身份未变即放行」，这里锁住该语义。
+  console.log('\n场景 11：存量重复行只改 remark ⇒ 200（身份未变不判重）')
+  {
+    reset()
+    const poolId = seedPool()
+    // 模拟上轮缺陷的产物：同供应商下同邮箱两条（大小写变体，索引区分大小写故能共存）
+    const firstId = seedBinding('a@x.com', poolId, null)
+    seedBinding('A@X.COM', poolId, null)
+
+    const countBindings = () => db.select().from(emailBindings).all().length
+    const before = countBindings()
+    console.log(`  调用前 email_bindings 行数=${before}`)
+
+    const res = await patchJson(`/email-bindings/${firstId}`, { remark: '存量重复行' })
+
+    const after = countBindings()
+    console.log(`  调用后 email_bindings 行数=${after}`)
+
+    check('只改 remark（身份不动）→ 200', res.status === 200, res)
+    check('email_bindings 行数仍为 2（未删也未新增）', before === 2 && after === 2, { before, after })
+    check(
+      'remark 已更新且邮箱逐字未改',
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .some((row) => row.id === firstId && row.remark === '存量重复行' && row.email === 'a@x.com'),
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .map((row) => [row.email, row.remark])
     )
   }
 

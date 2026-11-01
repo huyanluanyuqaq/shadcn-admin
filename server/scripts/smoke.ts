@@ -981,7 +981,9 @@ async function main() {
     dupEmail.json
   )
 
-  // 未指定供应商（poolId 为空）是另一重身份：SQLite 唯一索引视 NULL 互异
+  // 未指定供应商（poolId 为空）是另一重身份：SQLite 唯一索引视 NULL 互异。
+  // 注意这只是**索引层**的结论（此处的另一行 pool_id 非空，故不冲突）；应用层 `beforeWrite`
+  // 额外把「同邮箱两条都不带供应商」判为重复 → 409，别误读成应用层也允许。
   const noPoolBinding = await req('/api/email-bindings', {
     method: 'POST',
     token,
