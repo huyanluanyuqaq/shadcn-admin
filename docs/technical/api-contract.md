@@ -73,12 +73,75 @@
 （三者 OR 模糊匹配；未绑定客户的订阅只参与前两者）。
 **邮箱绑定额外支持筛选：** `subscriptionId`、`poolId`、`status`
 
+**`GET /api/email-bindings` 的固定归属条件（TASK-053，不可由入参关闭）：** 列表只返回
+「仅注册」与「到期回落」两类记录，其余归订阅管理：
+
+| 归属 | 条件 | 页面 |
+|------|------|------|
+| 仅注册（两要素） | `subscription_id IS NULL` | 邮箱管理 |
+| 到期回落 | 订阅 `customer_id IS NULL` 且 `expire_at + 24h <= now` | 邮箱管理（**同时**仍在订阅管理可见） |
+| 待分配 / 在用 | 其余全部 | 订阅管理 |
+
+`expire_at` 为 `NULL`（未取到有效期）按「未到期」处理。该条件是**展示派生**：
+不修改任何数据，`subscription_id` 与三要素绑定关系保持不动。
+条件仅作用于列表（`GET /` 与 `total`），`GET /:id`、写入、删除不受影响。
+
+### 新增邮箱（前端面板，TASK-053 面板 / TASK-054 单事务落库）
+
+「邮箱管理 → 新增邮箱」只有 `邮箱` / `订阅` / `供应商` 三个字段，保存时前端**只发一次写请求**
+`POST /email-bindings/bundle`（TASK-054），由服务端在单个事务内完成「按需新建供应商 →
+按需新建订阅 → 写绑定」：
+
+| 输入 | 行为 |
+|------|------|
+| `poolName` 命中已有供应商（大小写/首尾空格归一） | 复用其 `poolId`，`created.pool = false` |
+| `poolName` 未命中 | 事务内新建供应商（`url = ''`），`created.pool = true` |
+| 同时给出 `poolId` 与 `poolName` | 以 `poolId` 为准，`poolName` 仅作展示 |
+| 订阅留空 | 只建绑定（仅注册态），`subscriptionId = null`、`created.subscription = false` |
+| 订阅填了链接 | 事务内新建订阅并挂到该绑定上，`created.subscription = true` |
+
+订阅填值时，该记录**随即从邮箱管理列表消失**（归属条件见上），出现在订阅管理的「未分配」中。
+
+**三张表要么全落、要么零新增**（同一 `db.transaction()`）：任一步失败即整体回滚，
+不存在「订阅已进订阅管理、邮箱管理查不到」的中间态，因此也无需「到订阅管理补绑」的补偿提示。
+前端**不再**自行调用 `POST /subscription-pools` / `POST /subscriptions` / `POST /email-bindings`
+来完成新增——这三个入口仍然存在，但只服务各自的编辑场景。
+
+### 客户邮箱唯一性：按「供应商」维度（TASK-052 强绑定，2026-11-01 修订）
+
+判定单元是 **`(邮箱, 供应商)`**，与邮箱绑定表的唯一索引 `(email, pool_id)` 同口径。
+**同一邮箱可在不同供应商处各注册一次，不算重复**（原「全局唯一」规则已作废）。
+`POST /customers` 与 `PATCH /customers/:id` 在写入前校验：
+
+| 规则 | 行为 |
+|------|------|
+| 同供应商下邮箱与其他客户重复（**大小写不敏感**，`lower()` 比较；首尾空格忽略） | **409** `{ error: 'Conflict', message: '该邮箱在供应商「<供应商名>」下已被客户「<客户名>」使用' }` |
+| 邮箱相同但供应商不同 | 正常写入（跨供应商各注册一次） |
+| PATCH 未携带 `poolId` | 按库中现值判定供应商，不视为"跨供应商" |
+| 邮箱与自身原值相同（PATCH 排除自身） | 正常写入 |
+| 邮箱为 `null` / 省略（清空或不涉及） | 不校验 |
+| 只改其它字段（不含 `email` 键） | 不校验（部分更新只检查入参出现的键） |
+
+**只阻止新引入的重复，不改动历史数据**：库里已存在的重复邮箱保持原样，编辑这些客户时
+只要不动 `email` 就照常保存。前端无需预校验，409 的 `message` 由客户表单 `toast.error` 直接展示
+（`ApiError` 携带服务端 message）。
+
+**只阻止新引入的重复，不改动历史数据**：库里已存在的重复邮箱保持原样，编辑这些客户时
+只要不动 `email` 就照常保存。前端无需预校验，409 的 `message` 由客户表单 `toast.error` 直接展示
+（`ApiError` 携带服务端 message）。
+
 ### 客户归档 `POST /api/customers/:id/archive`
 
 归档与删除的区别：**删除**客户会按外键**级联删除**其订阅；**归档**先在事务内把该客户
 订阅的 `customer_id` 置 null（订阅本身及其邮箱绑定保留在订阅管理中），再删除客户记录。
 返回 `{ archived: true, subscriptionsKept: number }`（保留的订阅条数）；客户不存在返回 404。
 客户列表行操作菜单的「归档」即调用此端点（删除弹窗中亦有指引）。
+
+**到期自动归档（TASK-053）**：调度器每日 04:00（`CUSTOMER_ARCHIVE_CRON` 可调）执行
+`runCustomerArchiveScan()`，对 `customers.expire_at <= now` 的客户执行与上面**完全相同**的
+归档逻辑（订阅置 `customer_id = null`，再删客户行；不软删）。判据只看**客户购买到期**，
+与订阅链接自身的有效期无关。`CUSTOMER_AUTO_ARCHIVE=false` 可停用该定时任务（手动端点不受影响）。
+归档后其订阅在订阅管理显示「未分配」，三要素绑定保持不变。
 
 ### 供应商自定义排序 `POST /api/subscription-pools/reorder`
 
@@ -167,6 +230,7 @@
 |------|------|
 | URL 与既有订阅匹配 | 更新该订阅（含更换链接后的重新匹配），`customerId` 固定为当前客户 |
 | URL 未匹配任何订阅 | 创建订阅并绑定当前客户 |
+| **换 URL 后保存**（原链接 → 新链接） | 新链接按上两行落到订阅管理；**原链接对应的订阅解除与该客户的关联**（PATCH `{ customerId: null }`）——订阅本身保留在订阅管理，`绑定客户` 列显示「未分配」。仅当该订阅当前仍属于本客户时才解绑，避免误伤他人订阅 |
 | 清空 URL 后保存 | 解除原订阅与该客户的关联（PATCH `{ customerId: null }`），**不删除订阅** |
 
 同步字段：`name` / `url` / `poolId` / `email` / `cronExpr` / `userAgent` / `headers` /
@@ -177,6 +241,48 @@
 客户未填邮箱时保留匹配订阅的原有邮箱，同样避免误清。订阅名称留空时默认拉取供应商名，
 回落链为「订阅名称 → 供应商名 → 客户名称」。编辑客户进入弹窗时，已匹配
 订阅的配置会一次性预填到表单（不清空用户已填值）。
+
+#### 保存客户时的写入顺序与三页一致性（TASK-052）
+
+表单只提交一次，服务端写入被前端编排成固定顺序，任一步失败都**不回滚已成功的前序步骤**
+（邮箱同步失败仅 toast，不阻断主保存）：
+
+```
+① PATCH/POST /customers          客户基本字段（含 email；邮箱重复 → 409，到此终止）
+② PATCH/POST /subscriptions…     订阅：新链接落库（新建 / 接管），旧链接解绑
+③ POST /subscriptions/:id/sync   用量回写（仅 ② 落到具体订阅时）
+④ POST /email-bindings/sync      邮箱绑定（仅 ② 落到具体订阅时）
+```
+
+各场景保存后三处页面的**最终形态**（A = 客户，B/BB = 新旧邮箱，C/CC = 新旧订阅）：
+
+| 保存动作 | 客户管理（A 行） | 订阅管理 | 邮箱管理 |
+|---|---|---|---|
+| 换邮箱 B→BB **且** 换链接 C→CC | BB / CC | CC 绑定 A；**C 保留、未分配** | BB 指向 CC、属 A；**B 保留、未分配**（仍指向 C） |
+| 只换链接 C→CC（邮箱不变 B） | B / CC | CC 绑定 A；C 未分配 | B 改绑到 CC、属 A（邮箱未变即跟着客户走） |
+| 清空链接 + 换邮箱 B→BB | BB / 空 | C 未分配 | **B 保留、未分配**；BB 不建绑定行（本次未落订阅） |
+| 只换邮箱 B→BB（链接不变 C） | **不允许保存** | — | — |
+
+（最后一行仅指「原本就绑着链接且链接没动」；仅注册态 E1——客户名下本就没有链接——
+改邮箱不涉及订阅身份，正常放行。）
+
+规则可归为两句：
+
+1. **邮箱与订阅链接必须整体替换**（三要素强绑定）：只有链接变了，邮箱才能变。
+   「只换邮箱、链接不变」会让同一条订阅出现两个邮箱身份，前端提交前拦截并提示
+   （`customers-action-dialog.tsx`），服务端另有 409 兜底（见下节）。
+2. **旧记录一律不改名**（TASK-053 删除 TASK-052 的邮箱迁移机制）：换链接后旧邮箱记录
+   原样留在邮箱管理里，与旧订阅一起显示为「未分配」。
+
+订阅管理页「绑定客户」列对 `customerId = null` 统一显示**「未分配」**（TASK-052 起；
+此前为 `-`），与邮箱管理页口径一致。
+
+#### 「分配」入口（TASK-053，纯前端）
+
+未分配行就地提供「分配」按钮：跳 `/customers?assignUrl=<订阅链接>&assignEmail=<订阅邮箱>&assignPoolId=<供应商 id>`，
+客户新建弹窗按这三个参数预填。**不新增接口**——保存时由既有保存流按订阅链接命中该订阅，
+`PATCH /api/subscriptions/:id` 写入 `customerId`（以及邮箱 / 供应商快照），订阅随即从「未分配」变为有主。
+参数在弹窗关闭时从 URL 上清掉，避免刷新后又弹一次。
 
 ### 邮箱绑定（EmailBinding）
 
@@ -215,7 +321,7 @@
 {
   email: string          // 必填，合法邮箱
   poolId?: number | null // 供应商快照；null/缺省表示未指定供应商
-  subscriptionId?: number | null // 绑定到的订阅；null 表示暂不绑定
+  subscriptionId?: number | null // 绑定到的订阅；null 表示不做 upsert
 }
 ```
 
@@ -223,14 +329,74 @@ upsert 语义（匹配键 `(email, pool_id)`，单事务内完成）：
 
 | 场景 | 行为 |
 |------|------|
+| 该 `subscriptionId` 已挂着**另一个邮箱**的绑定 | **409** `{ error: 'Conflict', message: '该订阅已绑定邮箱「<邮箱>」…' }`——一条订阅只能有一个邮箱身份。它是「只换邮箱不换链接」的**服务端兜底**（前端已先拦一次）；同样会在「订阅表单直接改邮箱」时触发，因为服务端无法判断链接是否也变了 |
 | 该 (email, pool) 已有绑定 | 改绑到本次 `subscriptionId`（`status` / `remark` 不动） |
 | 不存在 | 创建绑定（`status` 默认 `active`） |
 | 同邮箱指向同一订阅、但供应商不同的陈旧绑定 | 一并清理（一条订阅只保留一个供应商身份；客户改供应商后重新保存即此场景） |
+| `subscriptionId: null` | **不做 upsert / 不清理**（不新建「未绑定」行，也不改动任何旧记录）；响应 `action: null`、`binding: null` |
 
-响应 `{ action: 'created' | 'updated', cleaned: number, binding: EmailBinding }`。
-校验：邮箱格式 / 订阅不存在 / 供应商不存在均返回 **400**（中文 message）。
+响应 `{ action: 'created' | 'updated' | null, cleaned: number, binding: EmailBinding | null }`
+（`action` / `binding` 在 `subscriptionId: null` 路径下为 `null`；`cleaned` 为本次清理的陈旧绑定条数）。
+
+> **TASK-053 变更**：入参 `previousEmail` 与响应字段 `migrated` **已删除**（连同整段改名迁移逻辑）。
+> 旧邮箱记录不再被「并入新邮箱」，而是原样保留为「仅注册态」。四个调用方/文档同步改动，
+> 依据是「邮箱与订阅链接必须整体替换」的裁决——旧机制服务的场景（只换邮箱）已被判定不成立。
+
+校验：邮箱格式 / 订阅不存在 / 供应商不存在均返回 **400**（中文 message）；同一订阅两个邮箱 **409**。
+
+#### 新增邮箱单事务落库 `POST /api/email-bindings/bundle`
+
+「新增邮箱」面板的写入入口（TASK-054）。一次请求完成「按需新建供应商 → 按需新建订阅 → 写绑定」，
+三张表写入在**同一个 `db.transaction()`** 内：要么全落，要么零新增。请求 body：
+
+```ts
+{
+  email: string           // 必填，合法邮箱
+  poolId?: number         // 既有供应商 id；与 poolName 二选一，都给时以本字段为准
+  poolName?: string       // 供应商名称（trim）；未命中则按 trim + 大小写不敏感判重后新建
+  subscriptionUrl?: string // 订阅链接（trim）；缺省或空串 ⇒ 只建绑定（仅注册态 E1）
+  remark?: string | null  // 写入绑定
+  status?: 'active' | 'disabled' // 默认 active
+}
+```
+
+响应 `201`：
+
+```ts
+{
+  binding: EmailBinding,      // 新建的绑定行
+  poolId: number,             // 本次落定的供应商 id
+  poolName: string,           // 本次落定的供应商名称（取库中原值）
+  subscriptionId: number | null, // 未建订阅（仅注册态）为 null
+  created: { pool: boolean, subscription: boolean }
+}
+```
+
+错误：
+
+| 状态 | 场景 | message |
+|------|------|---------|
+| `400` | `poolId` 与 `poolName` 都缺 | `供应商不能为空` |
+| `400` | `poolId` 指向不存在的供应商 | `供应商不存在` |
+| `400` | 邮箱格式不合法 / `poolName` 为空白 | zod 中文提示 |
+| `409` | `(email, poolId)` 已有绑定（判重 ①） | `该邮箱已绑定同一供应商下的订阅，请直接编辑已有绑定`（与邮箱绑定 CRUD 同一文案） |
+| `409` | `subscriptionUrl` 已在 `subscriptions` 登记，且该订阅未挂本邮箱（判重 ②） | `订阅链接已在订阅管理中` |
+| `409` | `subscriptionUrl` 已登记，且该订阅挂着**别的邮箱**（判重 ③） | `该订阅已绑定邮箱「<邮箱>」。一条订阅只能对应一个邮箱，如需更换邮箱请同时更换订阅链接` |
+
+判重顺序为 ① → ② → ③，**全部在写库之前**，命中即返回 409、三张表零新增。
+其中 ② 是「失败后重试」的防线：`subscriptions.url` **没有唯一索引**（schema 仅两个普通索引），
+重复点击不会被数据库挡住，必须由服务端显式判重。
+
+订阅新建字段与 TASK-053 前端原口径逐字一致：`customerId = null`、`name = null`、
+`cronExpr = '0 */6 * * *'`、`enabled = true`、`trafficUsed = 0`。
+
+> **与 `POST /email-bindings/sync` 的分工**：`sync` 服务客户表单 / 订阅表单的「保存即同步」，
+> 语义是 upsert（同键改绑、清理陈旧绑定）；本端点是「新增邮箱」的一次性写入，语义是
+> create-or-409。两者互不影响，`sync` 的入参与行为**未因本端点改动**。
+
 前端两个调用方：订阅表单（表单邮箱 + 所属供应商 + 保存后的订阅 id）与客户表单
-（客户邮箱 + 客户供应商 + 同步落到的订阅 id）；同步失败不阻断主保存，仅 toast 提示。
+（客户邮箱 + 客户供应商 + 同步落到的订阅 id）；**客户表单在本次未落订阅时不调用**
+（无订阅可绑，调用只会是空转请求）。同步失败不阻断主保存，仅 toast 提示。
 
 ---
 
