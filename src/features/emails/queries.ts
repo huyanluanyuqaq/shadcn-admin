@@ -167,7 +167,9 @@ type EmailBindingSyncInput = {
  *
  * 语义：邮箱 ↔ 供应商一一对应（唯一键 (email, pool_id)），
  * 已存在则改绑订阅，不存在则新建（status 默认 active）。
- * `subscriptionId` 为 null 时只切换归属、不新建行。
+ * `subscriptionId` 为 null 时**完全不写库**：服务端既不做 upsert，也不改动任何既有绑定
+ * （响应 `action` / `binding` 均为 null）；邮箱按「trim + 大小写不敏感」比对，
+ * 落库仍保留调用方传入的原样大小写。
  * 服务端另有守卫：同一订阅已挂别的邮箱绑定 → 409（TASK-053，换邮箱必须同时换链接）。
  *
  * 写成功后 invalidate 三个根键：邮箱绑定列表自不必说，订阅/客户列表

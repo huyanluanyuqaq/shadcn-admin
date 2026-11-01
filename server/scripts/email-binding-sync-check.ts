@@ -17,7 +17,9 @@
  *   ④ 链接重置（邮箱不变）→ 同键改绑到新订阅，不新增行；
  *   ⑤ 客户邮箱唯一性按「供应商」维度：同供应商撞他人邮箱 409，跨供应商放行；
  *   ⑥ 邮箱管理列表只承载「仅注册」与「到期回落（超 24h）」，其余归订阅管理（归属派生）；
- *   ⑦ 客户到期自动归档：删客户行、订阅转未分配、三要素绑定不变。
+ *   ⑦ 客户到期自动归档：删客户行、订阅转未分配、三要素绑定不变；
+ *   ⑧ 邮箱大小写变体（`a@x.com` → `A@X.COM`）不绕过唯一性：同一订阅只改绑、不新增行
+ *      （TASK-053 R1：守卫用 lower() 比较，upsert 定位必须用同一口径）。
  *
  * 隔离：库文件位于 `AI_DATA_DIR ?? E:/AiData` 下的临时目录，**不触碰** `server/data/app.db`；
  * 目录末尾打印、**不自动删**（供人工复查，与 `restore-apply-check.ts` 一致）。
@@ -385,6 +387,40 @@ async function main() {
       '三要素绑定不变（绑定仍指向该订阅）',
       bindingOf('exp@x.com', poolId)?.subscriptionId === subId
     )
+  }
+
+  // —— 场景 8：邮箱大小写变体不得绕过唯一性判定（TASK-053 R1）——
+  // 缺陷形态：守卫用 lower(email) 比较（`A@X.COM` 与 `a@x.com` 视为同一个 → 放行），
+  // 但 upsert 的定位用 eq(email, …) 精确匹配（匹配不到 → 走 insert）。
+  // 两者口径不一致的净效果是「状态码 200、绑定行数悄悄 +1」，故断言落在**行数**上。
+  console.log('\n场景 8：同一订阅 + 邮箱大小写变体 ⇒ 不得新建绑定行')
+  {
+    reset()
+    const poolId = seedPool()
+    const custA = seedCustomer('客户A', 'a@x.com', poolId)
+    const sub = seedSubscription(custA, poolId, 'https://case.example/1')
+    seedBinding('a@x.com', poolId, sub)
+
+    const countBindings = () => db.select().from(emailBindings).all().length
+    const before = countBindings()
+    console.log(`  调用前 email_bindings 行数=${before}`)
+
+    const res = await sync({ email: 'A@X.COM', poolId, subscriptionId: sub })
+
+    const after = countBindings()
+    console.log(`  调用后 email_bindings 行数=${after}`)
+
+    check('同步返回 200（大小写变体不算「另一个邮箱」）', res.status === 200, res)
+    check('email_bindings 行数不变（未新建第二条绑定）', after === before, { before, after })
+    check(
+      '命中既有绑定并原样沿用落库值（未改写成大写）',
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .filter((row) => row.email.toLowerCase() === 'a@x.com').length === 1
+    )
+    check('绑定仍指向原订阅', bindingOf('a@x.com', poolId)?.subscriptionId === sub)
   }
 
   console.log(`\n[email-binding-check] 通过 ${passed} / 失败 ${failed}`)

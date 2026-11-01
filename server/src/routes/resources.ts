@@ -424,7 +424,15 @@ resourceRoutes.post('/email-bindings/bundle', async (c) => {
     const dup = db
       .select({ id: emailBindings.id })
       .from(emailBindings)
-      .where(and(eq(emailBindings.email, email), eq(emailBindings.poolId, pool.id)))
+      .where(
+        and(
+          // 邮箱按 trim + 大小写不敏感比对：`a@x.com` 与 `A@X.COM` 是同一个信箱地址，
+          // 精确匹配会让大小写变体绕过 ① 而落成第二条绑定（TASK-054 R4）。
+          // 落库仍保留用户输入的原样大小写，这里只影响「判断相等」。
+          eq(sql`lower(${emailBindings.email})`, email.trim().toLowerCase()),
+          eq(emailBindings.poolId, pool.id)
+        )
+      )
       .get()
     if (dup) return c.json({ error: 'Conflict', message: EMAIL_BINDING_UNIQUE_HINT }, 409)
   }
@@ -618,10 +626,14 @@ resourceRoutes.post('/email-bindings/sync', async (c) => {
   const result = db.transaction((tx) => {
     // 该邮箱名下的绑定通常只有寥寥数条，直接全量取出在内存中匹配，
     // 避免为 pool_id 可空拼一长串 SQL 条件（isNull / eq 二选一）
+    // 匹配口径必须与上面的「一条订阅只能一个邮箱」守卫（lower() 比较）一致：
+    // 守卫放行的邮箱大小写变体（`A@X.COM` vs `a@x.com`）若在这里精确匹配不到，
+    // 就会在本已存在的 (email, pool_id) 之外**新建第二条绑定**（TASK-053 R1）。
+    // 落库值仍是入参原样，不做小写化。
     const bindings = tx
       .select()
       .from(emailBindings)
-      .where(eq(emailBindings.email, email))
+      .where(eq(sql`lower(${emailBindings.email})`, email.trim().toLowerCase()))
       .all() as Record<string, unknown>[]
     const samePool = (row: Record<string, unknown>) => (row.poolId ?? null) === poolId
     const target = bindings.find(samePool)

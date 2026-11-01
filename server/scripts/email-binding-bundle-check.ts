@@ -15,7 +15,8 @@
  *   AC-3  poolName 仅大小写/首尾空格不同 → 复用既有供应商，不新建
  *   AC-4  同一订阅链接重复提交 → 409，subscriptions 行数不增（挡重复点击）
  *   AC-5  不传订阅链接 → 201，subscriptionId 为 null，绑定出现在邮箱管理列表（E1）
- *   另覆盖入参校验（400）与三种 409 文案的可达性。
+ *   另覆盖判重 ① 的邮箱大小写口径（TASK-054 R4）、事务回滚零残留（TASK-054 R3，
+ *   用触发器注入绑定插入失败）、入参校验（400）与三种 409 文案的可达性。
  *
  * 隔离：库文件位于 `AI_DATA_DIR ?? E:/AiData` 下的临时目录，**不触碰** `server/data/app.db`；
  * 目录末尾打印、**不自动删**（供人工复查，与 `email-binding-sync-check.ts` 一致）。
@@ -100,7 +101,15 @@ async function main() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     })
-    return { status: res.status, json: (await res.json()) as Record<string, any> }
+    // 未捕获异常时 Hono 的默认错误页是纯文本，不能无条件按 JSON 解析
+    const text = await res.text()
+    let json: Record<string, any> = { message: text }
+    try {
+      json = JSON.parse(text) as Record<string, any>
+    } catch {
+      /* 保留 { message: 原始文本 } */
+    }
+    return { status: res.status, json }
   }
 
   // —— AC-1：同 (email, poolId) 绑定冲突 → 409，三表零新增 ——
@@ -319,6 +328,101 @@ async function main() {
     check('返回 201', res.status === 201, res)
     check('落在 poolId 指定的供应商上', res.json.poolId === poolId, res.json.poolId)
     check('响应 poolName 为 poolId 对应名称', res.json.poolName === 'P1', res.json.poolName)
+  }
+
+  // —— 判重 ① 的大小写口径（TASK-054 R4）——
+  // 与 AC-1 同一路径，只把入参邮箱换成既有绑定的「大小写变体」。
+  // 修复前：① 用 eq(email,…) 精确匹配 → 匹配不到 → 三表各 +1（状态码 201）。
+  console.log('\n判重 ①：邮箱大小写变体（a@x.com → A@X.COM）→ 409，三表零新增')
+  {
+    reset()
+    const poolId = seedPool()
+    seedBinding('a@x.com', poolId, null)
+
+    const before = counts()
+    console.log(
+      `  调用前：subscription_pool=${before.pool} subscriptions=${before.subscriptions} email_bindings=${before.bindings}`
+    )
+    const res = await bundle({
+      email: 'A@X.COM',
+      poolId,
+      subscriptionUrl: 'https://case.example/1',
+    })
+    const after = counts()
+    console.log(
+      `  调用后：subscription_pool=${after.pool} subscriptions=${after.subscriptions} email_bindings=${after.bindings}`
+    )
+
+    check('返回 409', res.status === 409, res)
+    check('subscription_pool 行数不变', after.pool === before.pool, { before, after })
+    check('subscriptions 行数不变', after.subscriptions === before.subscriptions, { before, after })
+    check('email_bindings 行数不变', after.bindings === before.bindings, { before, after })
+  }
+
+  // —— 事务回滚：绑定插入失败时，同一事务里先落库的供应商与订阅必须零残留（TASK-054 R3）——
+  // 用 SQLite 触发器在 email_bindings 的 INSERT 上注入失败，确保**绕过所有判重**直达事务内第三张表。
+  // 断言基准是调用前的行数快照：若供应商/订阅在回滚后仍留下，说明事务边界不成立。
+  console.log('\n事务回滚：注入绑定插入失败 → 供应商与订阅零残留')
+  {
+    reset()
+    seedPool('既有供应商') // 留一条既有行，顺带验证回滚不会误删无关数据
+    const before = counts()
+    console.log(
+      `  调用前：subscription_pool=${before.pool} subscriptions=${before.subscriptions} email_bindings=${before.bindings}`
+    )
+
+    sqlite.exec(
+      "CREATE TRIGGER probe_fail BEFORE INSERT ON email_bindings BEGIN SELECT RAISE(ABORT,'injected'); END"
+    )
+    let status: number
+    // Hono 的默认错误处理会把异常栈写到 stderr；本场景是**故意**注入的失败，
+    // 临时静音以免误导读日志的人（真失败由下面的断言兜住）。
+    const originalError = console.error
+    console.error = () => {}
+    try {
+      const res = await bundle({
+        email: 'rollback@x.com',
+        poolName: '待回滚供应商', // 新供应商名 ⇒ 判重 ① 直接跳过
+        subscriptionUrl: 'https://rollback.example/1', // 新链接 ⇒ 判重 ②③ 不命中
+      })
+      status = res.status
+    } finally {
+      console.error = originalError
+      sqlite.exec('DROP TRIGGER probe_fail')
+    }
+
+    const after = counts()
+    console.log(
+      `  调用后：subscription_pool=${after.pool} subscriptions=${after.subscriptions} email_bindings=${after.bindings}`
+    )
+
+    check('请求以 5xx 失败（注入错误未被吞成 2xx）', status >= 500, status)
+    check('subscription_pool 行数与调用前逐一相等（新供应商已回滚）', after.pool === before.pool, {
+      before,
+      after,
+    })
+    check('subscriptions 行数与调用前逐一相等（新订阅已回滚）', after.subscriptions === before.subscriptions, {
+      before,
+      after,
+    })
+    check('email_bindings 行数与调用前逐一相等', after.bindings === before.bindings, {
+      before,
+      after,
+    })
+    check(
+      '残留的名字里没有「待回滚供应商」',
+      db
+        .select()
+        .from(subscriptionPool)
+        .all()
+        .every((row) => row.name !== '待回滚供应商'),
+      db.select().from(subscriptionPool).all()
+    )
+    check(
+      '触发器已清理（避免污染后续场景）',
+      (sqlite.prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'probe_fail'").all() as unknown[])
+        .length === 0
+    )
   }
 
   console.log(`\n[email-binding-bundle-check] 通过 ${passed} / 失败 ${failed}`)
