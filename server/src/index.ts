@@ -27,6 +27,7 @@ import { restoreOutcome } from './db/index.js'
 import {
   loadFromDatabase,
   startBackupJob,
+  startCustomerArchiveJob,
   startReminderScanJob,
 } from './services/scheduler.js'
 import { startBindPoller } from './services/telegram.js'
@@ -87,6 +88,8 @@ if (config.enableScheduler) {
   startReminderScanJob()
   // 每日数据库备份（VACUUM INTO 在线备份 + 保留策略，TASK-015）
   startBackupJob()
+  // 每日客户到期自动归档（订阅转未分配，TASK-053；CUSTOMER_AUTO_ARCHIVE=false 可停用）
+  startCustomerArchiveJob()
 }
 
 // Telegram 已启用但未绑定 Chat ID 时，恢复 /start 绑定长轮询（重启不丢绑定流程）

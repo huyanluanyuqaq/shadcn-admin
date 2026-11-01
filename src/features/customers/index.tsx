@@ -1,3 +1,4 @@
+import { getRouteApi } from '@tanstack/react-router'
 import { ConfigDrawer } from '@/components/config-drawer'
 import { Header } from '@/components/layout/header'
 import { Main } from '@/components/layout/main'
@@ -5,12 +6,30 @@ import { ProfileDropdown } from '@/components/profile-dropdown'
 import { Search } from '@/components/search'
 import { ThemeSwitch } from '@/components/theme-switch'
 import { NotificationBell } from '@/features/notifications/components/notification-bell'
-import { CustomersDialogs } from './components/customers-dialogs'
+import {
+  type AssignPrefill,
+  CustomersDialogs,
+} from './components/customers-dialogs'
 import { CustomersPrimaryButtons } from './components/customers-primary-buttons'
 import { CustomersProvider } from './components/customers-provider'
 import { CustomersTable } from './components/customers-table'
 
+const route = getRouteApi('/_authenticated/customers/')
+
 export function Customers() {
+  const search = route.useSearch()
+  const navigate = route.useNavigate()
+
+  // 「分配」跳转参数（TASK-053）：有 assignUrl 才认为是分配入口，其余情况不干扰
+  // 正常的「新建客户」按钮。
+  const assign: AssignPrefill | null = search.assignUrl
+    ? {
+        email: search.assignEmail ?? '',
+        subscriptionUrl: search.assignUrl,
+        poolId: search.assignPoolId ? String(search.assignPoolId) : '',
+      }
+    : null
+
   return (
     <CustomersProvider>
       <Header fixed>
@@ -34,7 +53,20 @@ export function Customers() {
         <CustomersTable />
       </Main>
 
-      <CustomersDialogs />
+      <CustomersDialogs
+        assign={assign}
+        onConsumeAssign={() =>
+          void navigate({
+            search: (prev) => ({
+              ...prev,
+              assignEmail: undefined,
+              assignUrl: undefined,
+              assignPoolId: undefined,
+            }),
+            replace: true,
+          })
+        }
+      />
     </CustomersProvider>
   )
 }

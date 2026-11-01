@@ -78,6 +78,16 @@ type Props = {
   open: boolean
   onOpenChange: (open: boolean) => void
   currentRow?: Customer
+  /**
+   * 新建模式的预填值（「分配」入口，TASK-053）：订阅管理里未分配的行点「分配」
+   * 跳过来时带该订阅的邮箱 / 链接 / 供应商，省去重抄一遍。
+   * 只对新建生效，编辑模式一律以 currentRow 为准。
+   */
+  prefill?: {
+    email?: string
+    subscriptionUrl?: string
+    poolId?: string
+  }
 }
 
 type Option = { label: string; value: string }
@@ -133,6 +143,7 @@ export function CustomersActionDialog({
   open,
   onOpenChange,
   currentRow,
+  prefill,
 }: Props) {
   const isEdit = !!currentRow
   const [purchaseOpen, setPurchaseOpen] = useState(false)
@@ -158,11 +169,25 @@ export function CustomersActionDialog({
     defaultValues: emptyCustomerForm(),
   })
 
-  // 打开对话框时用当前行（或空表单）重置
+  // 打开对话框时用当前行（或空表单 + 「分配」预填）重置。
+  // 依赖只取三个**字符串**（而非 prefill 对象本身）：prefill 每次渲染都是新对象字面量，
+  // 放进依赖会 reset → 重渲染 → reset 无限循环。
+  const prefillEmail = prefill?.email ?? ''
+  const prefillUrl = prefill?.subscriptionUrl ?? ''
+  const prefillPoolId = prefill?.poolId ?? ''
   useEffect(() => {
     if (!open) return
-    form.reset(currentRow ? toCustomerForm(currentRow) : emptyCustomerForm())
-  }, [open, currentRow, form])
+    if (currentRow) {
+      form.reset(toCustomerForm(currentRow))
+      return
+    }
+    form.reset({
+      ...emptyCustomerForm(),
+      ...(prefillEmail ? { email: prefillEmail } : {}),
+      ...(prefillUrl ? { subscriptionUrl: prefillUrl } : {}),
+      ...(prefillPoolId ? { poolId: prefillPoolId } : {}),
+    })
+  }, [open, currentRow, form, prefillEmail, prefillUrl, prefillPoolId])
 
   const isPending =
     createCustomer.isPending ||
@@ -372,7 +397,9 @@ export function CustomersActionDialog({
     poolId: number | null
   }> => {
     const url = values.subscriptionUrl.trim()
-    const target = url
+    // 注意：url 非空时按**新链接**匹配（已登记则改写那条）；为空时按旧链接
+    // 找出待解绑的订阅。新建的订阅会回写进 target 供下方解绑判定使用。
+    let target = url
       ? subscriptionItems.find((s) => s.url === url)
       : currentRow?.subscriptionUrl
         ? subscriptionItems.find((s) => s.url === currentRow.subscriptionUrl)
@@ -384,18 +411,35 @@ export function CustomersActionDialog({
         target,
         providerName
       )
+      let action: 'created' | 'updated'
       if (target) {
         await updateSubscription.mutateAsync({ id: target.id, input: payload })
-        return {
-          action: 'updated',
-          subscriptionId: target.id,
-          poolId: payload.poolId ?? null,
+        action = 'updated'
+      } else {
+        const created = await createSubscription.mutateAsync(payload)
+        target = created
+        action = 'created'
+      }
+      // 更换链接（TASK-052）：旧链接对应、仍绑定在本客户名下且不是本次
+      // 落到的那条订阅 → 解除关联（订阅保留在订阅管理中），避免「换链接」
+      // 后客户名下残留新旧两条订阅。失败会向上抛出、由保存流整体提示。
+      const previousUrl = currentRow?.subscriptionUrl?.trim()
+      if (previousUrl && previousUrl !== url) {
+        const previousSub = subscriptionItems.find((s) => s.url === previousUrl)
+        if (
+          previousSub &&
+          previousSub.id !== target.id &&
+          previousSub.customerId === customer.id
+        ) {
+          await updateSubscription.mutateAsync({
+            id: previousSub.id,
+            input: { customerId: null },
+          })
         }
       }
-      const created = await createSubscription.mutateAsync(payload)
       return {
-        action: 'created',
-        subscriptionId: created.id,
+        action,
+        subscriptionId: target.id,
         poolId: payload.poolId ?? null,
       }
     }
@@ -410,6 +454,29 @@ export function CustomersActionDialog({
   }
 
   const onSubmit = async (values: CustomerForm) => {
+    // 三要素强绑定（TASK-053 / R1）：邮箱与订阅链接是同一个账号的两个面，
+    // 「只换邮箱、链接不变」在业务上不成立（同一订阅会变成两个邮箱身份）。
+    // 提交前显式拦下，避免出现「客户邮箱已改、邮箱管理仍是旧邮箱」的错位。
+    // 仅在「原本就有链接且链接没动」时生效：仅注册态（E1，本就没有链接）
+    // 改邮箱不涉及任何订阅身份，放行。
+    if (isEdit && currentRow) {
+      const prevEmail = (currentRow.email ?? '').trim().toLowerCase()
+      const nextEmail = values.email.trim().toLowerCase()
+      const prevUrl = (currentRow.subscriptionUrl ?? '').trim()
+      if (
+        prevEmail &&
+        nextEmail &&
+        prevEmail !== nextEmail &&
+        prevUrl !== '' &&
+        prevUrl === values.subscriptionUrl.trim()
+      ) {
+        toast.error('更换邮箱必须同时更换订阅链接', {
+          description:
+            '邮箱与订阅链接属于同一个供应商账号，不能只改其中一个；如需纠正邮箱拼写，请先确认原链接是否仍然有效。',
+        })
+        return
+      }
+    }
     const input = toCustomerInput(values, currentRow)
     try {
       const customer =
@@ -436,8 +503,11 @@ export function CustomersActionDialog({
           )
         }
       }
-      // 保存即同步：客户填了邮箱且本次落到具体订阅时，按「邮箱 + 供应商」
-      // 把绑定关系写到邮箱管理（与订阅表单的同步同一套端点）
+      // 保存即同步：客户填了邮箱且本次落到具体订阅时，按「邮箱 + 供应商」把绑定关系
+      // 写到邮箱管理（与订阅表单的同步同一套端点）。
+      // TASK-053 起不再携带「旧邮箱」：旧邮箱与旧订阅同属一条历史事实，换链接后
+      // 旧记录原样留成「仅注册态」，不做任何改名迁移（迁移机制已删除）。
+      // 本次未落订阅（清空链接 / 无订阅）时不调用：既无订阅可绑，也没有需要新建的绑定。
       if (customer.email && syncResult.subscriptionId !== null) {
         try {
           await syncEmailBinding.mutateAsync({

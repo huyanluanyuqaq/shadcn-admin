@@ -34,6 +34,7 @@ const {
   subscriptionOptions,
   supplierOptions,
   planOptions,
+  toastError,
 } = vi.hoisted(() => ({
   createCustomer: { isPending: false, mutateAsync: vi.fn() },
   updateCustomer: { isPending: false, mutateAsync: vi.fn() },
@@ -48,6 +49,11 @@ const {
   },
   supplierOptions: { data: { items: [] }, isPending: false },
   planOptions: { data: { items: [] as Plan[] }, isPending: false },
+  toastError: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: toastError },
 }))
 
 vi.mock('@/features/emails/queries', () => ({
@@ -418,6 +424,287 @@ describe('CustomersActionDialog 保存后触发订阅同步', () => {
     // 这里只约束合法性，避免偶发 flaky）
     await userEvent.click(getByRole('button', { name: '每天随机时间' }))
     expect(inputEl().value).toMatch(/^\d{1,2} \d{1,2} \* \* \*$/)
+  })
+})
+
+/**
+ * TASK-052 / TASK-053：编辑客户更换邮箱 / 更换订阅链接后的跨页同步。
+ *
+ * - 换邮箱**必须**同时换链接（三要素强绑定）：只改邮箱会阻止保存并提示；
+ * - 换链接：旧链接对应的订阅解除与该客户的关联（订阅保留），不残留两条绑定；
+ * - 换邮箱 + 换链接：同步只报「新邮箱 → 新订阅」，旧邮箱记录由服务端原样保留
+ *   （TASK-053 删除 previousEmail 迁移机制，不再改名）；
+ * - 邮箱未变且本次未落订阅：不触发邮箱同步。
+ */
+describe('CustomersActionDialog 编辑客户跨页同步（TASK-052）', () => {
+  const OLD_URL = URL
+  const NEW_URL = 'https://new.example.com/s2'
+  const OTHER_URL = 'https://other.example.com/x'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    subscriptionOptions.data = { items: [] }
+    createCustomer.mutateAsync.mockResolvedValue({ id: 7, name: '新客户' })
+    updateCustomer.mutateAsync.mockImplementation((vars: { id: number }) =>
+      Promise.resolve(makeCustomer(vars.id))
+    )
+    createSubscription.mutateAsync.mockResolvedValue(makeSubscription(42, 7))
+    updateSubscription.mutateAsync.mockResolvedValue(undefined)
+    syncSubscriptionUsage.mutateAsync.mockResolvedValue({ id: 42, ok: true })
+    syncEmailBinding.mutateAsync.mockResolvedValue(undefined)
+  })
+
+  it('只换邮箱不改链接：阻止保存并提示（R1 三要素强绑定）', async () => {
+    const currentRow = makeCustomer(9, {
+      email: 'a@example.com',
+      subscriptionUrl: OLD_URL,
+    })
+    subscriptionOptions.data = { items: [makeSubscription(42, 9)] }
+
+    const { getByLabelText, getByRole } = await renderDialog(currentRow)
+
+    const email = getByLabelText('邮箱', { exact: true })
+    await userEvent.clear(email)
+    await userEvent.type(email, 'b@example.com')
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(toastError).toHaveBeenCalledWith(
+        expect.stringContaining('更换邮箱必须同时更换订阅链接'),
+        expect.anything()
+      )
+    })
+    // 拦在提交前：客户、订阅、邮箱绑定三处都不得写入
+    expect(updateCustomer.mutateAsync).not.toHaveBeenCalled()
+    expect(createSubscription.mutateAsync).not.toHaveBeenCalled()
+    expect(syncEmailBinding.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('编辑换链接为未登记的新 URL：新建订阅并解绑旧订阅（订阅保留在订阅管理）', async () => {
+    const currentRow = makeCustomer(9, { subscriptionUrl: OLD_URL })
+    subscriptionOptions.data = { items: [makeSubscription(42, 9)] }
+    createSubscription.mutateAsync.mockResolvedValue(
+      makeSubscription(99, 9, { url: NEW_URL })
+    )
+
+    const { getByLabelText, getByRole } = await renderDialog(currentRow)
+
+    const url = getByLabelText('订阅链接', { exact: true })
+    await userEvent.clear(url)
+    await userEvent.type(url, NEW_URL)
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(createSubscription.mutateAsync).toHaveBeenCalledOnce()
+    })
+    expect(createSubscription.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ url: NEW_URL, customerId: 9 })
+    )
+    // 旧链接对应的订阅解除与该客户的关联
+    expect(updateSubscription.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 42, input: { customerId: null } })
+    )
+  })
+
+  it('编辑换链接为已登记的其他订阅：接管该订阅并解绑旧订阅', async () => {
+    const currentRow = makeCustomer(9, { subscriptionUrl: OLD_URL })
+    subscriptionOptions.data = {
+      items: [
+        makeSubscription(42, 9),
+        makeSubscription(43, null, { url: OTHER_URL }),
+      ],
+    }
+
+    const { getByLabelText, getByRole } = await renderDialog(currentRow)
+
+    const url = getByLabelText('订阅链接', { exact: true })
+    await userEvent.clear(url)
+    await userEvent.type(url, OTHER_URL)
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(updateSubscription.mutateAsync).toHaveBeenCalledTimes(2)
+    })
+    // 新链接命中的订阅被更新并接管到本客户
+    expect(updateSubscription.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 43,
+        input: expect.objectContaining({ url: OTHER_URL, customerId: 9 }),
+      })
+    )
+    // 旧订阅解绑
+    expect(updateSubscription.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 42, input: { customerId: null } })
+    )
+  })
+
+  it('仅注册态（无链接）改邮箱：正常保存，且不触发邮箱同步', async () => {
+    const currentRow = makeCustomer(9, {
+      email: 'a@example.com',
+      subscriptionUrl: null,
+    })
+    updateCustomer.mutateAsync.mockResolvedValue(
+      makeCustomer(9, { email: 'b@example.com' })
+    )
+
+    const { getByLabelText, getByRole } = await renderDialog(currentRow)
+
+    const email = getByLabelText('邮箱', { exact: true })
+    await userEvent.clear(email)
+    await userEvent.type(email, 'b@example.com')
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(updateCustomer.mutateAsync).toHaveBeenCalledOnce()
+    })
+    // 仅注册态（无链接）改邮箱不涉及订阅身份，R1 拦截不生效；
+    // 未落订阅 ⇒ 前端不发起同步请求（无订阅可绑）。
+    expect(syncEmailBinding.mutateAsync).not.toHaveBeenCalled()
+    expect(syncSubscriptionUsage.mutateAsync).not.toHaveBeenCalled()
+  })
+
+  it('编辑同时换邮箱与换链接：订阅落新链接、旧订阅解绑、同步只报新邮箱（无迁移参数）', async () => {
+    const currentRow = makeCustomer(9, {
+      email: 'a@example.com',
+      subscriptionUrl: OLD_URL,
+    })
+    subscriptionOptions.data = { items: [makeSubscription(42, 9)] }
+    updateCustomer.mutateAsync.mockResolvedValue(
+      makeCustomer(9, { email: 'b@example.com' })
+    )
+    createSubscription.mutateAsync.mockResolvedValue(
+      makeSubscription(99, 9, { url: NEW_URL })
+    )
+
+    const { getByLabelText, getByRole } = await renderDialog(currentRow)
+
+    await userEvent.clear(getByLabelText('邮箱', { exact: true }))
+    await userEvent.type(
+      getByLabelText('邮箱', { exact: true }),
+      'b@example.com'
+    )
+    await userEvent.clear(getByLabelText('订阅链接', { exact: true }))
+    await userEvent.type(getByLabelText('订阅链接', { exact: true }), NEW_URL)
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(syncEmailBinding.mutateAsync).toHaveBeenCalledOnce()
+    })
+    // 只报「新邮箱 + 新订阅」；旧邮箱记录由服务端原样保留（不再有 previousEmail——
+    // TASK-053 删除了改名迁移机制，改名会让旧邮箱凭空消失）。
+    expect(syncEmailBinding.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'b@example.com',
+        subscriptionId: 99,
+      })
+    )
+    const payload = syncEmailBinding.mutateAsync.mock.calls[0][0] as Record<
+      string,
+      unknown
+    >
+    expect(payload).not.toHaveProperty('previousEmail')
+    expect(updateSubscription.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 42, input: { customerId: null } })
+    )
+  })
+
+  it('邮箱未变且本次未落订阅：不触发邮箱同步', async () => {
+    const currentRow = makeCustomer(9, {
+      email: 'a@example.com',
+      subscriptionUrl: null,
+    })
+    updateCustomer.mutateAsync.mockResolvedValue(
+      makeCustomer(9, { email: 'a@example.com' })
+    )
+
+    const { getByRole } = await renderDialog(currentRow)
+
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    await vi.waitFor(() => {
+      expect(updateCustomer.mutateAsync).toHaveBeenCalledOnce()
+    })
+    expect(syncEmailBinding.mutateAsync).not.toHaveBeenCalled()
+  })
+})
+
+describe('「分配」入口预填（TASK-053）', () => {
+  const ASSIGN_URL = 'https://assign.example/1'
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    subscriptionOptions.data = {
+      items: [
+        makeSubscription(77, null, {
+          url: ASSIGN_URL,
+          email: 'a@example.com',
+        }),
+      ],
+    }
+    createCustomer.mutateAsync.mockResolvedValue({
+      id: 7,
+      name: '新客户',
+      email: 'a@example.com',
+    })
+    createSubscription.mutateAsync.mockResolvedValue(makeSubscription(42, 7))
+    updateSubscription.mutateAsync.mockResolvedValue(undefined)
+    syncSubscriptionUsage.mutateAsync.mockResolvedValue({ id: 77, ok: true })
+    syncEmailBinding.mutateAsync.mockResolvedValue(undefined)
+  })
+
+  it('预填邮箱与订阅链接；保存后按 URL 命中该订阅并回填客户', async () => {
+    const { getByLabelText, getByRole } = await render(
+      <QueryClientProvider client={new QueryClient()}>
+        <CustomersActionDialog
+          open
+          onOpenChange={() => {}}
+          prefill={{
+            email: 'a@example.com',
+            subscriptionUrl: ASSIGN_URL,
+            poolId: '',
+          }}
+        />
+      </QueryClientProvider>
+    )
+
+    // 预填由 open 后的 effect 写入，故等到值落定（不按 locator 属性读——
+    // vitest browser 的 locator 不代理 value）
+    await vi.waitFor(() => {
+      expect(
+        document.querySelector<HTMLInputElement>('input[name="email"]')?.value
+      ).toBe('a@example.com')
+      expect(
+        document.querySelector<HTMLInputElement>(
+          'input[name="subscriptionUrl"]'
+        )?.value
+      ).toBe(ASSIGN_URL)
+    })
+
+    // 预填只覆盖这三个字段：客户名仍为空、到期时间仍需手选
+    await userEvent.type(getByLabelText('名称', { exact: true }), '客户A')
+    await userEvent.click(getByLabelText('到期时间', { exact: true }))
+    pickFirstAvailableDay()
+    await userEvent.click(getByRole('button', { name: '保存' }))
+
+    // 新客户落库后，订阅按 URL 命中（未分配 → 归属本客户），这就是「自动补全」那一步
+    await vi.waitFor(() => {
+      expect(updateSubscription.mutateAsync).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 77,
+          input: expect.objectContaining({
+            url: ASSIGN_URL,
+            customerId: 7,
+          }),
+        })
+      )
+    })
+    // 邮箱绑定同步复用预填的邮箱，落到同一条订阅
+    expect(syncEmailBinding.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        email: 'a@example.com',
+        subscriptionId: 77,
+      })
+    )
   })
 })
 
