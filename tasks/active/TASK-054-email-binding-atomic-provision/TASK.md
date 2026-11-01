@@ -280,10 +280,13 @@ D13-C 前置已实测：TASK-052 / TASK-053 **均未合并**（无 PR），保�
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | 实施完毕：`/email-bindings/bundle` 单事务接口 + 前端单次写请求；AC-1~AC-7 全过，全量门禁退出码 0；D13-C 前置实测 TASK-052/053 未合并 |
+| 002 | reviewer（主控位） | developer（执行位） | 2026-11-02 | 主控位复审 **PASS（有条件）**：AC-1~AC-7 逐条通过、10 项门禁独立复现、事务回滚经故障注入探针另证；整改 R1（档案「未提交」失真 + PR #27 未登记）／R2（Status 应为 REVIEW 并移入 `review/`）／R3（原子性无回归用例）；合并前置 B-1（PR #27 携带 TASK-052/053 未审代码）待人类裁决 |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** 主控位读 `HANDOFF-001-developer-to-reviewer.md` + 实际 diff → 逐条核对 AC-1~AC-7
-→ 出具 PASS / FAIL；FAIL 则按整改项回退给执行位。
+**最新 Handoff：** `handoffs/2026-11-02-coordinator-review.md`（主控位审查记录；执行位交付书为
+`handoffs/HANDOFF-001-developer-to-reviewer.md`）
+**Next Action：** 执行位闭合审查记录 R1 / R2 / R3（R3 推荐在 `email-binding-bundle-check.ts` 内用触发器注入失败
+固化「三表零新增」用例），回填后交主控位复核；**合并前须先解决 B-1**（TASK-052 / TASK-053 独立审查通过，
+或由人类明示接受同批合并）。
 
 ---
 
