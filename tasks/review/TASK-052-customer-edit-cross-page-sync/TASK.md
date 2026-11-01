@@ -154,8 +154,8 @@ Requires Human Approval: false
 
 ## Acceptance Criteria
 
-> 状态说明：AC-1~AC-5、AC-7 由 `customers-action-dialog.test.tsx` 验证（**29/29**，全量 341/341）；
-> AC-8、AC-9 由 `pnpm --filter server email-binding-check` 验证（**28/28**，临时库）；
+> 状态说明（计数为 2026-11-02 复核值）：AC-1~AC-5、AC-7 由 `customers-action-dialog.test.tsx` 验证（**30/30**，全量 **27 文件 345 用例**）；
+> AC-8、AC-9 由 `server/scripts/email-binding-sync-check.ts` 验证（**8 场景 41 项**，临时库）；
 > AC-6 已由 `pnpm build:server` + `pnpm exec tsc -b` + `pnpm lint`（均 exit 0）验证。
 
 - [x] AC-1: 编辑换邮箱（链接不变）保存后，`syncEmailBinding` 调用携带 `previousEmail`，且不产生任何订阅解绑调用。
@@ -166,7 +166,7 @@ Requires Human Approval: false
 - [x] AC-6: 服务端 `/email-bindings/sync` 支持 `previousEmail` 迁移逻辑（同键合并删除 / 整条改名 / 迁移先行于 upsert），**迁移以「旧绑定订阅仍归本客户」为前提**，TS 编译与 lint 通过。
 - [x] AC-7: 同时换邮箱（B→BB）与换链接（C→CC）保存后：新邮箱 BB 指向新订阅 CC 且归属本客户；旧订阅 C 解绑（订阅管理显示「未分配」）但保留；**旧邮箱 B 记录保留原位、仍指向 C**（邮箱管理显示「未分配」）；客户管理行只剩 BB / CC。
 - [x] AC-8: 客户邮箱全局唯一——新建或更新撞上其它客户已用邮箱返回 409（大小写不敏感），提示含占用者姓名；改自身其它字段、保存自身原邮箱、清空邮箱均不受影响。
-- [x] AC-9: 服务端强绑定规则可复现验证——`pnpm --filter server email-binding-check` 覆盖 5 个场景 **28/28 通过**（临时库，不触碰真实库）。
+- [x] AC-9: 服务端强绑定规则可复现验证——`server/scripts/email-binding-sync-check.ts` 覆盖 8 个场景 **41 项断言全通过**（临时库，不触碰真实库；计数为 2026-11-02 复核值）。
 
 > **范围说明：** AC-1~AC-6 为 TASK-052 初版范围（两轮独立审查结论见 `handoffs/2026-11-01-review.md`）；
 > AC-7~AC-9 为 **2026-11-01 人类追加「强绑定」需求后并入**的范围（含 AC-4 的修订理由），
@@ -243,7 +243,8 @@ Non-Scope (files):
 MINOR-1 / MINOR-2 / NIT-1 / NIT-2 与 Known Issue #4 过期表述均已按审查记录 §8 闭环。
 
 整改后复跑：`build:shared` / `build:server` / `tsc -b` / `lint` 全 exit 0；
-`vitest` 对话框用例 28/28；全量回归 340/340；端到端三层共 **85 项断言**（HTTP 41 + 浏览器 19 + 文档探针 25）全部通过。
+`vitest` 对话框用例 28/28；全量回归 340/340（该轮实测值；2026-11-02 复核为对话框 30/30、全量 27 文件 345 用例）；
+端到端三层共 **85 项断言**（HTTP 41 + 浏览器 19 + 文档探针 25）全部通过。
 
 第二轮仅新增 3 项**不阻塞**的措辞类 NIT（`migrated` 语义措辞、审查登记块缺解决标记、
 「未改逻辑语义」与 NIT-1 整改的表述矛盾），详见审查记录第二节 §5，建议顺手处理但不作为合入前提。
@@ -253,7 +254,7 @@ MINOR-1 / MINOR-2 / NIT-1 / NIT-2 与 Known Issue #4 过期表述均已按审查
 
 **主控位复审结论 `PASS`（2026-11-01T16:40）—— 可合入，附 1 项合入前置。**
 主控位独立复跑 `build:shared` / `build:server` / `tsc -b` / `lint` 四项退出码全 0、
-`pnpm test` 26 文件 / 340 用例全通过，并逐行阅读 `resources.ts` 迁移段与前端编排逻辑；
+`pnpm test` 26 文件 / 340 用例全通过（该轮实测值；2026-11-02 复核为 27 文件 345 用例），并逐行阅读 `resources.ts` 迁移段与前端编排逻辑；
 接口文档与实现的可核对项逐项相符，**唯一不符项为 `migrated` 的语义措辞**（审查 NIT-3）
 ⇒ 升级为**合入前置 N-1**（派执行位改 `docs/technical/api-contract.md:235` 一行）。
 主控位新发现并已登记 Known Issue #7（跨客户邮箱迁移越界，待人类裁决是否立项）；
@@ -286,7 +287,8 @@ NIT-5 的**定位与引文不精确**（现存逐字表述在 Handoff 003「逻�
   临时库直驱真实路由，5 场景 28 断言，**顺带补上 Known Issue #4 的 routes 层测试缺口**。
 
 验证（真实退出码）：`build:shared` 0 / `build:server` 0 / `tsc -b` 0 / `lint` 0 /
-`pnpm test` **26 文件 341 用例全通过**（对话框用例 29）/ `email-binding-check` **28 通过 0 失败**。
+`pnpm test` **27 文件 345 用例全通过**（对话框用例 30）/ `email-binding-sync-check` **41 项通过 0 失败**
+（行内计数为 2026-11-02 复核值；交付当时为 26 文件 341 用例、对话框 29、脚本 28 项）。
 文档同步：`api-contract.md` 增「客户邮箱全局唯一」「保存客户时的写入顺序与三页一致性」两节，
 并改写 sync 语义表首行与 `subscriptionId: null` 行、修正 `migrated` 措辞（即合入前置 N-1）。
 
