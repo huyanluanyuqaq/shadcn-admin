@@ -298,6 +298,46 @@ resourceRoutes.route(
     },
     uniqueHint: EMAIL_BINDING_UNIQUE_HINT,
     /**
+     * 邮箱唯一性：**同一供应商内唯一**（与上面客户表的 `beforeWrite` 同口径，TASK-054）。
+     *
+     * 判定单元是 `(邮箱, 供应商)`：同一邮箱可跨供应商各一条绑定；同一供应商下同一邮箱只能一条。
+     * 只靠索引 `uq_email_bindings_email_pool` 不够——它建在原始 `email` 上，SQLite 的文本
+     * 比较区分大小写，`PATCH` 把邮箱改成 `A@X.COM` 这类变体会绕过索引落成第二行
+     * （邮箱管理页「编辑」保存正是走 CRUD 的 PATCH）。此外 `pool_id` 为 NULL 时唯一索引
+     * 视各行互异，库里同样挡不住「同一邮箱两条未指定供应商」的绑定。
+     * 只阻止新引入的重复，不改动历史数据；比较用 trim + lower，落库保留原样大小写。
+     */
+    beforeWrite: (values, id) => {
+      const raw = values.email
+      if (typeof raw !== 'string') return null
+      const email = raw.trim()
+      if (!email) return null
+      // PATCH 未携带 poolId 时按库中现值比较，避免「只改邮箱」被误判成跨供应商
+      const poolId =
+        'poolId' in values
+          ? ((values.poolId ?? null) as number | null)
+          : id === null
+            ? null
+            : ((db
+                .select({ poolId: emailBindings.poolId })
+                .from(emailBindings)
+                .where(eq(emailBindings.id, id))
+                .get()?.poolId ?? null) as number | null)
+      const dup = db
+        .select({ id: emailBindings.id })
+        .from(emailBindings)
+        .where(
+          and(
+            sql`lower(${emailBindings.email}) = lower(${email})`,
+            poolId === null ? isNull(emailBindings.poolId) : eq(emailBindings.poolId, poolId),
+            id === null ? undefined : ne(emailBindings.id, id)
+          )
+        )
+        .get()
+      if (!dup) return null
+      return { status: 409, message: EMAIL_BINDING_UNIQUE_HINT }
+    },
+    /**
      * 归属派生（TASK-053）：邮箱管理只承载「仅注册」与「到期回落」两类记录。
      *
      * - 仅注册（E1）：`subscription_id IS NULL` —— 注册了账号但未买订阅；

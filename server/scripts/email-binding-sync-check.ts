@@ -19,7 +19,10 @@
  *   ⑥ 邮箱管理列表只承载「仅注册」与「到期回落（超 24h）」，其余归订阅管理（归属派生）；
  *   ⑦ 客户到期自动归档：删客户行、订阅转未分配、三要素绑定不变；
  *   ⑧ 邮箱大小写变体（`a@x.com` → `A@X.COM`）不绕过唯一性：同一订阅只改绑、不新增行
- *      （TASK-053 R1：守卫用 lower() 比较，upsert 定位必须用同一口径）。
+ *      （TASK-053 R1：守卫用 lower() 比较，upsert 定位必须用同一口径）；
+ *   ⑨ `/email-bindings` 的 CRUD 写入（PATCH / POST）同样按 trim + lower 判重：
+ *      同供应商下的大小写变体 409、跨供应商仍放行（TASK-054：唯一索引区分大小写，
+ *      必须由 `beforeWrite` 兜住，邮箱管理页「编辑」保存正走这条路径）。
  *
  * 隔离：库文件位于 `AI_DATA_DIR ?? E:/AiData` 下的临时目录，**不触碰** `server/data/app.db`；
  * 目录末尾打印、**不自动删**（供人工复查，与 `restore-apply-check.ts` 一致）。
@@ -412,15 +415,96 @@ async function main() {
 
     check('同步返回 200（大小写变体不算「另一个邮箱」）', res.status === 200, res)
     check('email_bindings 行数不变（未新建第二条绑定）', after === before, { before, after })
+    // 逐字比对而非「不区分大小写筛出 1 行」：本设计承诺「只影响比较口径、不改写存量」，
+    // 落库值必须仍是原样 `a@x.com`；一旦哪天顺手做了小写化/改名，这条断言才会失败。
+    const kept = db
+      .select()
+      .from(emailBindings)
+      .all()
+      .filter((row) => row.email === 'a@x.com')
+    check('落库值逐字保留 a@x.com（未按入参改写成大写）', kept.length === 1, {
+      emails: db
+        .select()
+        .from(emailBindings)
+        .all()
+        .map((row) => row.email),
+    })
+    check('绑定仍指向原订阅', bindingOf('a@x.com', poolId)?.subscriptionId === sub)
+  }
+
+  // —— 场景 9：CRUD 写入入口的唯一性（TASK-054 同根缺陷第三个门）——
+  // 缺陷形态：`/email-bindings` 的 CRUD 原先只靠索引 `uq_email_bindings_email_pool`，
+  // 而 SQLite 的文本比较区分大小写 ⇒ `PATCH` 把邮箱改成大小写变体（邮箱管理页「编辑」
+  // 保存走这条）能落出第二行。修复是在 CRUD 上加 `beforeWrite`（trim + lower），
+  // 故这里必须同时验证「拦得住」与「没拦过头」。
+  console.log('\n场景 9：CRUD 的 PATCH 大小写变体 ⇒ 409；跨供应商 POST 仍放行')
+  {
+    reset()
+    const poolId = seedPool()
+    const otherPoolId = seedPool('P2')
+    const sub = seedSubscription(null, poolId, 'https://crud.example/1')
+    seedBinding('a@x.com', poolId, sub)
+    // 被编辑的是**另一条**绑定（邮箱管理页「编辑」保存走 CRUD 的 PATCH）：
+    // 只有存在另一行 `a@x.com` 时，把它改成 `A@X.COM` 才会「落出第二行」。
+    const otherSub = seedSubscription(null, poolId, 'https://crud.example/2')
+    const bindingId = seedBinding('b@x.com', poolId, otherSub)
+
+    const countBindings = () => db.select().from(emailBindings).all().length
+    const before = countBindings()
+    console.log(`  调用前 email_bindings 行数=${before}`)
+
+    const res = await patchJson(`/email-bindings/${bindingId}`, { email: 'A@X.COM' })
+
+    const after = countBindings()
+    console.log(`  调用后 email_bindings 行数=${after}`)
+
+    check('PATCH 改成大小写变体 → 409', res.status === 409, res)
     check(
-      '命中既有绑定并原样沿用落库值（未改写成大写）',
+      '提示沿用 EMAIL_BINDING_UNIQUE_HINT（与 bundle 同文案）',
+      typeof res.json.message === 'string' && res.json.message.includes('已绑定同一供应商'),
+      res.json.message
+    )
+    check('email_bindings 行数不变（未落出第二行）', after === before, { before, after })
+    check(
+      '被拦下的行逐字保持 b@x.com（写入未落库）',
       db
         .select()
         .from(emailBindings)
         .all()
-        .filter((row) => row.email.toLowerCase() === 'a@x.com').length === 1
+        .some((row) => row.id === bindingId && row.email === 'b@x.com'),
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .map((row) => row.email)
     )
-    check('绑定仍指向原订阅', bindingOf('a@x.com', poolId)?.subscriptionId === sub)
+    check(
+      '既有行逐字保留 a@x.com（未被顺带改写）',
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .filter((row) => row.email === 'a@x.com').length === 1
+    )
+
+    // 反例：唯一性的判定单元是 `(邮箱, 供应商)`，同一邮箱换供应商必须仍能新建。
+    const crossPool = await postJson('/email-bindings', {
+      email: 'a@x.com',
+      poolId: otherPoolId,
+    })
+    const afterCross = countBindings()
+    console.log(`  跨供应商 POST 后 email_bindings 行数=${afterCross}`)
+
+    check('同一邮箱在另一个供应商下 POST → 201', crossPool.status === 201, crossPool)
+    check('行数 +1（跨供应商不算重复）', afterCross === after + 1, { after, afterCross })
+    check(
+      '新行落在 P2（供应商维度而非全局唯一）',
+      db
+        .select()
+        .from(emailBindings)
+        .all()
+        .some((row) => row.email === 'a@x.com' && row.poolId === otherPoolId)
+    )
   }
 
   console.log(`\n[email-binding-check] 通过 ${passed} / 失败 ${failed}`)
