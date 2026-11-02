@@ -10,14 +10,14 @@
 Task ID: TASK-058
 Title: smoke.ts 14 项失败三簇清偿
 Workflow: bugfix
-Status: BACKLOG
+Status: ACTIVE
 Priority: P1
-Owner: ""
-Owner Since: ""
+Owner: Codex（执行位 · developer）
+Owner Since: 2026-11-02T22:05:00+08:00
 Assigned Role: developer
 Created: 2026-11-02T21:50:00+08:00
-Updated: 2026-11-02T21:50:00+08:00
-Branch: ""
+Updated: 2026-11-02T22:05:00+08:00
+Branch: bugfix/TASK-058-smoke-failures-closure（自 docs/TASK-057-059-backlog-registration 切出，含 TASK-058 登记提交）
 Requires Human Approval: false
 ```
 
@@ -142,7 +142,8 @@ Non-Scope (files):
 
 ## Current State
 
-**BACKLOG（2026-11-02 登记，未开始）。** 等待执行位领取。
+**ACTIVE（2026-11-02 22:05 执行位领取）。** 分支 `bugfix/TASK-058-smoke-failures-closure`。
+下一步：按 TASK-055 的隔离快照配方复现 14 项失败，逐簇定位根因。
 
 ## Changed Files
 
