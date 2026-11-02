@@ -55,11 +55,23 @@
 | C16 | `AGENTS.md` §4 树 | `shared/` 为双语义：pnpm 包 `@repo/shared`（`src/`）+ 框架脚本（`scripts/` `tools/` `knowledge/`，TASK-039 合入） | `ls shared/` + `python shared/scripts/audit_framework.py --root .`（A2 校验 `shared/` 路径引用可解析） | 执行位 | 2026-10-15 |
 | P1 | `AGENTS.md` §14.4 | 分支保护已配置（经典保护、enforce_admins、approvals=0） | `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection` | 主控位 | 2026-10-15 |
 | P2 | `docs/operations/github-capability.md` | 平台事实全表（含漂移表） | 按该文档 §8 的复核命令逐条重测 | 主控位 | 2026-10-15 |
+| P3 | `docs/operations/github-capability.md` §1 | Issues **已关闭**（`has_issues=false`），平台不存在任务状态 | `gh api repos/huyanluanyuqaq/shadcn-admin --jq .has_issues`（应输出 `false`） | 主控位 | 2026-11-02 |
+| P4 | `docs/operations/github-capability.md` §1 | 合并后自动删除源分支（`delete_branch_on_merge=true`） | `gh api repos/huyanluanyuqaq/shadcn-admin --jq .delete_branch_on_merge`（应输出 `true`） | 主控位 | 2026-11-02 |
+| C17 | `AGENTS.md` §14.3 / `docs/git-workflow.md` §4 / `docs/agent-collaboration.md` §6 / 能力记录 §5 | `docker.yml` 为**合并即构建** + `latest` 仅 tag 前进（**不是** tag-only） | `grep -nE 'branches:\|tags:' .github/workflows/docker.yml`（应同时见 `branches: ["main"]` 与 `tags: ["v*"]`）+ `grep -n 'ref_type' .github/workflows/docker.yml`（应见 `enable` 门禁） | 执行位 | 2026-11-02 |
 | H1 | `docs/architecture/overview.md` §1 | 「现状与差距」为接入时基线快照（历史声明） | `sed -n '1,6p' docs/architecture/overview.md`（声明必须在场） | architect | 2026-10-15 |
 | H2 | `docs/decisions/ADR-001/002` 背景节 | 「纯前端 / faker / Clerk / 两套认证路由」为**决策时点**状态 | `sed -n '15,25p' docs/decisions/ADR-001-backend-stack.md` 等（历史记录，禁止改为现状） | architect | 2026-10-15 |
 | H3 | `docs/decisions/ADR-003` | 镜像内不含 mihomo 二进制 | `grep -c mihomo Dockerfile`（应为 0） | architect | 2026-10-15 |
 
 **编号含义：** C = 代码侧现状断言；P = 平台侧断言；H = 历史快照类（声明必须在场、内容不得改）。
+
+> **C17 是本节最有价值的一条（TASK-056 审计发现）。** 它不是「某处写错」，而是**四处一致地错**：
+> `AGENTS.md` §14.3、`docs/git-workflow.md` §4、`docs/agent-collaboration.md` §6、
+> `github-capability.md` §5 都写「`docker.yml` 仅由 tag 触发」，而实现是「合并即构建」。
+> 其中后两处是制度要求「必须逐行一致」的成对落差表 —— **它们确实一致，一致地错**。
+>
+> **由此确立一条判据纪律：** 「两处必须同步」这类约束只能保证**文本彼此相同**，
+> 不能保证**文本与事实相同**。复核任何成对/多处复述的断言时，**判据必须是实现文件**，
+> 不能是另一份文档。本清单的「复核命令」列因此一律指向代码或 `gh api`，不指向别的文档。
 
 ---
 

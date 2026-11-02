@@ -91,8 +91,11 @@ Refs: TASK-041
 > 且不产生压缩合并造成的证据颗粒度损失。
 > 「合并前必须 Review PASS + 测试通过」「合并后删除分支」两点继续有效。
 
-> **合并不等于发布。** 镜像发布已改为**仅由版本 tag 触发**
-> （`.github/workflows/docker.yml`），普通合并**不会**产生对外可见的镜像版本。
+> **合并不等于发布。** `docker.yml` 由**两类事件**触发：合并/推送到 `main` 会构建并推送
+> `sha-<短SHA>` 镜像，**不推进** `latest` 与版本号；只有推送版本 tag（`v*`）才对外发布。
+> 即：**普通合并会产生镜像，但不会改变 `latest`**。
+> 拦截 `latest` 的是 metadata-action 的 `enable=${{ github.ref_type == 'tag' }}` 门禁，
+> 不是触发器 —— 详见 [`operations/docker-release.md`](./operations/docker-release.md) §3。
 
 ---
 
