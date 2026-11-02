@@ -139,8 +139,8 @@ Bash heredoc 会吞掉正则反斜杠（`\S` / `\d`），本次因此产生过�
 | **F-1** | **P1** | **Docker 触发口径自相矛盾**：4 份文档称「`docker.yml` 仅由版本 tag 触发 / 普通合并不会发布镜像」，与工作流实现相反 | `docker.yml` 的 `on.push` 同时含 `branches: ["main"]` 与 `tags: ["v*"]`；运行记录 `41376188853`（event=`push`, branch=`main`, 作业 `Build and Push Docker Image`, success）。唯一正确表述在 `docs/operations/docker-release.md` §1 | **本任务修正 4 处**（`AGENTS.md` §14.3、`docs/git-workflow.md` §4、`docs/agent-collaboration.md` §6、`github-capability.md` §5） |
 | **F-2** | **P1** | **Issue 通道名义启用、实际不可用**：`has_issues=true`，但界面无法新建 Issue，历史 0 条 | `.github/ISSUE_TEMPLATE/config.yml` 设 `blank_issues_enabled: false`，唯 `contact_links` 指向 `satnaing/shadcn-admin/discussions`（上游）；两个模板（feature/bug）均为上游 stub；`gh issue list --state all` 返回空 | **本任务关闭 Issues**（用户裁决），文档改为事实陈述 |
 | **F-3** | **P1** | **审查记录断档**：TASK-042~046 五份任务无任何独立审查记录 | `ls tasks/done/TASK-04{2..6}*/handoffs \| grep -c review` = 0；TASK-047 起恢复（047:2、049:4、050:4、051:4、052:3、054:2） | **仅登记**：既成事实，不回填、不追述；后续任务的 AC 必须显式要求审查记录文件名 |
-| **F-4** | **P2** | **两条核心协议均无机器校验，且均已退化**：<br>4a. commit footer `Refs: TASK-NNN` 规则为「必须」，实测合规 240/323（74.3%），最近 5 个提交 4 个缺失<br>4b. D13-C「回写至多延后一个任务」无判据，TASK-051 的欠账**已连续滚过三轮** | 4a：`git log` 全量统计（脚本见 §8）；缺例：`b9f9879`/`20d5d4c`/`8ba2c09`/`53e756c`<br>4b：TASK-055 的 `Background` 自述「TASK-051 的欠账已滚过三轮」 | **本任务新增 `traceability` 检查**（只对 `origin/main..HEAD` 生效，不追溯历史）；4b 登记为残余限制 |
-| **F-5** | **P2** | 分支清理无自动化：制度要求「合并后删除工作分支」，平台开关为关闭 | `delete_branch_on_merge` 审计时 = `false`（远端当前仅 1 个分支，实际卫生良好） | **本任务开启平台开关并实测** |
+| **F-4** | **P2** | **两条核心协议均无机器校验，且均已退化**：<br>4a. commit footer `Refs: TASK-NNN` 规则为「必须」，实测合规 240/323（74.3%，**含审计时点的 1 个在制提交** `e9a994f`；以基线 `2ca5d50` 复现为 239/322），最近 5 个提交 4 个缺失<br>4b. D13-C「回写至多延后一个任务」无判据，TASK-051 的欠账**已连续滚过三轮** | 4a：`git log` 全量统计（脚本见 §8），**自审计时点 HEAD 度量** —— 该 HEAD 已含本任务首个提交 `e9a994f`，故比基线 `2ca5d50` 多 1 条合规；缺例：`b9f9879`/`20d5d4c`/`8ba2c09`/`53e756c`<br>4b：TASK-055 的 `Background` 自述「TASK-051 的欠账已滚过三轮」 | **本任务新增 `traceability` 检查**（只对 `origin/main..HEAD` 生效，不追溯历史）；4b 登记为残余限制 |
+| **F-5** | **P2** | 分支清理无自动化：制度要求「合并后删除工作分支」，平台开关为关闭 | `delete_branch_on_merge` 审计时**未取证**（审计时点未记录原始输出，PR 前的能力记录亦无该项；远端当时仅 1 个分支，实际卫生良好） | **本任务开启平台开关并实测** |
 | **F-6** | **P2** | 无效率度量定义：Lead Time / Cycle Time / Review Time / 返工率 / CI 失败率 / 阻塞时长均无口径 | 全仓检索无定义；任务档案已含 `Created`/`Updated`/`Merge Record` 时间戳，具备离线计算条件 | **本任务新增 `collaboration-metrics.md`**（仅定义 + 采集命令） |
 | **F-7** | **P2** | 无体系级场景验证留档：既有验证都是「单任务 AC 核对」，从未做过跨角色、跨中断的演练 | 全仓无场景验证记录 | **本任务新增 `collaboration-scenarios.md`**（A~G + 逐条判据 + 本次结论） |
 | **F-8** | **P3** | 档案 Meta 语法漂移：2 份历史档案用表格而非 yaml 块，无可解析的 `Status:` 行，F8/F9 不覆盖 Meta 结构 | `python3` 解析 55 份：2 份返回 `NONE`（`TASK-033-stage3-platform-record`、`TASK-035-d13-route-c`） | **本任务仅修语法**（不改任何事实） |
@@ -223,8 +223,15 @@ for d in ['backlog','active','review','done']:
         if not m: print('NO STATUS:', p)
 PY
 
-# commit footer 合规率
+# commit footer 合规率（审计时点自 HEAD 度量，当时 HEAD = e9a994f，已含本任务首个在制提交 → 240/323）
 git log --format='%H%x1f%s%x1f%b%x1e' | python3 -c "
+import sys,re
+recs=[r for r in sys.stdin.read().split('\x1e') if r.strip()]
+n=len(recs); ok=sum(1 for r in recs if re.search(r'Refs:\s*TASK-\d+', r))
+print(f'{ok}/{n} 合规')"
+
+# 以本报告声明的基线提交 2ca5d50 为起点复现（不含在制提交）→ 239/322
+git log 2ca5d50 --format='%H%x1f%s%x1f%b%x1e' | python3 -c "
 import sys,re
 recs=[r for r in sys.stdin.read().split('\x1e') if r.strip()]
 n=len(recs); ok=sum(1 for r in recs if re.search(r'Refs:\s*TASK-\d+', r))

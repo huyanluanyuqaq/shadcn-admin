@@ -147,9 +147,13 @@ grep -rh "Current State" tasks/*/*/handoffs/*.md | sort | uniq -c | sort -rn | h
 
 | 指标 | 基线值 | 数据来源 |
 |------|--------|---------|
-| M6 `ci.yml` 近 30 次结论分布 | `{"success": 26, "failure": 4}`（失败率 **13.3%**） | `gh run list --workflow=ci.yml --limit 30 --json conclusion` 实跑（2026-11-02） |
+| M6 `ci.yml` 近 30 次结论分布 | `{"success": 26, "failure": 4}`（失败率 **13.3%**） | `gh run list --workflow=ci.yml --limit 30 --json conclusion` 实跑（2026-11-02）；**锚点：窗口 = run `39556176387`–`41380555481`**（截至 2026-11-02 10:58 UTC+8，即当时最新一次 `ci.yml` 运行） |
 | M4 远端分支数 | **2**（`main` + 在途任务分支） | `git ls-remote --heads origin` 实跑（2026-11-02） |
 | M3 可计算性 | **不可计算**：PR #27 的 `pulls/27/reviews` 返回 `0`，审查结论全部落在 `handoffs/**` | `gh api repos/:owner/:repo/pulls/27/reviews` 实跑 |
 
 > 基线不追求完整。**先建立口径，再谈趋势** —— 缺数据时写「数据不足」是可接受的结果，
 > 用估计值填表则会使后续所有对比失去意义。
+>
+> **锚点纪律（F-4 整改）：** 任何「近 N 次」类指标都必须同时记录窗口**两端的 run id**
+> （或「截至 run `<id>`」）。否则窗口随新运行滑动，后人无法判断差异来自「真实变化」
+> 还是「取样窗口移动」—— 那会使趋势判断失去意义。

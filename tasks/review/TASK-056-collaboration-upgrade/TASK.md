@@ -109,7 +109,7 @@ Requires Human Approval: true
 
 - [x] AC-1: `grep -rn "仅由版本 tag\|tag-only" AGENTS.md docs/` —— 4 处原位已无该断言；剩余命中仅两处「历史沿革」说明（`AGENTS.md` §14.3）与审计报告/负向清单的**引用性**提及。`docker.yml` 的 `branches: ["main"]`（第 52 行）与 `tags: ["v*"]`（第 54 行）与文档表述逐条对应。
 - [x] AC-2: `gh api ... --jq .has_issues` → `false`；`docs/operations/github-capability.md` §1 记录该实测值与日期（2026-11-02）。
-- [x] AC-3: `python3 scripts/check-traceability.py --base origin/main` → `PASS —— 6 个提交均引用了真实存在的任务`，退出码 0。
+- [x] AC-3: `python3 scripts/check-traceability.py --base origin/main` → `PASS —— 9 个提交均引用了真实存在的任务`，退出码 0。
 - [x] AC-4: 反向验证两例均变红：① 引用 `TASK-999` → 退出码 1 并指名提交 `f93bcc71`；② 无 `Refs` footer → 退出码 1 并指名提交 `9801af63`。两例的临时提交均已用 `git reset --soft HEAD~1` 移除，`git log -1` 回到 `b3b21b5`，工作区 clean。
 - [x] AC-5: `ci.yml` 的 `traceability` 作业存在，`if: github.event_name == 'pull_request'`；`audit-repo.py` F6 → `3 个必需检查名与工作流作业名一致`（PASS）。
 - [x] AC-6: `AGENTS.md` §14.1 该行标「**否（TASK-056 已落地作业，尚未设为必需）**」并写明启用顺序；能力记录 §3 实测 `contexts` 仍为 `["audit","install-lint-build"]`，明确「当前不是门禁」。
@@ -175,7 +175,7 @@ Non-Scope (files):
 
 **REVIEW（2026-11-02 11:15）。** 执行位已完成全部 11 条 AC 并自测通过；
 交付请求 **PR #29** 已创建，三项检查全绿（`install-lint-build` 1m43s / `audit` 7s / `traceability` 5s，
-run `41381763804`）。其中 `traceability` 在 CI 上实跑输出「待检 8 个提交 …… PASS」——
+run `41382053613`）。其中 `traceability` 在 CI 上实跑输出「待检 9 个提交 …… PASS」——
 这是本作业的端到端自证（含 `refs/pull/N/merge` 的 checkout 修正）。
 
 主控位审查通过后合并；**合并后**由主控位把 `traceability` 加入必需检查（顺序不可颠倒，见 Known Issues 1）。
@@ -215,7 +215,7 @@ run `41381763804`）。其中 `traceability` 在 CI 上实跑输出「待检 8 �
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
-| 001 | developer（执行位） | reviewer（主控位） | 2026-11-02 | 11 条 AC 全部自测通过并附原始输出；平台侧改动前后值留证；未改分支保护 |
+| 001 | developer（执行位） | reviewer（主控位） | 2026-11-02 | 11 条 AC 全部自测通过并附原始输出；平台侧改动已实测留证（`delete_branch_on_merge` 前值未取证，已如实标注）；未改分支保护 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
 **Next Action：** 主控位在**新会话**中逐文件读实际差异，重点核对四处 Docker 表述与 `docker.yml` 第 52/54 行一致、且 §14.1 **没有**把 `traceability` 写成已生效门禁。
