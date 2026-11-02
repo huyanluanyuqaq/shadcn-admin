@@ -395,7 +395,7 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（2026-11-02 23:55）。** 三簇 14 项失败已全部清偿，`smoke.ts` 185 通过 / 0 失败、
+**REVIEW（2026-11-03 00:55，目录已移入 `tasks/review/`）。** 三簇 14 项失败已全部清偿，`smoke.ts` 185 通过 / 0 失败、
 退出码 0；全量门禁退出码全 0。分支 `bugfix/TASK-058-smoke-failures-closure` 已推送，
 交付请求已开，等待**主控位**审查（按 D13-C 选项 C，`## Merge Record` 由下一个任务回收归档时回填，
 本任务不自行回写、不自行合并）。
@@ -564,9 +564,9 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
 | `server/scripts/smoke.ts` | 修改 | ① 11.5 段客户 A/B 补 `trafficManualCap`（A 簇，7 项）；② 12.9 段新增 sync 专用订阅 `syncSub1`、`syncSub2` 补 `expireAt`、sync 目标订阅改指 `syncSub1`、清理段补删 `syncSub1`（B 簇，6 项）；③ 头部注释补 `SMOKE_DB_DIR` 口径、19.17 失败详情补诊断提示（C 簇，1 项） |
-| `tasks/backlog/TASK-058-smoke-failures-closure/TASK.md` | `git mv` + 修改 | 领取：移入 `tasks/active/`，Status → ACTIVE → REVIEW，Owner 填执行位；追加根因定位四元组、实测记录、AC 证据、Known Issues |
+| `tasks/backlog/TASK-058-smoke-failures-closure/TASK.md` | `git mv` + 修改 | 领取：移入 `tasks/active/`；实现完成后 `Status → REVIEW` 并再 `git mv` 至 `tasks/review/`（`task-lifecycle.md` §4「变更状态」两步，缺一不可）；Owner 填执行位；追加根因定位四元组、实测记录、AC 证据、Known Issues |
 | `tasks/review/TASK-055-archive-backfill-and-email-binding-residuals/TASK.md` | 修改（**仅追加**） | `Known Issues` 第 1 条追加三簇根因验证结论；「V 组实测记录」追加配方修正说明。历史记录一字未改 |
-| `tasks/active/TASK-058-smoke-failures-closure/handoffs/HANDOFF-001-implementer-to-coordinator.md` | 新增 | 执行位 → 主控位交接 |
+| `tasks/review/TASK-058-smoke-failures-closure/handoffs/HANDOFF-001-implementer-to-coordinator.md` | 新增 | 执行位 → 主控位交接（随任务目录一同移入 `review/`） |
 
 > **交付请求 #33 的实际 diff 还含两个非本任务文件，如实披露（Known Issues 8）**：
 > `tasks/backlog/TASK-057-gate-evidence-closure/TASK.md`、
@@ -634,6 +634,9 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | Codex（执行位 · developer） | 主控位 · Reviewer | 2026-11-02 | 三簇 14 项失败清偿：A/B 为脚本侧过期、C 为配方错误；0 产品缺陷；smoke 185/0 退出码 0；全量门禁全 0；待审查 |
+
+**目录状态：** `tasks/review/TASK-058-smoke-failures-closure/`（`Status: REVIEW` 与所在目录一致，
+符合 `.agents/protocols/task-lifecycle.md` §5 的状态一致性检查）。
 
 **交付请求：** [#33](https://github.com/huyanluanyuqaq/shadcn-admin/pull/33)
 （`bugfix/TASK-058-smoke-failures-closure` → `main`，**9 commits / 6 changed files**，
