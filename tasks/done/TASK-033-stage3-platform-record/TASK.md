@@ -2,16 +2,19 @@
 
 ## Meta
 
-| 字段 | 值 |
-| ---- | -- |
-| Task ID | `TASK-033` |
-| Status | `DONE` |
-| Priority | P1（阻塞后续所有任务的闭环方式判定） |
-| Assigned Role | implementer（执行位） |
-| Created | 2026-10-15 |
-| Updated | 2026-10-15 |
-| Owner | 执行位（本会话） |
-| Owner Since | 2026-10-15 |
+```yaml
+Task ID: TASK-033
+Status: DONE
+Priority: "P1（阻塞后续所有任务的闭环方式判定）"
+Assigned Role: "implementer（执行位）"
+Created: 2026-10-15
+Updated: 2026-10-15
+Owner: "执行位（本会话）"
+Owner Since: 2026-10-15
+```
+
+> **结构更正（TASK-056，2026-11-02）：** 本节原为表格形式，导致 `Status:` 无法被脚本解析
+> （审计 F-8）。**只改结构，所有字段值逐字保留**，未改动任何事实。
 
 ## Objective
 
