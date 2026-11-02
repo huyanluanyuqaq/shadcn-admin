@@ -10,14 +10,14 @@
 Task ID: TASK-055
 Title: 归档回写收口（四份 Merge Record）+ 邮箱绑定残留三项
 Workflow: maintenance
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: Codex（执行位 · developer）
 Owner Since: 2026-11-02T11:00:00+08:00
 Assigned Role: developer
 Created: 2026-11-02T10:30:00+08:00
-Updated: 2026-11-02T12:10:00+08:00
-Branch: fix/TASK-055-archive-backfill-and-email-binding-residuals
+Updated: 2026-11-02T14:22:26+08:00
+Branch: docs/TASK-055-archive-writeback（合并后簿记分支，自 main `dc54696` 切出）
 ```
 
 ## Objective
@@ -277,7 +277,13 @@ cd server && SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_DB_DIR=E:/tmp/t055-smoke
 
 ## Current State
 
-**Status = ACTIVE（已按主控位审查 §4 完成整改，待复审）。**
+**Status = REVIEW（已合并，归档回写待下一个任务补记）。**
+
+PR #28 已以 rebase-merge 落地（`merge_commit_sha` `dc54696…`，`merged_at` `2026-11-02T06:14:12Z`），
+合并后 CI run `41398641150`、Docker run `41398641143` 均 success，镜像 tag `sha-dc54696`。
+按 D13-C 选项 C，本任务的 `## Merge Record` 九要素由**下一个任务**回填，
+在此之前保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
+上述合并事实的实测命令见 `## Notes` 末节，供下一个任务回填时直接复现。
 
 分支 `fix/TASK-055-archive-backfill-and-email-binding-residuals`，从 `main`（`2ca5d50`）切出。
 四份档案已按实测值回填九要素并 `git mv` 至 `tasks/done/`，三份已加 SHA 映射表；
@@ -519,17 +525,19 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
 |---|------|----|------|---------|
 | 001 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | R/S/C/V/D 五组实施完毕；四份 Merge Record 实测回填 + git mv 归档；C 组 404 语义 + 7 项断言；smoke 实跑 168/14 并用 main 基线对照证明失败先于本次改动；D 组只读核查 0 命中（vacuous） |
 | 002 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | 按主控位审查 §4 整改：M-1 场景 12 补 `poolId` 并用「main 版本必须失败」闭环自证；m-1 三处分簇计数改 6+1/6/1 并附 14 项清单；Known Issues 增补第 6 条；全量门禁重跑退出码全 0 |
+| 003 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | 合并后簿记：`git mv` 至 `tasks/review/`、`Status → REVIEW`、Merge Record 上方补 D13-C 标注；实测核对九要素并写入 `## Notes` 供下一个任务复现回填 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** 主控位**复审** §4 整改：闭环判据是「把 `resources.ts` 换回 `main` 版本后，
-场景 12 的『状态码为 404』与『message』两项必须失败」——两次运行的原始输出已贴在本档案
-「M-1 整改对照运行」小节。另需复核 m-1 的三处分簇计数与 14 项清单是否一致。
-复审 PASS 后由人类授权合并（合并动作属主控位/人类，执行位不得自行合并）。
+**Next Action：** 本任务已由 PR #28 合并（`dc54696`）。按 D13-C 选项 C，
+**下一个任务**在回收本任务归档时回填本档案 `## Merge Record` 的九要素
+（实测命令已备于 `## Notes`「本任务自身的合并事实」小节）；
+在此之前本任务保持 `Status = REVIEW`、留在 `tasks/review/`。
 
 ## Merge Record
 
-> 本节由**下一个任务**按 D13-C 选项 C 回填；在此之前本任务保持 `Status = ACTIVE`、
-> 留在 `tasks/active/`（机制，非遗漏）。**禁止在本任务内自我回写**。
+> **归档回写待下一个任务补记，在此之前保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。**
+>
+> 本节按 D13-C 选项 C 由**下一个任务**在回收本任务归档时回填；**禁止在本任务内自我回写**。
 > 回填时九要素必须填实测值（可被 `gh api` / DockerHub Tags API 当场复现），不得沿用档案自述；
 > 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
 
@@ -575,3 +583,33 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
   - PR #26 → 14 个提交；PR #27 → 9 个提交。
   - `sha-2ca5d50` digest `sha256:0658ac254eeb76a5…`，`tag_last_pushed` `2026-11-02T02:13:44Z`。
   - `latest` = `sha256:b6da326e15e41c9e…` = `v1.0.7` = `sha-e563800`（合并**未**推进 `latest`）。
+
+### 本任务自身的合并事实（2026-11-02 实测，供下一个任务回填九要素时直接复现）
+
+| 要素 | 实测值 |
+|------|--------|
+| PR | #28 |
+| 合并策略 | `rebase-merge`（merge commit `dc54696…` 只有 1 个 parent `57e8781`） |
+| 提交数 | 4 |
+| merged_at | `2026-11-02T06:14:12Z` |
+| merge_commit_sha | `dc5469626d2eb349a69fd6f61c3016cd64d8dabb` |
+| 合并后 CI run | `41398641150`（Continuous Integration，`event=push` `head_branch=main`，success） |
+| 合并后 Docker run | `41398641143`（Build and Push Docker Image，`event=push` `head_branch=main`，success） |
+| 镜像 tag | `sha-dc54696`（digest `sha256:4c1d871ff1965d4e02e746c5f4c45d0645f3e252bc50de01cefccf7c2232e74d`，`tag_last_pushed 2026/11/2 6:18:23`） |
+| 审查记录 | `handoffs/2026-11-02-coordinator-review.md`（第 1 轮 FAIL）+ `handoffs/2026-11-02-coordinator-review-round2.md`（第 2 轮 PASS（有条件）） |
+
+复现命令：
+
+```bash
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/28 \
+  --jq '{merged:.merged, merged_at:.merged_at, merge_commit_sha:.merge_commit_sha, commits:.commits}'
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/28/commits --jq 'length'      # → 4
+gh api "repos/huyanluanyuqaq/shadcn-admin/actions/runs?head_sha=dc5469626d2eb349a69fd6f61c3016cd64d8dabb&per_page=20" \
+  --jq '.workflow_runs[] | {id:.id, name:.name, event:.event, head_branch:.head_branch, conclusion:.conclusion}'
+git log --format="%H %P %s" -1 dc5469626d2eb349a69fd6f61c3016cd64d8dabb
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-dc54696
+```
+
+> **`latest` 仍未推进**：`latest` 至今仍为 `sha256:b6da326e15e41c9e…`（= `v1.0.7` = `sha-e563800`），
+> **不是**本任务的 `sha-dc54696`（`sha256:4c1d871ff1965d…`）。`docker.yml` 仅由 `v*` tag 触发
+> （`AGENTS.md` §14.3），普通合并不发布镜像、不前进 `latest`。
