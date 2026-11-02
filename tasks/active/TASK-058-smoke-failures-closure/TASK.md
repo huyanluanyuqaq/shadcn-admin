@@ -516,11 +516,14 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | 10 | **smoke.ts 本身** | 运行 ② | **0** | 185 通过 / 0 失败 |
 | 附 | 框架全量自检 | `python shared/scripts/audit_framework.py` | 0 | PASS=13 FAIL=0 WARN=0 SKIP=0 |
 
-> **平台侧复核（PR #33，`gh api` / `gh pr view` 实测）**：
-> CI run **41478242197**（`event=pull_request`、`head_sha=9ae2af3…`、head 分支
-> `bugfix/TASK-058-smoke-failures-closure`）三个作业全部 success：
-> `install-lint-build` / `traceability` / `audit`；`gh pr view 33 --json statusCheckRollup`
-> 三项均为 `SUCCESS`。前一次运行 **41477718219**（`head_sha=8b1781f…`）同样三项 success。
+> **平台侧复核（PR #33，`gh api` / `gh run list` 实测）**：
+> 三次 `event=pull_request` 的 CI 运行，head 分支均为
+> `bugfix/TASK-058-smoke-failures-closure`，三个作业全部 success ——
+> `install-lint-build` / `traceability` / `audit`：
+> run **41477718219**（`head_sha=8b1781f…`）、
+> run **41478242197**（`head_sha=9ae2af3…`）、
+> run **41478626967**（`head_sha=20a7ccd…`，最新）。
+> `gh pr view 33 --json statusCheckRollup` 三项均 `SUCCESS`。
 > **注意**：`smoke.ts` **不在 CI 作业里**（`ci.yml` 无该步骤），它只是本任务
 > Requirements 5 清单上的一项**本地门禁**；平台侧只能证明其余九项，冒烟证据以上方
 > 运行 ② 的本地原始输出为准。
@@ -626,8 +629,10 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | 001 | Codex（执行位 · developer） | 主控位 · Reviewer | 2026-11-02 | 三簇 14 项失败清偿：A/B 为脚本侧过期、C 为配方错误；0 产品缺陷；smoke 185/0 退出码 0；全量门禁全 0；待审查 |
 
 **交付请求：** [#33](https://github.com/huyanluanyuqaq/shadcn-admin/pull/33)
-（`bugfix/TASK-058-smoke-failures-closure` → `main`，7 commits / 6 changed files，`mergeable=MERGEABLE`；
-分支另带主控位登记提交 `b0714ad`，故 diff 含 TASK-057/059 两份任务定义，见 Known Issues 7）
+（`bugfix/TASK-058-smoke-failures-closure` → `main`，**9 commits / 6 changed files**，
+`state=OPEN`、`mergeable=MERGEABLE`；三项必需检查 `install-lint-build` / `traceability` /
+`audit` 全部 SUCCESS。分支另带主控位登记提交 `b0714ad`，故 diff 含 TASK-057/059
+两份任务定义，见 Known Issues 7。**执行位未合并**，等待主控位审查。）
 
 **最新 Handoff：** `handoffs/HANDOFF-001-implementer-to-coordinator.md`
 **Next Action：** 主控位按 `.agents/workflows/bugfix.md` 第 5 阶段审查**实际差异**
