@@ -96,8 +96,10 @@ CI 的触发条件与作业名以 `.github/workflows/ci.yml` 为准。
 
 **可追溯性检查（TASK-056 新增）：** `scripts/check-traceability.py` 已在 CI 中作为
 `traceability` 作业运行，校验 PR 内每个提交的 `Refs: TASK-NNN` 且该任务真实存在。
-**但它尚未被加入分支保护的必需检查**，因此**当前不构成门禁** —— 它的状态以
-`AGENTS.md` §14.1 与 `operations/github-capability.md` §3 的实测值为准。
+**它已于 2026-11-02 由主控位加入分支保护的必需检查，因此当前构成门禁** ——
+判据是 `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection/required_status_checks`
+的 `contexts` 实测值（`["audit", "install-lint-build", "traceability"]`），
+权威声明见 `AGENTS.md` §14.1 与 `operations/github-capability.md` §3。
 
 **禁止**为使检查变绿而删除测试、放宽断言、伪造结果或绕过保护规则。
 
@@ -134,10 +136,15 @@ PR 描述**不产生新信息**，它是层 1 的渲染：
 「**保证来源**」列区分三类：**平台设置**（由 GitHub 强制）；**仓库文件**（随版本化，
 不由平台强制但**不依赖人的自觉**）；**自觉（约定）**（既不平台强制、也不由文件保证）。
 
+**判据（2026-11-02 起）：** 「平台设置」一列的值一律以
+`gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection/required_status_checks`
+（以及 `/protection` 全量）的**实测输出**为准，**不得**以本文档的既有陈述代替实测 ——
+本表曾因只改一侧而发生过一次不实断言（TASK-031）。
+
 | 文档约定 | 平台是否强制 | 保证来源 | 说明与补救 |
 | -------- | ------------ | -------- | ---------- |
 | 禁止直接推送默认分支 | **是**（2026-10-14 起） | **平台设置**（经典分支保护：「要求合并前必须经过 PR」） | 已实测：以**所有者身份**直推被 `GH006` 拒绝（能力记录 §4 V1 / V2）。⚠️ **平台配置不在版本历史内**，其新鲜度无法自证，见能力记录 §8 |
-| 合并前必须通过必需检查 | **是**（2026-10-14 起） | **平台设置**（`install-lint-build` + `audit`） | 已实测：红灯 PR 的合并被服务端以 **HTTP 405** 拒绝（能力记录 §4 V4） |
+| 合并前必须通过必需检查 | **是**（2026-10-14 起；必需检查集于 2026-11-02 由 2 项扩为 3 项） | **平台设置**（`gh api …/protection/required_status_checks` 实测 `contexts` = `install-lint-build` + `audit` + `traceability`） | 已实测：红灯 PR 的合并被服务端以 **HTTP 405** 拒绝（能力记录 §4 V4）；`traceability` 入列见 TASK-056 合并后收口 |
 | 合并策略为 `rebase-merge`（不留 merge commit） | **否** | 自觉（约定）+ 仓库文档 | `required_linear_history` **未启用**，平台不会阻止 merge commit；如需强制须另开该选项（能力记录 §2） |
 | 实现者 ≠ 批准者 | **否**（单一平台身份） | 自觉（约定） | 必需批准数固定为 **0**，平台**不提供**第二人批准；靠换会话审查 + `Known Issues` 披露 + 证据落 `handoffs/` |
 | 合并前必须经过实质审查 | **否** | 自觉（约定） | 审查证据必须落到 `handoffs/` |

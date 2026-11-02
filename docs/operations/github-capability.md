@@ -5,7 +5,7 @@
 >
 > 与 [`../agent-collaboration.md`](../agent-collaboration.md) §6 的落差披露表保持一致。
 
-**最后更新：** 2026-11-02（TASK-056：Issues 关闭、自动删分支开启、`traceability` 作业落地但**未**设为必需）
+**最后更新：** 2026-11-02（TASK-056 合并后收口：`traceability` **已由主控位加入必需检查**，`contexts` 实测含 3 项；Issues 已关闭、自动删分支已开启）
 **更新者：** 执行位（TASK-056）
 
 > ⚠️ **平台事实会漂移，且改动不进入版本历史。** 本文中所有「可变事实」在跨会话引用前
@@ -32,11 +32,11 @@
 **复核命令：** `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection`
 （2026-10-15 实测：返回 **200**；配置前为 **404 Branch not protected**）
 
-| 设置项 | 应设值 | 本项目实际状态（2026-10-15 实测） | 对应 API 字段 |
+| 设置项 | 应设值 | 本项目实际状态（2026-10-15 实测；2026-11-02 逐字段复核） | 对应 API 字段 |
 | ------ | ------ | -------------- | ------------- |
 | 要求合并前必须经过 PR | 启用 | **✅ 已启用** | `required_pull_request_reviews` 为**对象**（非 `null`） |
 | 要求批准 | **0** | **✅ `0`** | `required_pull_request_reviews.required_approving_review_count` |
-| 要求状态检查通过 | 启用（选定 §3 的检查） | **✅ 已启用**，选定 `install-lint-build` + `audit`（共 2 项） | `required_status_checks.checks[].context` |
+| 要求状态检查通过 | 启用（选定 §3 的检查） | **✅ 已启用**，选定 `install-lint-build` + `audit` + `traceability`（共 **3** 项；第 3 项于 2026-11-02 由主控位加入） | `required_status_checks.checks[].context` |
 | 要求分支为最新 | 启用 | ⚪ **未启用**（`strict = false`） | `required_status_checks.strict` |
 | 不允许绕过上述设置 | 启用 | **✅ 已启用** | `enforce_admins.enabled = true` |
 | 允许强制推送 | 禁用 | **✅ 已禁用** | `allow_force_pushes.enabled = false` |
@@ -58,6 +58,12 @@
 > **判据（勿混）：** `required_pull_request_reviews` 返回 **`null`** = PR 要求**未启用**；
 > 返回**带 `url` 的对象**（哪怕 `count = 0`）= PR 要求**已启用**。**不能只看 count 是否为 0。**
 
+**2026-11-02 逐字段复核结论：** 本节除「要求状态检查通过」一行的**选定项**由 2 项增至 3 项
+（`traceability`）外，其余字段与 2026-10-15 实测**逐字段一致** —— `strict=false`、
+`enforce_admins.enabled=true`、`required_approving_review_count=0`、`allow_force_pushes.enabled=false`、
+`allow_deletions.enabled=false`、`required_linear_history=false`、`lock_branch=false`。
+复核原始输出见 TASK-056 合并后收口的 `handoffs/HANDOFF-002-implementer-to-coordinator.md`。
+
 **配置方式：** 网页界面 / 命令行 / 接口 —— **均无法通过提交文件完成**。
 本次由用户在网页端完成；**Agent 亦具备该权限**（见 §6），是否代做属授权问题而非能力问题。
 
@@ -74,17 +80,22 @@
 | ------ | ---------- | ---- | -------- |
 | `install-lint-build` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 静态 / 格式 / 测试 / 构建 | **是** |
 | `audit` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 仓库级框架一致性审计 | **是** |
-| `traceability` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 交付可追溯性（PR 内提交须引用真实任务） | **否**（作业已存在，未加入 `contexts`） |
+| `traceability` | [`../../.github/workflows/ci.yml`](../../.github/workflows/ci.yml) | 交付可追溯性（PR 内提交须引用真实任务） | **是**（2026-11-02 起，`gh api` 实测已在 `contexts` 中） |
 
 **权威声明位置：** [`../../AGENTS.md`](../../AGENTS.md) §14（本节与其保持一致）。
 `scripts/audit-repo.py` 会校验两处命名与工作流实际作业名一致。
 
-**实测（2026-11-02）：** `required_status_checks.contexts` 仍为 `["audit", "install-lint-build"]` ——
-`traceability` **不在其中**。因此它**当前不是门禁**，红灯不会阻止合并。
+**实测（2026-11-02，主控位把它加入必需检查之后复跑）：**
+`required_status_checks.contexts` = `["audit", "install-lint-build", "traceability"]`（三项齐全），
+`strict = false`，`checks` 中三项的 `app_id` 均为 `15368`。因此 `traceability` **当前是门禁**，
+红灯会阻止合并。原始输出见 TASK-056 合并后收口的 Handoff。
 
-> **启用顺序（不可颠倒）：** ① 本作业先随 TASK-056 合并进 `main`；
-> ② 再由主控位把它加入必需检查。若颠倒，所有 PR 会永久等待一个在默认分支上不存在的作业，
+> **启用顺序（不可颠倒；本任务已按此顺序执行完毕，本条作为历史说明保留）：**
+> ① 本作业先随 TASK-056 合并进 `main`（PR #29，`merge_commit_sha` `4958eb1`）；
+> ② 2026-11-02 由主控位把它加入必需检查。
+> 若颠倒，所有 PR 会永久等待一个在默认分支上不存在的作业，
 > 而 `enforce_admins=true` 没有绕过通道 —— 与 §8 末的自锁风险同源。
+> 后续新增任何检查作业仍须遵守该顺序：**先在默认分支落地作业，再加入必需检查。**
 
 **检查的触发条件：** `pull_request` 到 `main` **与** `push` 到 `main`
 
@@ -172,13 +183,17 @@ main                          → 未变动（e3231e7）
 ## 5. 制度-平台落差披露
 
 记录**未被平台强制**的文档约定。本表与 [`../agent-collaboration.md`](../agent-collaboration.md) §6 一致。
-「**保证来源**」列用于区分两类**都没有平台强制**的情形：**仅靠自觉**（约定）与**由仓库文件保证**（配置随版本化）。
-后者虽也不由平台强制，但**不需要依赖人的自觉**。
+「**保证来源**」列区分三类：**平台设置**（由 GitHub 强制）；**仓库文件**（随版本化，
+不由平台强制但**不依赖人的自觉**）；**自觉（约定）**（既不平台强制、也不由文件保证）。
+**判据（2026-11-02 起）：**「平台设置」一列的值一律以
+`gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection/required_status_checks`
+（以及 `/protection` 全量）的**实测输出**为准，**不得**以本文档的既有陈述代替实测 ——
+本表曾因只改一侧而发生过一次不实断言（TASK-031）。
 
 | 文档约定 | 平台是否强制 | 保证来源 | 说明与补救 |
 | -------- | ------------ | -------- | ---------- |
 | 禁止直接推送默认分支 | **是**（2026-10-14 起） | **平台设置**（经典分支保护：「要求合并前必须经过 PR」） | 已实测：以**所有者身份**直推被 `GH006` 拒绝（§4 V1 / V2）。⚠️ **平台配置不在版本历史内**，其新鲜度无法自证，见 §8 |
-| 合并前必须通过必需检查 | **是**（2026-10-14 起） | **平台设置**（`install-lint-build` + `audit`） | 已实测：红灯 PR 的合并被服务端以 **HTTP 405** 拒绝（§4 V4） |
+| 合并前必须通过必需检查 | **是**（2026-10-14 起；必需检查集于 2026-11-02 由 2 项扩为 3 项） | **平台设置**（`gh api …/protection/required_status_checks` 实测 `contexts` = `install-lint-build` + `audit` + `traceability`） | 已实测：红灯 PR 的合并被服务端以 **HTTP 405** 拒绝（§4 V4）；`traceability` 入列见 TASK-056 合并后收口 |
 | 合并策略为 `rebase-merge`（不留 merge commit） | **否** | 自觉（约定）+ 仓库文档 | `required_linear_history` **未启用**，平台不会阻止 merge commit；如需强制须另开该选项（§2） |
 | 实现者 ≠ 批准者 | **否**（单一平台身份） | 自觉（约定） | 必需批准数固定为 **0**，平台**不提供**第二人批准；靠换会话审查 + `Known Issues` 披露 + 证据落 `handoffs/` |
 | 合并前必须经过实质审查 | **否** | 自觉（约定） | 审查证据必须落到 `handoffs/` |
@@ -273,7 +288,7 @@ main                          → 未变动（e3231e7）
 （个人账号的审计日志不通过 API 开放）。因此本文中任何**可变事实**都属于易腐信息，
 跨会话引用前应重新实测。下表记录已发现的漂移。
 
-| 事实 | 原记录（阶段 1 调研，附原始输出） | 实测值（2026-10-14） | 影响 |
+| 事实 | 原记录（附原始输出） | 实测值（最新实测） | 影响 |
 | ---- | --------------------------------- | -------------------- | ---- |
 | `has_issues` | `false`（Issues 关闭） | **`true`** | 阶段 1 问题清单 P-01「Issue 载体不可用」不再成立。**D2 决策不变**，但其理由须改写为「避免双写 + 独立 clone 后任务状态仍完整」，而**不能**再引用「Issues 不可用」 |
 | `gh` 身份 | `ndldsn`（对本仓库 `pull` 只读） | **`huyanluanyuqaq`**（`admin: true`） | §6「`gh` 不可用」的结论作废；「由 Agent 创建 / 合并 PR」的阻塞解除 |
@@ -282,7 +297,9 @@ main                          → 未变动（e3231e7）
 | `has_issues` | `false`（阶段 1）→ `true`（2026-10-14，**漂移**） | **`false`**（2026-11-02 实测，TASK-056 **有意关闭**） | 关闭原因不是「不需要」：关闭前该通道实际不可用 —— 唯一入口是指向上游 Discussions 的 `contact_link`，且 `blank_issues_enabled: false`，建不出任何 Issue。**D2 决策不变**，其理由不依赖 Issues 的开关状态 |
 | `delete_branch_on_merge` | **未实测（本任务首次记录该项）** —— 改动前未执行 `gh api` 取证，PR 前的能力记录亦无该项留痕 | **`true`**（2026-11-02 实测，TASK-056 **有意开启**） | 分支清理从「靠人记得」变为平台自动执行，制度与实践的落差消除 |
 
-> **2026-11-02 的两项均为「有意改动」而非漂移**（执行载体 TASK-056，用户已裁决）。
+| `required_status_checks.contexts` | `["audit", "install-lint-build"]`（2026-10-14 配置时 2 项；TASK-056 合并前由执行位与主控位各自实测，原始输出见 TASK-056 的 `HANDOFF-001`） | **`["audit", "install-lint-build", "traceability"]`**（2026-11-02 实测，TASK-056 合并**之后**由**主控位**加入） | 平台门禁的**集合**扩增：`traceability` 由「非门禁」变为「门禁」。`AGENTS.md` §14.1/§14.4、`agent-collaboration.md` §4/§6、本文件 §2/§3/§5 中相关陈述已逐处更正，清单见 TASK-056 合并后收口的 Handoff |
+
+> **本表 2026-11-02 的各项均为「有意改动」而非漂移**（执行载体 TASK-056 / 其合并后收口，用户已裁决）。
 > 列于本节的理由与 2026-10-14 那次相同：它们同样是**不在版本历史内**的可变事实；
 > 若某天变回原值，那才是漂移。
 >
