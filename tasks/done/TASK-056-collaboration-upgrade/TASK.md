@@ -10,13 +10,13 @@
 Task ID: TASK-056
 Title: 协作体系整改（P1 失真 + P2 缺口）
 Workflow: maintenance
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: Codex（执行位 · developer）
 Owner Since: 2026-11-02T11:05:00+08:00
 Assigned Role: developer
 Created: 2026-11-02T11:05:00+08:00
-Updated: 2026-11-02T11:15:00+08:00
+Updated: 2026-11-02T20:20:00+08:00
 Branch: docs/TASK-056-collaboration-upgrade
 Requires Human Approval: true
 ```
@@ -201,13 +201,23 @@ run `41382053613`）。其中 `traceability` 在 CI 上实跑输出「待检 9 �
 
 ## Known Issues
 
-1. **`traceability` 当前不是门禁**：作业已进 `ci.yml`，但 `contexts` 仍为 `["audit","install-lint-build"]`。
-   必须**先合并本 PR，再加入必需检查**；顺序颠倒会让所有 PR 永久待处理，而 `enforce_admins=true` 无绕过通道。
+1. ~~**`traceability` 当前不是门禁**~~ → ✅ **已闭合（2026-11-02）**：PR #29 合并后由**主控位**把
+   `traceability` 加入分支保护必需检查，`contexts` 实测为 `["audit","install-lint-build","traceability"]`。
+   **启用顺序未被颠倒**：作业先进 `main`、后入必需检查。该纪律已作为**历史说明**保留在
+   `AGENTS.md` §14.1 与 `docs/operations/github-capability.md` §3，后续新增作业仍须遵守。
 2. **D13-C 回写欠账仍无判据**（审计 F-4b）：TASK-051 的欠账曾滚过三轮。
    建议后续新增「`tasks/review/` 中 `Status=REVIEW` 存续超过 1 个任务即告警」的检查，本任务未实现。
-3. **`rebase-merge` 改写 SHA**：合并后本任务审查记录中的提交 SHA 将不可达，需补「审查时 SHA → main 上 SHA」映射表（TASK-055 已有先例）。
+3. ~~**`rebase-merge` 改写 SHA**~~ → ✅ **已闭合（2026-11-02）**：10 个审查时 SHA 已在
+   `## Merge Record` 的「SHA 映射表」小节逐条补映射。**本任务的判定方式与 TASK-055 先例不同**：
+   rebase 基点由 `2ca5d50` 前移到 `d7cb861`，逐对 tree **不相同**，故改以 **patch-id 相同** +
+   `git range-diff` 为判据（详见该小节）。另有两个负向自测临时提交（`f93bcc71` / `9801af63`）
+   已 `reset --soft` 撤销，在任何 ref 下均不可达，**没有**也不可能有对应的 main SHA。
 4. **`audit_framework.py` 的 A3 依赖 PyYAML**：本机已装 6.0.3 并实跑通过（`PASS=13 SKIP=0`），但新环境默认仍 SKIP，不要据「A3 通过」推断无需装依赖。
 5. **历史 83 个提交缺 `Refs`**：刻意不追溯——追溯等于改写已推送历史，属受保护操作。
+6. **`.github/PULL_REQUEST_TEMPLATE.md` 仍写着「本仓库 Issues **已启用**」** —— 本任务的遗留失真
+   （AC-2 要求「Issues 已启用」类表述改为事实陈述，但漏掉了 PR 模板这一处）。
+   **合并后收口（2026-11-02）已登记但未修改**：该处不属于必需检查类陈述，修它属扩大范围，
+   已如实登记于 `handoffs/HANDOFF-002-implementer-to-coordinator.md` 的 Known Issues，待主控位裁决。
 
 ---
 
@@ -216,9 +226,14 @@ run `41382053613`）。其中 `traceability` 在 CI 上实跑输出「待检 9 �
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | developer（执行位） | reviewer（主控位） | 2026-11-02 | 11 条 AC 全部自测通过并附原始输出；平台侧改动已实测留证（`delete_branch_on_merge` 前值未取证，已如实标注）；未改分支保护 |
+| 002 | developer（执行位） | reviewer（主控位） | 2026-11-02 | 合并后收口：`traceability` 入必需检查的**前后原始输出**已贴录；10 处过期陈述按 `gh api` 实测值更正；Merge Record 九要素回填 + 10 行 SHA 映射表；三份主控位审查记录纳入版本控制；`audit-repo.py` 与 `prettier --check .` 退出码均 0 |
 
-**最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** 主控位在**新会话**中逐文件读实际差异，重点核对四处 Docker 表述与 `docker.yml` 第 52/54 行一致、且 §14.1 **没有**把 `traceability` 写成已生效门禁。
+**最新 Handoff：** `handoffs/HANDOFF-002-implementer-to-coordinator.md`
+**Next Action：** 主控位在**新会话**中逐文件复核本分支差异，重点核对三件事：
+① 10 处陈述更正的判定依据**全部是 `gh api` 实测输出**，无一处沿用文档既有陈述；
+② SHA 映射表的判定方式是 **patch-id + `range-diff`**，未照抄 TASK-055 的「tree 相同」判据
+（本任务 rebase 基点前移，逐对 tree 本就不相同）；
+③ 平台改动的前后原始输出已贴录，且**改动前值系引自 TASK-056 合并前的既有留证**、本任务未重新取证。
 
 ---
 
@@ -226,15 +241,76 @@ run `41382053613`）。其中 `traceability` 在 CI 上实跑输出「待检 9 �
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填（PR 号与合并执行者） |
+| PR | [#29](https://github.com/huyanluanyuqaq/shadcn-admin/pull/29) `docs(TASK-056): 协作体系整改 —— 3 处失真修正 + 3 处缺口补齐`；合并执行者 `huyanluanyuqaq` |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填（实测 `gh api repos/:owner/:repo/pulls/<N>/commits --jq 'length'`） |
-| merged_at | 待回填（实测 `gh api repos/:owner/:repo/pulls/<N>`） |
-| merge_commit_sha | 待回填（全 40 位 SHA） |
-| 合并后 CI run | 待回填（`actions/runs?head_sha=<SHA>` 实测 id + conclusion） |
-| 合并后 Docker run | 待回填（同上；docker.yml 触发的 run id + 镜像 tag） |
-| 镜像 tag | 待回填（`sha-<短SHA>`，DockerHub Tags API 实证在位） |
-| 审查记录 | 待回填（指向 `handoffs/YYYY-MM-DD-review.md`；无则如实写「无（A3 断档）」） |
+| 提交数 | **10**（实测 `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/29/commits --jq 'length'`；`changed_files=14`） |
+| merged_at | `2026-11-02T11:29:15Z` |
+| merge_commit_sha | `4958eb17e2873eec3a072d6b9b730cb7ea2b2179`（= 当前 `main` HEAD；父提交唯一 `bd4999c…`，线性历史，与 rebase-merge 一致） |
+| 合并后 CI run | `41437221317`（Continuous Integration，`event=push` `head_branch=main`，conclusion=**success**） |
+| 合并后 Docker run | `41437221458`（Build and Push Docker Image，`event=push` `head_branch=main`，conclusion=**success**） |
+| 镜像 tag | `sha-4958eb1`（DockerHub `nomorelatenights/subscription-admin`，digest `sha256:286158132fe66359cd3e8699a695df0e4d77e04b755f7a61ffb71ae494bac406`，`last_updated=2026-11-02T11:34:02.346126Z`） |
+| 审查记录 | `handoffs/2026-11-02-coordinator-review.md`（主控位第 1 轮：PASS 有条件，F-1~F-4）+ `handoffs/2026-11-02-coordinator-review-round2.md`（第 2 轮复核：PASS，四项全部闭合） |
+
+**合并未推进 `latest`**：`latest` 至今仍为 `sha256:b6da326e15e41c9e…`，等于 `v1.0.7` =
+`sha-e563800`（TASK-051 的合并产物），**不是**本任务的 `sha-4958eb1`。印证 `docker.yml` 的
+metadata `enable=${{ github.ref_type == 'tag' }}` 门禁：普通合并只产出 `sha-*` 镜像，
+`latest` 只在打版本 tag 时前进。
+
+**复现命令**（下列各条均于 2026-11-02 在本仓实跑，输出即上表数值）：
+
+```bash
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/29 \
+  --jq '{number,merged,merged_at,merge_commit_sha,commits,changed_files,merged_by}'
+gh api "repos/huyanluanyuqaq/shadcn-admin/actions/runs?head_sha=4958eb17e2873eec3a072d6b9b730cb7ea2b2179" \
+  --jq '.workflow_runs[] | {id,name,event,head_branch,conclusion}'
+gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection/required_status_checks
+git log --format="%H %P %s" -1 4958eb17e2873eec3a072d6b9b730cb7ea2b2179
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-4958eb1
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/latest
+```
+
+### SHA 映射表（rebase-merge 改写前后的对应关系）
+
+rebase-merge **改写了全部 10 个 SHA**：审查记录里引用的旧 SHA 在当前 `main` 上**均不可达**
+（`git merge-base --is-ancestor <旧SHA> main` 对 10 条全部返回非 0）。本表供复核者把历史审查记录
+里的旧 SHA 对应到 `main` 上的真实提交。
+
+> ⚠️ **本任务的判定方式与 TASK-055 先例不同，不得照抄。** TASK-055 的 rebase 基点未变
+> （`2ca5d50` → `2ca5d50`，两棵树均为 `d3ab9af1…`），故当时可用「tree 相同」作判据；
+> 本任务的 rebase 基点由 `2ca5d50` **前移到 `d7cb861`**（PR #28 / #30 已合并），
+> 逐对 tree **均不相同**。故本表改以 **patch-id 相同**为判据
+> （`git show --format= <SHA> | git patch-id --stable`），并用 `git range-diff` 对 10 条做整体核对，
+> 结果全部为 `=`（等价）。
+
+| 审查时 SHA | main 上 SHA | 标题 | 内容对应核对 |
+|-----------|------------|------|--------------|
+| `e9a994f` | `4b0567e` | docs(TASK-056): 登记协作体系整改任务 | patch-id `67e4c9bd` 相同 |
+| `f04831a` | `98c8c15` | docs(TASK-056): 协作体系审计报告入库 | patch-id `9099c955` 相同 |
+| `c28da6a` | `e985e7c` | feat(TASK-056): 新增任务可追溯性检查并用独立作业承载 | patch-id `28c029f0` 相同 |
+| `aaa02d1` | `326a939` | docs(TASK-056): 更正 Docker 触发口径与 Issue 通道的失真 | patch-id `4fe4f833` 相同 |
+| `9551e20` | `fcb63ee` | docs(TASK-056): 补充效率度量口径与场景验证清单 | patch-id `1749e618` 相同 |
+| `b3b21b5` | `fe4da69` | docs(TASK-056): 统一两份历史档案的 Meta 结构 | patch-id `90c1f68c` 相同 |
+| `82f057f` | `247fdc7` | docs(TASK-056): 回填首次度量基线 | patch-id `257c77a0` 相同 |
+| `075e087` | `b6f51bb` | docs(TASK-056): 档案收口并转入待审查 | patch-id `bd2ab502` 相同 |
+| `f9ee16e` | `bd4999c` | docs(TASK-056): 档案登记交付请求号与 CI 实测 | patch-id `82060b81` 相同 |
+| `c701418` | `4958eb1` | docs(TASK-056): 主控位审查 F-1~F-4 已改正（= merge commit） | patch-id `a7677a43` 相同 |
+
+**核对命令**（均于 2026-11-02 在本仓实跑，输出即上表结论）：
+
+```bash
+# ① 旧 SHA 在 main 上不可达（10 条全部返回 1）
+for s in e9a994f f04831a c28da6a aaa02d1 9551e20 b3b21b5 82f057f 075e087 f9ee16e c701418; do
+  git merge-base --is-ancestor $s main; echo "$s -> $?"
+done
+# ② 逐对 patch-id 相同 + 整体等价（输出 10 行全部为 `=`）
+git range-diff 2ca5d50..c701418 d7cb861..4958eb1
+```
+
+**另有两个负向自测临时提交**（`f93bcc71` / `9801af63`，见 `HANDOFF-001` 测试表）：测后已
+`reset --soft` 撤销，在任何 ref 下均不可达（`git branch -a --contains` 为空），**没有**、
+也不可能有对应的 main SHA —— 如实登记，不补造映射。
+
+> **本表为追加，未改写任何 `handoffs/*.md` 内文的旧 SHA / 旧数字**（历史记录不得篡改）。
 
 ---
 
