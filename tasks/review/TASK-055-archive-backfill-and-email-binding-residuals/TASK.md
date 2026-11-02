@@ -308,6 +308,17 @@ cd server && SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_DB_DIR=…/t055-smoke-da
   ./node_modules/.bin/tsx scripts/smoke.ts
 ```
 
+> **⚠ 配方修正（2026-11-02，TASK-058 定位后追加；上方原始配方保持原样未改）。**
+> 上面 ② ③ 中的 `SMOKE_DB_DIR=…/t055-smoke-data` 是**错的**：服务端把恢复标记
+> `.restore-pending.json` 写在**数据库同目录**（`server/src/db/restore.ts` 的
+> `restoreMarkerPath(dbPath) = join(dirname(dbPath), '.restore-pending.json')`），
+> 与 `app.db` / `backups/` 平级；另设一个「数据目录」会让 19.17 在错误的位置
+> 找不到标记而失败（TASK-058 C 簇根因）。
+> **正确口径**：`SMOKE_DB_DIR` 必须等于快照 `.db` 文件所在的目录**本身**，
+> 即本例中应填 `…/.t055-tmp`（与 `t055-smoke.db` 同级）。
+> `smoke.ts` 头部注释原本就写着「`SMOKE_DB_DIR=<服务端数据库所在目录>`」，
+> 是本配方自己违背了它；TASK-058 已在脚本头部补上更醒目的说明。
+
 **改动后（本分支）实跑结果：**
 
 ```text
@@ -489,6 +500,33 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
    ① 流量阈值 6 项 + 仪表盘 stats 1 项 = 7 项（`/api/reminders/scan` 未生成提醒行）；
    ② 邮箱绑定 sync **6** 项被 TASK-053 的 R2 守卫 409 拒绝，**smoke 脚本期望过期**；
    ③ 备份恢复标记 1 项（19.17）。修哪一簇都需另立任务，**本任务不处置**。
+
+   > **追加（2026-11-02，TASK-058 逐簇根因验证结论；上方历史登记一字未改）。**
+   > 三簇均已定位完毕，结论如下。**初步归因有两处偏差，此处如实更正**：
+   >
+   > - **A 簇（7 项）= smoke 前置构造过期，不是产品缺陷。**
+   >   11.5 段客户 A/B 只填 `trafficTotal`；`effectiveCustomerTrafficTotal` 经
+   >   TASK-023 降位、TASK-046（`6828e2b`）起只认 `trafficManualCap ?? 套餐月流量`，
+   >   两者皆空即「不限流量」，扫描直接跳过。决定性证据是「同一客户、只改上限来源」的
+   >   探针：只填 `trafficTotal` → `{"checked":0,"notified":0,"reset":0}`、
+   >   仪表盘缺席；补 `trafficManualCap` → `{"checked":1,"notified":1}` + 1 条站内提醒。
+   >   `api-contract.md` 与 TASK-013 AC-3~AC-6 均**不**要求「只填 `trafficTotal` 必须触发」，
+   >   故不存在「文档与实现从未一致」的跨任务历史问题。
+   > - **B 簇（6 项）= 两个独立根因，原登记只记了一个。**
+   >   B-1（前 4 条）：12.9 段把 sync 打到第 5 段的主订阅，而该订阅已被
+   >   `mail<suffix>@example.com` 占用 ⇒ TASK-053 R2 守卫 409（**既定语义**，AC-8）。
+   >   B-2（后 2 条）：库里那行绑定**确实存在**（只读连接直查证实），但
+   >   `GET /api/email-bindings` 的 `listCondition` 只显示「仅注册 / 到期回落」
+   >   （TASK-053 AC-3/AC-5），`expire_at` 为 NULL 的订阅其绑定被过滤 ⇒ 列表空、
+   >   `poolId` 筛选为 0。二者都是「期望写于 TASK-053 之前」的脚本侧过期。
+   > - **C 簇（1 项）= 测试配方错误，不是产品缺陷。**
+   >   `.restore-pending.json` 由服务端写在**数据库同目录**（`db/restore.ts` 的
+   >   `restoreMarkerPath`），内容与 19.16 请求目标一致；本档案「V 组实测记录」给出的
+   >   配方却把 `SMOKE_DB_DIR` 另设成与库文件不同级的子目录，19.17 因此在错误位置找不到它。
+   >   **配方修正**：`SMOKE_DB_DIR` 必须等于快照库所在目录本身。
+   > - **三簇合计 0 个产品缺陷**：`server/src/**` 一行未改。TASK-058 以
+   >   「HEAD 版 smoke + 修正配方 = 13 失败」与「修复后 smoke + 修正配方 = 0 失败」
+   >   两次对照运行证明每处修复承重。
 2. **D 组两项脏数据查询的结果是 vacuous**：`email_bindings` 表当前 **0 行**，
    两条查询必然返回空。这不等于「数据干净」，只等于「无数据可脏」。
    若将来该表有数据，需重跑核查；在那之前，「大小写重复 / 一事一邮箱被破坏」两项规则
