@@ -253,9 +253,11 @@ run `41382053613`）。其中 `traceability` 在 CI 上实跑输出「待检 9 �
 
 > **合并后收口另立交付请求 PR #31**（分支 `docs/TASK-056-required-check-and-archive`，自 `4958eb1` 切出）：
 > 承载「`traceability` 入必需检查」的 10 处陈述更正、本表上方的 SHA 映射表、归档与三份审查记录入库。
-> PR #31 上三个必需检查（`install-lint-build` / `audit` / `traceability`）在两个头上均**全部 pass**：
-> 首个头 run `41445100903`、最终头 run `41445560434`（`mergeStateStatus: CLEAN`、`mergeable: MERGEABLE`）。
+> PR #31 上三个必需检查（`install-lint-build` / `audit` / `traceability`）在**每一个被推送的头**上均**全部 pass**
+> （书写本行时的最新头 `f03cddc` → run `41445860607`；更早的头 `e2506e6` → `41445100903`、
+> `f32454e` → `41445560434`）。`mergeStateStatus: CLEAN`、`mergeable: MERGEABLE`。
 > 这同时是「`traceability` 确实已成为门禁」的端到端实证 —— 它由平台**要求**、且确实参与拦截。
+> **后续若再推送，run 号会变而判据不变**：`gh pr checks 31` 三项全 pass + `mergeStateStatus: CLEAN`。
 
 **合并未推进 `latest`**：`latest` 至今仍为 `sha256:b6da326e15e41c9e…`，等于 `v1.0.7` =
 `sha-e563800`（TASK-051 的合并产物），**不是**本任务的 `sha-4958eb1`。印证 `docker.yml` 的
