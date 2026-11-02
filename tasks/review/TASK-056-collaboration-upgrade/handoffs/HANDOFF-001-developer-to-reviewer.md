@@ -13,9 +13,10 @@ Branch: docs/TASK-056-collaboration-upgrade
 
 ## Completed Work
 
-1. **平台侧改动（先改后测，前后值都留证）**
+1. **平台侧改动（改动后实测留证；前值取证情况逐项如实标注）**
    - 关闭 Issues：`has_issues` `true → false`（用户裁决；关闭前该通道实际不可用，见审计 F-2）。
-   - 开启合并后自动删分支：`delete_branch_on_merge` `false → true`。
+   - 开启合并后自动删分支：`delete_branch_on_merge` 改为 `true`（**前值未取证**：改动前未记录原始输出，
+     本任务首次以原始输出记录该项；Task Rule「改动前先记录原始值」对本项**未满足**，如实标注）。
    - **未改动**分支保护（新增必需检查须在本 PR 合并之后进行，见 Remaining Work）。
 
 2. **失真修正 3 处**
@@ -59,13 +60,14 @@ Branch: docs/TASK-056-collaboration-upgrade
 |----|------|--------|---------|
 | 仓库级审计 | `python3 scripts/audit-repo.py` | 0 | `PASS=9 FAIL=0 WARN=0` |
 | 框架自检 | `python3 shared/scripts/audit_framework.py` | 0 | `PASS=13 FAIL=0 WARN=0 SKIP=0` |
-| 可追溯性（正向） | `python3 scripts/check-traceability.py --base origin/main` | 0 | 6 个提交均引用真实任务 |
+| 可追溯性（正向） | `python3 scripts/check-traceability.py --base origin/main` | 0 | 9 个提交均引用真实任务 |
 | 可追溯性（负向 1） | 同上，临时提交引用 `TASK-999` | 1 | 指名 `f93bcc71` 引用了不存在的任务 |
 | 可追溯性（负向 2） | 同上，临时提交无 `Refs` | 1 | 指名 `9801af63` 缺 `Refs: TASK-NNN` |
 | YAML 合法性 | `python3 -c "yaml.safe_load(ci.yml)"` | 0 | `jobs: install-lint-build / audit / traceability` |
 | 状态一致性 | 全 55 份档案 `^Status:` 与目录比对 | 0 | `mismatch: 0` |
 
-原始输出（2026-11-02 11:10 实跑）：
+原始输出（2026-11-02 实跑；「traceability 正向」一栏已按主控位审查 F-2 重跑复核，提交数 6 → 9，
+与 CI run `41382053613` 的输出一致）：
 
 ```text
 ### audit-repo.py
@@ -85,8 +87,8 @@ PASS=13  FAIL=0  WARN=0  SKIP=0
 54:    tags: ["v*"]
 
 ### traceability 正向
-[traceability] 基线 origin/main，待检 6 个提交，已知任务 54 个。
-[traceability] PASS —— 6 个提交均引用了真实存在的任务。
+[traceability] 基线 origin/main，待检 9 个提交，已知任务 54 个。
+[traceability] PASS —— 9 个提交均引用了真实存在的任务。
 
 ### M6 度量（ci.yml 近 30 次）
 {"failure":4,"success":26}
@@ -113,6 +115,9 @@ exit=1
    提交 SHA 将不可达，需按 TASK-055 的做法补映射表，或在模板中固化该要求。
 4. **A3 依赖 PyYAML**：本机已安装 6.0.3 并实跑通过，但新环境默认仍会 SKIP。
 5. **历史 83 个提交缺 `Refs`**：刻意不追溯（追溯等于改写已推送历史，属受保护操作）。
+6. **`delete_branch_on_merge` 改动前值未取证**（主控位审查 F-1）：Task Rule 要求「平台侧改动前先记录
+   改动前的原始值」，但本项改动前未执行 `gh api`，PR 前的能力记录亦无该项留痕。已在能力记录 §1/§8 与
+   本文件 §1 改为「前值未取证 / 未实测」，**未保留**无证据的「此前为 `false`」。
 
 ## Remaining Work
 
