@@ -10,14 +10,14 @@
 Task ID: TASK-059
 Title: 框架模板修复漂移 + SHA 映射表制度化
 Workflow: maintenance
-Status: BACKLOG
+Status: ACTIVE
 Priority: P1
-Owner: ""
-Owner Since: ""
+Owner: main
+Owner Since: 2026-11-02
 Assigned Role: developer
 Created: 2026-11-02T22:05:00+08:00
 Updated: 2026-11-02T22:05:00+08:00
-Branch: ""
+Branch: feat/TASK-059-snapshot-sync
 Requires Human Approval: false
 ```
 
@@ -177,13 +177,17 @@ Non-Scope (files):
 
 ## Current State
 
-**BACKLOG（2026-11-02 登记，未开始）。** 等待执行位领取。
+**ACTIVE（2026-11-02 登记，已领取并完成 U+M+D+V 四组操作）。** 全量门禁 PASS=10 FAIL=0 WARN=0，prettier 全绿，待交主控位审查（不得自行合并）。
 
 ## Changed Files
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| — | — | 尚未开始 |
+| `templates/task/TASK.md`（模板仓 + 本项目） | 新增 `## Merge Record` 章节（逐字从本项目版上移） | U 组 + D 组；同步后 diff -rq 零输出 |
+| `templates/task/TASK.md`（模板仓 + 本项目） | 新增 `### SHA 映射表` 子章节 | M 组：两种判据方法 + 验证纪律 |
+| `scripts/audit-repo.py`（本项目） | 新增 F10 检查函数 + 加入 CHECKS 列表 | V 组：快照一致性可执行判据 |
+| `AGENTS.md` §10（本项目） | 新增 F10 门禁指向，逐字快照声称重新为真 | AC-6 |
+| `docs/operations/negative-assertion-review.md`（本项目） | 更新 C9 复核命令；新增 C18 | 漂移修复登记 |
 
 ## Known Issues
 
@@ -199,11 +203,10 @@ Non-Scope (files):
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
-| — | — | — | — | 尚未开始 |
+| 001 | main（执行位） | 主控位 | 2026-11-02 | U+M+D+V 四组全部完成；PASS=10 FAIL=0 WARN=0，prettier 全绿，PR 已开（引用模板仓本地分支 feat/TASK-059-sha-mapping），待审查后合并，不得自行合入 |
 
-**最新 Handoff：** 无
-**Next Action：** 执行位领取后**先做 U 组**（上同步修复漂移），再做 M 组；
-D/V 组依赖模板仓 PR 先合并。
+**最新 Handoff：** 见上表
+**Next Action：** 主控位审查两个仓库的改动（模板仓本地分支 feat/TASK-059-sha-mapping + shadcn-admin 分支 feat/TASK-059-snapshot-sync），确认全量门禁退出码 0 后合并 shadcn-admin PR。
 
 ## Merge Record
 
