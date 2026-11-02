@@ -251,6 +251,9 @@ docker compose up -d --build
 | 技术文档 | `docs/technical/` |
 | 架构决策记录 | `docs/decisions/` |
 | 运维文档 | `docs/operations/`（含 `agent-constraints.md`、`github-capability.md`、`negative-assertion-review.md`） |
+| **协作体系审计（时点性事实记录）** | `docs/operations/collaboration-audit.md`（TASK-056，含发现清单与复现命令） |
+| **协作效率度量口径** | `docs/operations/collaboration-metrics.md`（TASK-056，仅定义与采集方法） |
+| **协作场景验证清单** | `docs/operations/collaboration-scenarios.md`（TASK-056，A~G 场景与结论等级） |
 | **Agent 协作流程** | `docs/agent-collaboration.md` |
 | **Git 工作流** | `docs/git-workflow.md` |
 | **GitHub 平台能力记录** | `docs/operations/github-capability.md` |
@@ -383,9 +386,16 @@ Task 规则（TASK.md 的 Task Rules 节）
 | --- | --- | --- | --- |
 | `install-lint-build` | `.github/workflows/ci.yml` | 静态 / 格式 / 测试 / 构建 | 是 |
 | `audit` | `.github/workflows/ci.yml` | 仓库级框架一致性审计 | 是 |
+| `traceability` | `.github/workflows/ci.yml` | 交付可追溯性：PR 内每个提交必须引用真实存在的任务 | **否（TASK-056 已落地作业，尚未设为必需）** |
 
 作业名**必须与工作流文件中的名称完全一致**，否则必需检查会永远处于「待处理」状态。
 `scripts/audit-repo.py` 会在 CI 中校验本节与工作流实际作业名是否一致。
+
+> ⚠️ **`traceability` 当前不是门禁。** 它是 TASK-056 新增的作业，已随该任务进入 `main`，
+> 但**尚未**加入分支保护的必需检查（平台实测值见 `docs/operations/github-capability.md` §3）。
+> **启用顺序不可颠倒**：作业必须先存在于默认分支，再加进必需检查 ——
+> 否则所有 PR 会永久等待一个不存在的作业，而 `enforce_admins=true` 没有绕过通道。
+> 在实测到它出现在 `required_status_checks.contexts` 之前，**不得**把它称为必需检查。
 
 ### 14.2 合并策略
 
@@ -397,11 +407,23 @@ Task 规则（TASK.md 的 Task Rules 节）
   并须在其 `TASK.md` 诚实标注「归档回写待下一个任务补记」。
   规范来源：`.agents/rules/github.md` §2 / §6（TASK-039 起 `.agents/**` **已在本仓库内**，独立 clone 后同样可读）。
 
-### 14.3 发布与合并解耦（重要）
+### 14.3 构建与发布（重要）
 
-`.github/workflows/docker.yml` 已改为 **仅由版本 tag（`v*`）触发**。
-**普通合并不会发布镜像**；发布是需要单独授权的显式动作。
-副作用：`:latest` 标签只在打版本 tag 时前进，不再随 `main` 分支变化。
+`.github/workflows/docker.yml` 由**两类事件**触发：
+
+- **推送/合并到 `main`** → 自动构建并推送 `sha-<短SHA>` 镜像（把「某次合并」对应到一个可追溯镜像），
+  **不推进** `latest` 与版本号；
+- **推送版本 tag（`v*`）** → 对外发布，推进 `latest` + 版本号 + `sha`。
+
+因此「合并」与「对外发布」是**两件不同的事**：普通合并**会**产出镜像，但**不会**改变 `latest`。
+保证这一点的**不是触发器**（触发器对两者都开），而是 metadata-action 的
+`enable=${{ github.ref_type == 'tag' }}` 门禁（见 `docker.yml` 的 tags 段）。
+发布仍是需要单独授权的显式动作（打 tag），且工作流内**不含**任何自动打 tag 逻辑。
+
+> **历史沿革（防止再次误读）：** TASK-031 期的方案（D8）曾把触发器改为 tag-only；
+> **TASK-045 起改为「合并即构建」**，以保留合并级的镜像追溯能力，`latest` 的语义未变。
+> 本段与 `docs/operations/docker-release.md` §1/§3 必须一致；**两处不一致时以实现为准**。
+> 实测：`gh run list --workflow=docker.yml --limit 5` 可见 `event=push`、`headBranch=main` 的成功运行。
 
 ### 14.4 平台门禁现状（务必如实理解）
 
@@ -432,8 +454,14 @@ Task 规则（TASK.md 的 Task Rules 节）
 
 - 交付请求模板：`.github/PULL_REQUEST_TEMPLATE.md`（字段来源见 `docs/agent-collaboration.md` §5，**不得双写**）。
 - 仓库级框架审计：`scripts/audit-repo.py`（只读、无网络、可在本地直接运行）。
+- **可追溯性检查**：`scripts/check-traceability.py`（TASK-056；只读、无网络）
+  —— 校验 PR 内每个提交的 `Refs: TASK-NNN` 且该任务真实存在，判据区间为 `base..HEAD`，**不追溯历史**。
 - 依赖更新：`.github/dependabot.yml`（npm / github-actions / docker）。
-- **不设** `.github/CODEOWNERS`：单一平台身份且必需批准数为 0 时它不具备强制力。
+- **不设** `.github/CODEOWNERS`：单一平台身份且必需批准数为 0 时它**不具备强制力**——
+  它只自动请求审查者，不创建独立身份、不启用审批、不阻止合并。
+- **Issue 通道：已关闭**（TASK-056）。任务台账一律是 `tasks/**/TASK.md`，平台上不存在第二套状态来源。
+- 「刻意不采用」项（CODEOWNERS / Merge Queue / 会话解决 / `strict`）的逐项理由见
+  `docs/operations/github-capability.md` §9 —— **不得把「未采用」读成「欠账」**。
 
 ### 14.6 上游遗留资产（保留但**不适用**本仓库）
 
@@ -441,6 +469,10 @@ Task 规则（TASK.md 的 Task Rules 节）
 保留以避免制造无意义的差异：
 
 `.github/ISSUE_TEMPLATE/`（指向上游 Discussions）、`.github/CODE_OF_CONDUCT.md`、`.github/FUNDING.yml`、`netlify.toml`（静态部署配置，已被 docker compose 取代）。
+
+> **`ISSUE_TEMPLATE/` 自 TASK-056 起完全惰性**：该任务已关闭本仓库的 Issues
+> （原状态是「开启但唯一入口指向上游、无法建单」，属「名义有、实际无」）。
+> 模板文件刻意保留，仅为避免与上游产生无意义差异；**不得**据其存在推断 Issues 可用。
 
 `stale.yml` **已处置**（TASK-033）：上游原配置为「每日定时运行 + 同时处理 Issue 与 PR」，
 本项目已移除 `schedule` 触发器（仅保留手动 `workflow_dispatch`）、PR 侧处理置 `-1` 禁用、

@@ -73,13 +73,16 @@
 | 9 整改与复审 | 执行位 → 主控位 | 同分支追加提交 → 复审 | 阻断项关闭且**经复核**，而非仅标记已解决 |
 | 10 合并与归档 | 主控位 | 按 `git-workflow.md` §4 合并、回写 `TASK.md` | Merge Record 含 PR 号与 CI run id |
 
-> **关于 Issue：** 本仓库 **Issues 已启用**（`has_issues=true`，2026-10-14 实测），
-> 但它**不参与状态与审查**，任务状态一律以 `tasks/**/TASK.md` 为准；Issue 至多作为只读索引。
+> **关于 Issue：** 本仓库的 Issues **已于 TASK-056 关闭**（2026-11-02 实测 `has_issues=false`）。
+> 关闭前的状态是「开启但不可用」—— 唯一入口是指向上游仓库 Discussions 的 `contact_link`，
+> 且 `blank_issues_enabled: false`，因此本仓库**建不出任何 Issue**，历史记录为 0 条。
+> 任务状态一律以 `tasks/**/TASK.md` 为准，平台上**不存在**第二套状态来源。
 >
 > **本决策不依赖 Issues 的开关状态。** 无论启用与否，都保持「文件为唯一事实来源」，
-> 理由是**避免双写**、以及仓库被单独 clone 后任务状态仍然完整——而不是「Issues 不可用」。
-> 阶段 1 调研读到的该值为 `false`（原始输出见设计方案附录），说明**平台事实会漂移**：
-> 引用 [`operations/github-capability.md`](operations/github-capability.md) §8 前须重新实测。
+> 理由是**避免双写**、仓库被单独 clone 后任务状态仍然完整、以及单一平台身份下
+> Issue 无法承担「谁批准了谁」的状态机 —— 而不是「Issues 不可用」。
+> 平台事实会漂移（该值曾经历 `false → true → false`）：引用
+> [`operations/github-capability.md`](operations/github-capability.md) §8 前须重新实测。
 
 ---
 
@@ -90,6 +93,11 @@ CI 的触发条件与作业名以 `.github/workflows/ci.yml` 为准。
 
 **判断一个检查是否构成门禁的唯一标准：它是否在合并之前运行。**
 只在合并后才触发的检查，无论多绿，**都不是门禁**——它是在代码已经落地之后才跑的。
+
+**可追溯性检查（TASK-056 新增）：** `scripts/check-traceability.py` 已在 CI 中作为
+`traceability` 作业运行，校验 PR 内每个提交的 `Refs: TASK-NNN` 且该任务真实存在。
+**但它尚未被加入分支保护的必需检查**，因此**当前不构成门禁** —— 它的状态以
+`AGENTS.md` §14.1 与 `operations/github-capability.md` §3 的实测值为准。
 
 **禁止**为使检查变绿而删除测试、放宽断言、伪造结果或绕过保护规则。
 
@@ -134,7 +142,7 @@ PR 描述**不产生新信息**，它是层 1 的渲染：
 | 实现者 ≠ 批准者 | **否**（单一平台身份） | 自觉（约定） | 必需批准数固定为 **0**，平台**不提供**第二人批准；靠换会话审查 + `Known Issues` 披露 + 证据落 `handoffs/` |
 | 合并前必须经过实质审查 | **否** | 自觉（约定） | 审查证据必须落到 `handoffs/` |
 | 提交信息 / 分支命名规范 | **否** | 自觉（约定） | 由约定与后续自动化检查承担 |
-| 合并与对外发布解耦 | **否**（平台不强制任何发布行为） | **仓库文件**（`docker.yml` tag-only） | 不依赖平台设置，也**不依赖人的自觉** —— 平台无从触发一个不存在的触发器。实测见 `operations/github-capability.md` §4 |
+| 合并与对外发布解耦 | **否**（平台不强制任何发布行为） | **仓库文件**（`docker.yml` 的 metadata `enable=${{ github.ref_type == 'tag' }}` 门禁） | 合并**会**产出 `sha-*` 镜像，但 `latest` 仅在 tag 时前进；拦截点是 metadata 门禁，**不是触发器**（触发器对 `main` 与 tag 均开启）。实测见 `operations/github-capability.md` §4 |
 | 高风险操作需人类批准 | **否** | 自觉（制度门禁） | —— |
 
 > **固定披露项：** 两个协作位共用同一平台身份时，平台审计**无法区分**
