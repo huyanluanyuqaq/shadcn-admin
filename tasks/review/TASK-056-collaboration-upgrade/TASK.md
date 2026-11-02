@@ -10,13 +10,13 @@
 Task ID: TASK-056
 Title: 协作体系整改（P1 失真 + P2 缺口）
 Workflow: maintenance
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: Codex（执行位 · developer）
 Owner Since: 2026-11-02T11:05:00+08:00
 Assigned Role: developer
 Created: 2026-11-02T11:05:00+08:00
-Updated: 2026-11-02T11:05:00+08:00
+Updated: 2026-11-02T11:10:00+08:00
 Branch: docs/TASK-056-collaboration-upgrade
 Requires Human Approval: true
 ```
@@ -107,17 +107,17 @@ Requires Human Approval: true
 
 ## Acceptance Criteria
 
-- [ ] AC-1: `grep -rn "仅由版本 tag\|tag-only" AGENTS.md docs/` 在 4 处原位置**无命中**，且 `docker.yml` 的 `branches: ["main"]` 与文档表述逐条对应
-- [ ] AC-2: `gh api repos/huyanluanyuqaq/shadcn-admin --jq .has_issues` 返回 `false`，且 `docs/operations/github-capability.md` §1 记录该实测值与日期
-- [ ] AC-3: `scripts/check-traceability.py` 存在；`python3 scripts/check-traceability.py --base origin/main` 在本分支返回 PASS（退出码 0）
-- [ ] AC-4: 反向验证：构造一个缺 `Refs` 的临时提交后脚本退出码为 1 并指名该提交；构造引用 `TASK-999` 后退出码为 1；两例验证后临时提交被删除（`git log` 无残留）
-- [ ] AC-5: `ci.yml` 中 `traceability` 作业存在且仅由 `pull_request` 触发；`audit-repo.py` F6 仍 PASS
-- [ ] AC-6: `AGENTS.md` §14.1 与能力记录 §3 **如实标注** `traceability` 当前**尚未**设为必需检查，并写明启用顺序
-- [ ] AC-7: `docs/operations/collaboration-metrics.md` 含 7 项指标定义 + 每项至少一条可实跑命令，且至少一条命令本轮实际执行过并留证
-- [ ] AC-8: `docs/operations/collaboration-scenarios.md` 覆盖 A~G 七场景，每场景含判据/承载文件/本次结论，且结论区分「已验证」「纸面满足未演练」
-- [ ] AC-9: `python3 scripts/audit-repo.py` → `FAIL=0`；`python3 shared/scripts/audit_framework.py` → `FAIL=0`
-- [ ] AC-10: `gh api .../branches/main/protection --jq .required_pull_request_reviews.required_approving_review_count` 与能力记录一致；`delete_branch_on_merge` 实测为 `true` 并已记录
-- [ ] AC-11: TASK-033 / TASK-035 的 Meta 为 yaml 块且可被 `^Status:` 解析；`git diff` 显示除该段落外无其他改动
+- [x] AC-1: `grep -rn "仅由版本 tag\|tag-only" AGENTS.md docs/` —— 4 处原位已无该断言；剩余命中仅两处「历史沿革」说明（`AGENTS.md` §14.3）与审计报告/负向清单的**引用性**提及。`docker.yml` 的 `branches: ["main"]`（第 52 行）与 `tags: ["v*"]`（第 54 行）与文档表述逐条对应。
+- [x] AC-2: `gh api ... --jq .has_issues` → `false`；`docs/operations/github-capability.md` §1 记录该实测值与日期（2026-11-02）。
+- [x] AC-3: `python3 scripts/check-traceability.py --base origin/main` → `PASS —— 6 个提交均引用了真实存在的任务`，退出码 0。
+- [x] AC-4: 反向验证两例均变红：① 引用 `TASK-999` → 退出码 1 并指名提交 `f93bcc71`；② 无 `Refs` footer → 退出码 1 并指名提交 `9801af63`。两例的临时提交均已用 `git reset --soft HEAD~1` 移除，`git log -1` 回到 `b3b21b5`，工作区 clean。
+- [x] AC-5: `ci.yml` 的 `traceability` 作业存在，`if: github.event_name == 'pull_request'`；`audit-repo.py` F6 → `3 个必需检查名与工作流作业名一致`（PASS）。
+- [x] AC-6: `AGENTS.md` §14.1 该行标「**否（TASK-056 已落地作业，尚未设为必需）**」并写明启用顺序；能力记录 §3 实测 `contexts` 仍为 `["audit","install-lint-build"]`，明确「当前不是门禁」。
+- [x] AC-7: `collaboration-metrics.md` 含 7 项指标定义与采集命令；本轮实跑 M6 与 M4 的采集命令（`gh run list --workflow=ci.yml`、`git ls-remote --heads origin`），原始输出见 Handoff §4。
+- [x] AC-8: `collaboration-scenarios.md` 覆盖 A~G，每场景含判据/承载文件/结论；结论分级为 5 已验证、1 纸面满足（并行）、1 部分验证（主分支前进，暴露 SHA 失效缺口）。
+- [x] AC-9: `audit-repo.py` → `PASS=9 FAIL=0 WARN=0`；`audit_framework.py` → `PASS=13 FAIL=0 SKIP=0`（安装 PyYAML 6.0.3 后 A3 实跑）。
+- [x] AC-10: `gh api .../branches/main/protection` → `approvals=0`、`enforce_admins=true`；`delete_branch_on_merge` 实测 `true` 并已记录于能力记录 §1/§8。
+- [x] AC-11: 两份档案的 Meta 已改为 yaml 块，`^Status:` 可解析（全 55 份状态/目录一致性检查 `mismatch: 0`）；`git diff` 显示仅 Meta 段与就地说明变化，字段值逐字保留。
 
 ---
 
@@ -173,23 +173,37 @@ Non-Scope (files):
 
 ## Current State
 
-ACTIVE。已完成审计与方案裁决；本任务按 Implementation Plan 执行中。
-
----
+**REVIEW（2026-11-02 11:10）。** 执行位已完成全部 11 条 AC 并自测通过，交付请求待建。
+主控位审查通过后合并；**合并后**由主控位把 `traceability` 加入必需检查（顺序不可颠倒，见 Known Issues 1）。
 
 ## Changed Files
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| （执行中，收尾时按实测回填） | — | — |
-
----
+| `scripts/check-traceability.py` | 新增 | 可追溯性检查（stdlib + git，无网络、无凭据） |
+| `.github/workflows/ci.yml` | 修改 | 新增 `traceability` 作业（仅 `pull_request`，`fetch-depth: 0`，检出 `head.sha`） |
+| `AGENTS.md` | 修改 | §9 文档索引；§14.1 检查表（标注 traceability 未设为必需）；§14.3 触发口径；§14.5 Issue 通道与不采用清单；§14.6 模板惰性说明 |
+| `docs/git-workflow.md` | 修改 | §4「合并不等于发布」改为准确表述（合并产镜像、不推 latest） |
+| `docs/agent-collaboration.md` | 修改 | §3 Issue 段改事实陈述；§4 增可追溯性说明；§6 落差表该行 |
+| `docs/operations/github-capability.md` | 修改 | §1 平台事实；§3 检查清单 + 实测；§5 落差表该行；§8 漂移记录；新增 §9 刻意不采用清单 |
+| `docs/operations/negative-assertion-review.md` | 修改 | 新增 P3/P4/C17 与「成对文档一致 ≠ 正确」的判据纪律 |
+| `docs/operations/collaboration-audit.md` | 新增 | 审计报告：11 项发现、新旧对比、复现命令、6 项残余限制 |
+| `docs/operations/collaboration-metrics.md` | 新增 | 7 项度量口径 + 首次基线（M6 失败率 13.3%） |
+| `docs/operations/collaboration-scenarios.md` | 新增 | A~G 场景验证与结论分级 |
+| `tasks/done/TASK-033-stage3-platform-record/TASK.md` | 修改 | Meta 结构（表格 → yaml 块），字段值逐字保留 |
+| `tasks/done/TASK-035-d13-route-c/TASK.md` | 修改 | 同上 |
+| `tasks/review/TASK-056-collaboration-upgrade/TASK.md` | 新增 | 本档案（自 `active/` 移入） |
+| `tasks/review/TASK-056-collaboration-upgrade/handoffs/HANDOFF-001-developer-to-reviewer.md` | 新增 | 交付交接（含原始输出） |
 
 ## Known Issues
 
-- `audit_framework.py` 的 A3（YAML 可解析）在本机默认因缺 PyYAML 而 SKIP；本任务执行期间已安装 PyYAML 6.0.3 并实跑 A3 通过（`PASS=13 SKIP=0`）。**新环境仍会默认 SKIP**，不要据「A3 PASS」推断无需装依赖。
-- `traceability` 在合并前无法成为门禁：必需检查指向不存在的作业会使所有 PR 永久待处理（`enforce_admins=true` 无绕过）。这是**刻意分两步**，不是遗漏。
-- 历史 83 个提交缺 `Refs` footer，本任务**不追溯**（追溯会改写历史，属受保护操作）。
+1. **`traceability` 当前不是门禁**：作业已进 `ci.yml`，但 `contexts` 仍为 `["audit","install-lint-build"]`。
+   必须**先合并本 PR，再加入必需检查**；顺序颠倒会让所有 PR 永久待处理，而 `enforce_admins=true` 无绕过通道。
+2. **D13-C 回写欠账仍无判据**（审计 F-4b）：TASK-051 的欠账曾滚过三轮。
+   建议后续新增「`tasks/review/` 中 `Status=REVIEW` 存续超过 1 个任务即告警」的检查，本任务未实现。
+3. **`rebase-merge` 改写 SHA**：合并后本任务审查记录中的提交 SHA 将不可达，需补「审查时 SHA → main 上 SHA」映射表（TASK-055 已有先例）。
+4. **`audit_framework.py` 的 A3 依赖 PyYAML**：本机已装 6.0.3 并实跑通过（`PASS=13 SKIP=0`），但新环境默认仍 SKIP，不要据「A3 通过」推断无需装依赖。
+5. **历史 83 个提交缺 `Refs`**：刻意不追溯——追溯等于改写已推送历史，属受保护操作。
 
 ---
 
@@ -197,10 +211,10 @@ ACTIVE。已完成审计与方案裁决；本任务按 Implementation Plan 执�
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
-| — | — | — | — | 待执行位交付时补 |
+| 001 | developer（执行位） | reviewer（主控位） | 2026-11-02 | 11 条 AC 全部自测通过并附原始输出；平台侧改动前后值留证；未改分支保护 |
 
-**最新 Handoff：** 无
-**Next Action：** 执行位按 Implementation Plan §2 完成平台侧改动并记录实测值。
+**最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
+**Next Action：** 主控位在**新会话**中逐文件读实际差异，重点核对四处 Docker 表述与 `docker.yml` 第 52/54 行一致、且 §14.1 **没有**把 `traceability` 写成已生效门禁。
 
 ---
 
