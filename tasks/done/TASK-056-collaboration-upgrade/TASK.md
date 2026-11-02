@@ -251,6 +251,11 @@ run `41382053613`）。其中 `traceability` 在 CI 上实跑输出「待检 9 �
 | 镜像 tag | `sha-4958eb1`（DockerHub `nomorelatenights/subscription-admin`，digest `sha256:286158132fe66359cd3e8699a695df0e4d77e04b755f7a61ffb71ae494bac406`，`last_updated=2026-11-02T11:34:02.346126Z`） |
 | 审查记录 | `handoffs/2026-11-02-coordinator-review.md`（主控位第 1 轮：PASS 有条件，F-1~F-4）+ `handoffs/2026-11-02-coordinator-review-round2.md`（第 2 轮复核：PASS，四项全部闭合） |
 
+> **合并后收口另立交付请求 PR #31**（分支 `docs/TASK-056-required-check-and-archive`，自 `4958eb1` 切出）：
+> 承载「`traceability` 入必需检查」的 10 处陈述更正、本表上方的 SHA 映射表、归档与三份审查记录入库。
+> PR #31 上三个必需检查（`install-lint-build` / `audit` / `traceability`）在 run `41445100903` 上
+> **全部 pass** —— 这同时是「`traceability` 确实已是门禁」的端到端实证。
+
 **合并未推进 `latest`**：`latest` 至今仍为 `sha256:b6da326e15e41c9e…`，等于 `v1.0.7` =
 `sha-e563800`（TASK-051 的合并产物），**不是**本任务的 `sha-4958eb1`。印证 `docker.yml` 的
 metadata `enable=${{ github.ref_type == 'tag' }}` 门禁：普通合并只产出 `sha-*` 镜像，

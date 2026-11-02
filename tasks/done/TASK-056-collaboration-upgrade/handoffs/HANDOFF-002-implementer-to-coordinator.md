@@ -10,6 +10,7 @@ Date: 2026-11-02T20:20:00+08:00
 Current State: DONE（档案已归档；本收口分支待主控位复核）
 Branch: docs/TASK-056-required-check-and-archive
 Base: main @ 4958eb17e2873eec3a072d6b9b730cb7ea2b2179
+交付请求: PR #31（本收口分支自身的 PR，交主控位审查；**未自行合并**）
 ```
 
 ---
