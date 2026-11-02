@@ -321,6 +321,10 @@ resourceRoutes.route(
               .from(emailBindings)
               .where(eq(emailBindings.id, id))
               .get() ?? null)
+      // 本行不存在（PATCH 一个不存在的 id）⇒ 直接放行，交给 CRUD 自己的 404。
+      // 否则会先在这里撞上判重返回 409，把「记录不存在」误报成「邮箱冲突」，
+      // 调用方无法区分这两种失败（TASK-055）。
+      if (id !== null && current === null) return null
       // 本次改动后的身份：字段出现在 values 里就用新值，否则沿用现值
       const emailRaw = 'email' in values ? values.email : current?.email
       if (typeof emailRaw !== 'string') return null
