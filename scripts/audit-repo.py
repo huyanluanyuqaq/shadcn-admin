@@ -41,6 +41,13 @@ AGENTS_MD = ROOT / "AGENTS.md"
 # 若模板不在检范围内，该声明对模板自己仍是空话。
 TASK_TEMPLATE = ROOT / "templates" / "task" / "TASK.md"
 
+# F10：框架快照一致性（模板仓库逐字同步）。
+# 当脚本位于 shadcn-admin 或其同类下游仓库中运行时，
+# 若存在同工作区下的 _workspace-template 目录，则以该目录为参照进行逐字一致性检查。
+# 只允许 PASS（一致）或 FAIL（有差异），不以豁免清单放宽。
+WORKSPACE_ROOT = ROOT.parent  # projects/
+TEMPLATE_REPO = WORKSPACE_ROOT / "_workspace-template"
+
 # F5 检查的框架文档（刻意不含历史遗留下来的其它文档，避免历史死链干扰本门禁）
 FRAMEWORK_DOCS = [
     AGENTS_MD,
@@ -473,7 +480,59 @@ def check_f9(_root: Path) -> Result:
     )
 
 
-CHECKS = [check_f1, check_f2, check_f3, check_f4, check_f5, check_f6, check_f7, check_f8, check_f9]
+def check_f10(_root: Path) -> Result:
+    """F10 框架快照一致性（TASK-059）。
+
+    当脚本位于 shadcn-admin 等下游仓库中运行时，若存在同工作区下的
+    _workspace-template 目录，以该目录为参照校验两个目录的逐字一致性：
+    - `templates/`：TASK.md 等模板文件须与模板仓库逐字相同
+    - `.agents/`：框架资产须与模板仓库逐字相同
+
+    一致性由 diff + 逐文件逐字节校验保证，不以豁免清单放宽。
+    模板仓库不可达时输出 WARN（结构化限制，非 FAIL）。
+    """
+    if not TEMPLATE_REPO.is_dir():
+        return Result(
+            "F10",
+            WARN,
+            f"模板仓库不可达（{rel(TEMPLATE_REPO)} 不存在）；F10 跳过，"
+            "在含模板仓库的工作区中运行可激活本检查",
+        )
+
+    pairs = [
+        ("templates", ROOT / "templates", TEMPLATE_REPO / "templates"),
+        (".agents", ROOT / ".agents", TEMPLATE_REPO / ".agents"),
+    ]
+    all_diffs: list[str] = []
+    for label, proj_dir, tpl_dir in pairs:
+        if not proj_dir.is_dir() or not tpl_dir.is_dir():
+            all_diffs.append(f"{label}：本仓库或模板仓库目录不存在（本侧={proj_dir.exists()}，模板侧={tpl_dir.exists()}）")
+            continue
+        # 递归 diff：先比文件列表，再比每个文件内容
+        proj_files = sorted(p.relative_to(proj_dir) for p in proj_dir.rglob("*") if p.is_file())
+        tpl_files = sorted(p.relative_to(tpl_dir) for p in tpl_dir.rglob("*") if p.is_file())
+        if proj_files != tpl_files:
+            only_proj = [str(p) for p in proj_files if p not in tpl_files]
+            only_tpl = [str(p) for p in tpl_files if p not in proj_files]
+            all_diffs.append(f"{label}：文件列表不同（本仓库独有={only_proj}；模板仓库独有={only_tpl}）")
+            continue
+        for rel_path in proj_files:
+            proj_content = (proj_dir / rel_path).read_bytes()
+            tpl_content = (tpl_dir / rel_path).read_bytes()
+            if proj_content != tpl_content:
+                all_diffs.append(f"{label}/{rel_path.as_posix()}：内容不同")
+
+    if all_diffs:
+        return Result(
+            "F10",
+            FAIL,
+            f"框架快照与模板仓库有 {len(all_diffs)} 处差异（必须逐字一致）",
+            all_diffs,
+        )
+    return Result("F10", PASS, "templates/ 与 .agents/ 均与模板仓库逐字一致")
+
+
+CHECKS = [check_f1, check_f2, check_f3, check_f4, check_f5, check_f6, check_f7, check_f8, check_f9, check_f10]
 
 
 def main() -> int:
