@@ -516,14 +516,21 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | 10 | **smoke.ts 本身** | 运行 ② | **0** | 185 通过 / 0 失败 |
 | 附 | 框架全量自检 | `python shared/scripts/audit_framework.py` | 0 | PASS=13 FAIL=0 WARN=0 SKIP=0 |
 
-> **平台侧复核（PR #33，`gh api` / `gh run list` 实测）**：
-> 三次 `event=pull_request` 的 CI 运行，head 分支均为
-> `bugfix/TASK-058-smoke-failures-closure`，三个作业全部 success ——
+> **平台侧复核（PR #33，`gh run list` / `gh api .../jobs` 实测，截至 2026-11-03 00:40）**：
+> 本分支已触发 **4 次** `event=pull_request` 的 CI 运行，head 分支均为
+> `bugfix/TASK-058-smoke-failures-closure`，**每一次**的三个作业全部 success ——
 > `install-lint-build` / `traceability` / `audit`：
-> run **41477718219**（`head_sha=8b1781f…`）、
-> run **41478242197**（`head_sha=9ae2af3…`）、
-> run **41478626967**（`head_sha=20a7ccd…`，最新）。
+>
+> | run | head_sha | 三作业结论 |
+> |-----|----------|-----------|
+> | 41477718219 | `8b1781f…` | success / success / success |
+> | 41478242197 | `9ae2af3…` | success / success / success |
+> | 41478626967 | `20a7ccd…` | success / success / success |
+> | 41479213523 | `6e9675d…`（本档案提交时的最新一次） | success / success / success |
+>
 > `gh pr view 33 --json statusCheckRollup` 三项均 `SUCCESS`。
+> 说明：每次向任务分支推送都会触发新的 `pull_request` 运行，上表是**截至本档案落盘时**
+> 的实测快照，不是「将来也会一直如此」的承诺。
 > **注意**：`smoke.ts` **不在 CI 作业里**（`ci.yml` 无该步骤），它只是本任务
 > Requirements 5 清单上的一项**本地门禁**；平台侧只能证明其余九项，冒烟证据以上方
 > 运行 ② 的本地原始输出为准。
