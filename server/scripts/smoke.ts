@@ -1833,6 +1833,33 @@ async function main() {
     subEmailSet.json?.email
   )
 
+  // sync 专用订阅 sub1（TASK-058）：两条硬约束，缺一条本节就跑不到预期分支——
+  //   ① **未挂任何邮箱绑定**：一条订阅只能对应一个邮箱（TASK-053 R2 守卫，
+  //      `resources.ts` 的 `/email-bindings/sync`）。第 5 段已给主订阅绑了
+  //      `mail<suffix>@example.com`，若复用主订阅，sync 会先被守卫以 409 拒绝
+  //      ——那是既定语义而非缺陷（见 `scripts/email-binding-sync-check.ts` 场景 2）。
+  //   ② **无客户 + 已过期超过 24h**：邮箱管理列表只显示「仅注册」与「到期回落」
+  //      两类绑定（TASK-053 归属派生，`listCondition`），订阅仍有效时其绑定
+  //      不在列表里，本节末尾「终态只剩一条」与「按 poolId 筛选」两条断言
+  //      将无数据可查（TASK-053 AC-3 / AC-5）。
+  const syncSub1 = await req('/api/subscriptions', {
+    method: 'POST',
+    token,
+    body: {
+      name: `smoke-sync-sub1-${suffix}`,
+      url: `https://example.com/sync-sub1-${suffix}`,
+      poolId: pool.json?.id,
+      cronExpr: '0 */6 * * *',
+      enabled: true,
+      expireAt: Date.now() - 48 * 3600 * 1000,
+    },
+  })
+  check(
+    '创建 sync 专用订阅 sub1（无客户、已过期、未绑邮箱）',
+    syncSub1.status === 201,
+    syncSub1.json?.id
+  )
+
   // sync upsert：(email, pool) 不存在 → 创建
   const syncCreated = await req('/api/email-bindings/sync', {
     method: 'POST',
@@ -1840,7 +1867,7 @@ async function main() {
     body: {
       email: syncEmail,
       poolId: pool.json?.id,
-      subscriptionId: subscription.json?.id,
+      subscriptionId: syncSub1.json?.id,
     },
   })
   check(
@@ -1850,12 +1877,13 @@ async function main() {
       syncCreated.json?.cleaned === 0 &&
       syncCreated.json?.binding?.email === syncEmail &&
       syncCreated.json?.binding?.poolId === pool.json?.id &&
-      syncCreated.json?.binding?.subscriptionId === subscription.json?.id &&
+      syncCreated.json?.binding?.subscriptionId === syncSub1.json?.id &&
       syncCreated.json?.binding?.status === 'active',
     syncCreated.json
   )
 
-  // 第二条订阅：sync 改绑的目标（不绑客户，本节末尾显式删除）
+  // 第二条订阅：sync 改绑的目标（不绑客户，本节末尾显式删除）。
+  // 同 sub1：无客户 + 已过期超过 24h，否则终态断言查不到它的绑定。
   const syncSub2 = await req('/api/subscriptions', {
     method: 'POST',
     token,
@@ -1865,6 +1893,7 @@ async function main() {
       poolId: pool.json?.id,
       cronExpr: '0 */6 * * *',
       enabled: true,
+      expireAt: Date.now() - 48 * 3600 * 1000,
     },
   })
   check(
@@ -1909,7 +1938,7 @@ async function main() {
     body: {
       email: syncEmail,
       poolId: syncPool.json?.id,
-      subscriptionId: subscription.json?.id,
+      subscriptionId: syncSub1.json?.id,
     },
   })
   check(
@@ -2015,6 +2044,11 @@ async function main() {
     })
     check('清理 sync 验证用绑定', delBindings.status === 200, delBindings.json)
   }
+  const delSyncSub1 = await req(`/api/subscriptions/${syncSub1.json?.id}`, {
+    method: 'DELETE',
+    token,
+  })
+  check('删除 sync 专用订阅 sub1', delSyncSub1.status === 200, delSyncSub1.json)
   const delSyncSub2 = await req(`/api/subscriptions/${syncSub2.json?.id}`, {
     method: 'DELETE',
     token,
