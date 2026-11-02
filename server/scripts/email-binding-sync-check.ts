@@ -588,6 +588,12 @@ async function main() {
   // 缺陷形态：beforeWrite 先于 notFound 执行，PATCH 一个不存在的 id 时若携带着一个
   // 撞车邮箱，会先命中判重返回 409，把「记录不存在」误报成「邮箱冲突」。
   // 修复是 beforeWrite 在「id 非空且按 id 查不到本行」时直接放行，让 CRUD 走到自己的 404。
+  //
+  // **本用例必须携带撞车的 poolId**（TASK-055 M-1 整改）：PATCH 只带 email 时，
+  // beforeWrite 里 poolId 会因「poolId 不在 values 且 current 为 null」而解析成 null，
+  // 判重查询随即按 `pool_id IS NULL` 查找，永远匹配不上种子行（其 pool_id 非空），
+  // 于是即使没有修复也直接放行 —— 用例会全绿但不具区分力。
+  // 带上 poolId 后，未修复代码会在此处返回 409，用例才真正能挡住该回退。
   console.log('\n场景 12：PATCH 不存在的 id（带撞车邮箱）→ 404，行数不变')
   {
     reset()
@@ -598,8 +604,9 @@ async function main() {
     const before = countBindings()
     console.log(`  调用前 email_bindings 行数=${before}`)
 
-    // 999999 一定不存在；邮箱撞上 owner@x.com（同供应商），足以在旧代码里触发 409
-    const res = await patchJson(`/email-bindings/999999`, { email: 'owner@x.com' })
+    // 999999 一定不存在；email + poolId 都撞上种子行 ⇒ 未修复代码会在此处返回 409。
+    // poolId 必须显式携带：缺了它判重会按 pool_id IS NULL 查找而匹配不上种子行（见上方注释）。
+    const res = await patchJson(`/email-bindings/999999`, { email: 'owner@x.com', poolId })
 
     const after = countBindings()
     console.log(`  调用后 email_bindings 行数=${after}`)
