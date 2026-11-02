@@ -549,6 +549,17 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | `tasks/review/TASK-055-archive-backfill-and-email-binding-residuals/TASK.md` | 修改（**仅追加**） | `Known Issues` 第 1 条追加三簇根因验证结论；「V 组实测记录」追加配方修正说明。历史记录一字未改 |
 | `tasks/active/TASK-058-smoke-failures-closure/handoffs/HANDOFF-001-implementer-to-coordinator.md` | 新增 | 执行位 → 主控位交接 |
 
+> **交付请求 #33 的实际 diff 还含两个非本任务文件，如实披露（Known Issues 8）**：
+> `tasks/backlog/TASK-057-gate-evidence-closure/TASK.md`、
+> `tasks/backlog/TASK-059-template-drift-and-sha-mapping/TASK.md`。
+> 成因：TASK-058 的任务定义只存在于主控位的登记提交 `b0714ad`（`Refs: TASK-057`）中，
+> 而该提交所在的 `docs/TASK-057-059-backlog-registration`（= 交付请求 #32）尚未合并到
+> `main`。执行位为能 `git mv` 领取任务，只能从该分支切出工作分支，于是 `main..HEAD`
+> 必然带上 `b0714ad`。该提交**只新增这三份任务定义**（`git diff --stat main b0714ad`
+> = 3 files / 644 insertions，无产品代码），且与交付请求 #32 是同一份内容。
+> **未擅自改写已推送历史**（`.agents/rules/git.md` §6 的高风险操作），
+> 由主控位决定合并次序，或要求执行位改从 `main` 切分支并只携带 TASK-058 的任务文件。
+
 **未改动**：`server/src/**`（0 行）、`server/drizzle/**`、`docs/technical/api-contract.md`
 （公开 API 契约无变化，无需更新）、`.github/**`、`.agents/**`、`templates/**`、
 `scripts/audit-repo.py`、`shared/scripts/**`、`src/**`。
@@ -588,7 +599,14 @@ B2 GET /email-bindings?q=… → total = 0 items = []
    门禁一律改用 `node <包入口>` 直调同一版本工具。这是**环境限制**，
    不是「换了门禁项」；若主控位要求严格按 `pnpm <script>` 复跑，需先修复本机
    pnpm/node 运行时一致性。
-7. **真实库 `app.db-shm` 的 mtime 会随只读连接前进**（D 组实测记录已单独实验证明）。
+7. **本分支的基线选择带来一处 PR 范围外溢（已如实披露，未擅自处理）**：
+   分支自 `docs/TASK-057-059-backlog-registration`（= 交付请求 #32，未合并）切出，
+   因此 PR #33 的 diff 除本任务 4 个文件外，还含 `b0714ad` 新增的
+   `tasks/backlog/TASK-057-…/TASK.md` 与 `tasks/backlog/TASK-059-…/TASK.md`
+   （纯文档、无产品代码，与 PR #32 同一份内容）。这是「TASK-058 的任务定义尚不在
+   `main` 上」的结构性后果。执行位**未**改写已推送历史、**未**重复登记任务，
+   合并次序（先 #32 再 #33，或反之）交由主控位裁决。
+8. **真实库 `app.db-shm` 的 mtime 会随只读连接前进**（D 组实测记录已单独实验证明）。
    `app.db` 主文件与 `-wal` 未变、四表行数未变。TASK-055 的 D 组只核查了
    `app.db` 的 mtime，未覆盖 `-shm`；此处如实补记，避免被读成「零副作用」。
 
@@ -597,6 +615,10 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | Codex（执行位 · developer） | 主控位 · Reviewer | 2026-11-02 | 三簇 14 项失败清偿：A/B 为脚本侧过期、C 为配方错误；0 产品缺陷；smoke 185/0 退出码 0；全量门禁全 0；待审查 |
+
+**交付请求：** [#33](https://github.com/huyanluanyuqaq/shadcn-admin/pull/33)
+（`bugfix/TASK-058-smoke-failures-closure` → `main`，7 commits / 6 changed files，`mergeable=MERGEABLE`；
+分支另带主控位登记提交 `b0714ad`，故 diff 含 TASK-057/059 两份任务定义，见 Known Issues 7）
 
 **最新 Handoff：** `handoffs/HANDOFF-001-implementer-to-coordinator.md`
 **Next Action：** 主控位按 `.agents/workflows/bugfix.md` 第 5 阶段审查**实际差异**
