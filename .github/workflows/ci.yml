@@ -101,3 +101,35 @@ jobs:
         run: python3 -m pip install --quiet --disable-pip-version-check pyyaml
       - name: Run workspace framework audit
         run: python3 shared/scripts/audit_framework.py
+
+  # 可追溯性：交付请求内的每个提交必须引用一个**真实存在**的任务（TASK-056 / 审计 F-4a）。
+  #
+  # 为什么只对 PR 生效：`main` 上已有 83 个缺 `Refs` 的历史提交，追溯它们等于要求改写
+  # 已推送历史，属 `.agents/rules/git.md` §6 的受保护操作。判据因此固定为 `base..HEAD`。
+  #
+  # ★ 本作业**尚未**成为门禁：分支保护的必需检查仍只有 install-lint-build 与 audit。
+  #   启用顺序不可颠倒 —— 作业必须先存在于默认分支，再加进必需检查；
+  #   否则所有 PR 会永久等待一个不存在的作业，而 `enforce_admins=true` 没有绕过通道。
+  #   当前状态以 `docs/operations/github-capability.md` §3 的实测值为准。
+  traceability:
+    name: traceability
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+        with:
+          # ★ 必须检出 PR 的 head 提交，而不是默认的合成合并提交：
+          # `pull_request` 事件的默认 ref 是 `refs/pull/<N>/merge`，其提交信息是
+          # 「Merge <sha> into <sha>」，永不含 `Refs:` —— 用默认 ref 会让本检查在**每个** PR 上
+          # 假红（这是本作业的第一次反向验证就暴露的坑，见 TASK-056 Handoff）。
+          ref: ${{ github.event.pull_request.head.sha }}
+          # 必须完整历史：浅克隆拿不到 base 的提交，脚本会以退出码 2 拒绝通过（而非静默放过）。
+          fetch-depth: 0
+
+      - name: Check task traceability
+        env:
+          BASE_REF: origin/${{ github.base_ref }}
+        run: python3 scripts/check-traceability.py --base "$BASE_REF"
