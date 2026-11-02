@@ -10,7 +10,7 @@
 Task ID: TASK-051
 Title: 备份残留收口：D13-C 回写 + 目录注入 + 启动级端到端 + 保留策略失败留痕
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P2
 Owner: "Codex / 执行位 Implementer"
 Owner Since: "2026-10-31T11:58:00+08:00"
@@ -477,24 +477,56 @@ TASK-050（备份导入 + 备份恢复）已合并：PR **#25**、rebase-merge�
 
 ## Merge Record
 
-> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
-> `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
-> 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
-> **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
-> 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
-> 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
+> 本节由 **TASK-055**（执行位）按 D13-C 选项 C 于 2026-11-02 实测回填。
+> 原「本节不随 Pass/收尾填写」的机制说明已履行完毕（本任务已由下一个任务回收归档），
+> 故替换为实测值。九要素全部来自下方「复现命令」的**实际输出**，未沿用档案自述。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填 |
+| PR | [#26](https://github.com/huyanluanyuqaq/shadcn-admin/pull/26) `feat(TASK-051): 备份残留收口…` |
+| 合并策略 | `rebase-merge`（实测：merge commit 只有 **1 个 parent** `7169b72`，非双亲合并提交） |
+| 提交数 | **14** |
+| merged_at | `2026-10-31T12:04:52Z` |
+| merge_commit_sha | `e563800334ab676644d1f5c1f1bf1fb58962dd38` |
+| 合并后 CI run | `41199514208`（Continuous Integration，`event=push` `head_branch=main`，conclusion=**success**） |
+| 合并后 Docker run | `41199514198`（Build and Push Docker Image，`event=push` `head_branch=main`，conclusion=**success**） |
+| 镜像 tag | `sha-e563800`（digest `sha256:b6da326e15e41c9e24735ab8986c5198b0faa3ce4e1bce907ff5da09a0795575`，`tag_last_pushed=2026/10/31 12:44:38`） |
+| 审查记录 | `handoffs/2026-10-31-review.md`（I2 独立审查，不携带实现上下文）+ 三份主控位记录 `2026-10-31-coordinator-review.md` / `-round2.md` / `-round3.md` |
+
+**「镜像 tag」格必须区分合并 run 与 tag 发布 run**：本任务另有 run `41202023831`
+（`Build and Push Docker Image`，`event=push`，`head_branch=v1.0.7`，conclusion=success，
+`created_at=2026-10-31T12:38:40Z`）——它挂在 **`v1.0.7` 这个版本 tag** 上，属**发布 run，不是合并 run**，
+因此**不计入**上表「合并后 Docker run」。合并 run 是 `41199514198`（`created_at=2026-10-31T12:04:55Z`，
+与 CI run 同一时刻、同一 `head_sha`）。
+
+**合并未推进 `latest`**：`latest` 至今仍为 `sha256:b6da326e15e41c9e…`，与 `v1.0.7` / `sha-e563800`
+**三者同 digest**；也就是说 `main` 上此后的合并（含 TASK-052/053/054 的 `sha-2ca5d50`，
+digest `sha256:0658ac254eeb76a5…`）**都没有**把 `latest` 推过去。`latest` 只在打版本 tag 时前进
+（`.github/workflows/docker.yml` 仅由 `v*` 触发，见 `AGENTS.md` §14.3）。
+
+**复现命令**（每条均在 2026-11-02 于本仓实跑，输出即上表数值）：
+
+```bash
+# PR 基本信息 + 提交数
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/26 \
+  --jq '{merged:.merged, merged_at:.merged_at, merge_commit_sha:.merge_commit_sha, commits:.commits}'
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/26/commits --jq 'length'      # → 14
+
+# 该 merge_commit_sha 上的全部 run（据此区分合并 run 与 tag 发布 run）
+gh api "repos/huyanluanyuqaq/shadcn-admin/actions/runs?head_sha=e563800334ab676644d1f5c1f1bf1fb58962dd38&per_page=20" \
+  --jq '.workflow_runs[] | {id:.id, name:.name, event:.event, head_branch:.head_branch, conclusion:.conclusion, created_at:.created_at}'
+
+# 合并策略：单 parent ⇒ rebase-merge
+git log --format="%H %P %s" -1 e563800334ab676644d1f5c1f1bf1fb58962dd38
+
+# 镜像 tag（DockerHub Tags API，匿名可读）
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-e563800
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/latest
+```
+
+> **本任务的欠账说明**：本任务随 PR #26 于 2026-10-31 合并，按 D13-C 本应由 TASK-052 补记本表，
+> 但 052/053/054 三轮均未回填，欠账已滚过三轮。现由 TASK-055 一并清偿
+> （`github-collaboration.md` §224「至多延后一个任务」的终止条件已被突破，此处如实登记）。
 
 ---
 
