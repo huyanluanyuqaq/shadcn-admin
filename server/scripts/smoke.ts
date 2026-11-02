@@ -1129,12 +1129,21 @@ async function main() {
   }
 
   // 客户 A：60% → 首次扫描发「50% 阈值」一条；重复扫描不重复发
+  //
+  // 生效上限必须来自 `trafficManualCap` 或套餐月流量（TASK-046 人类裁决：
+  // 「订阅拉取更新出来的流量不参与，只有两个值参与，手动设置的上限为最高优先级，
+  // 其次是套餐设定的月流量」）。本段写成于 TASK-013，彼时 `customers.traffic_total`
+  // 仍参与上限派生；TASK-023 起降为最低顺位、TASK-046 起**完全不参与** ⇒ 只填
+  // `trafficTotal` 的客户是「不限流量」，扫描既不评估也不通知，仪表盘也不出卡片
+  // （TASK-058 A 簇根因）。
+  // `trafficTotal` 刻意保留在原处：它是纯存量列，留在此处正好证明它确实不参与。
   const thA = await req('/api/customers', {
     method: 'POST',
     token,
     body: {
       name: `smoke-threshold-a-${suffix}`,
       expireAt: FAR_FUTURE_EXPIRE_AT,
+      trafficManualCap: 100 * 1024 ** 3,
       trafficTotal: 100 * 1024 ** 3,
       trafficUsed: 60 * 1024 ** 3,
     },
@@ -1204,12 +1213,14 @@ async function main() {
   )
 
   // 客户 B：一次从 30% 跳到 95% —— 只发「80% 阈值」一条（最高阈值），不发 50%
+  // 同客户 A：上限来自 trafficManualCap（TASK-046 口径），trafficTotal 只是存量列。
   const thB = await req('/api/customers', {
     method: 'POST',
     token,
     body: {
       name: `smoke-threshold-b-${suffix}`,
       expireAt: FAR_FUTURE_EXPIRE_AT,
+      trafficManualCap: 100 * 1024 ** 3,
       trafficTotal: 100 * 1024 ** 3,
       trafficUsed: 30 * 1024 ** 3,
     },
