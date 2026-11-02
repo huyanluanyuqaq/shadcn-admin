@@ -386,16 +386,22 @@ Task 规则（TASK.md 的 Task Rules 节）
 | --- | --- | --- | --- |
 | `install-lint-build` | `.github/workflows/ci.yml` | 静态 / 格式 / 测试 / 构建 | 是 |
 | `audit` | `.github/workflows/ci.yml` | 仓库级框架一致性审计 | 是 |
-| `traceability` | `.github/workflows/ci.yml` | 交付可追溯性：PR 内每个提交必须引用真实存在的任务 | **否（TASK-056 已落地作业，尚未设为必需）** |
+| `traceability` | `.github/workflows/ci.yml` | 交付可追溯性：PR 内每个提交必须引用真实存在的任务 | 是（2026-11-02 起） |
 
 作业名**必须与工作流文件中的名称完全一致**，否则必需检查会永远处于「待处理」状态。
 `scripts/audit-repo.py` 会在 CI 中校验本节与工作流实际作业名是否一致。
 
-> ⚠️ **`traceability` 当前不是门禁。** 它是 TASK-056 新增的作业，已随该任务进入 `main`，
-> 但**尚未**加入分支保护的必需检查（平台实测值见 `docs/operations/github-capability.md` §3）。
-> **启用顺序不可颠倒**：作业必须先存在于默认分支，再加进必需检查 ——
-> 否则所有 PR 会永久等待一个不存在的作业，而 `enforce_admins=true` 没有绕过通道。
-> 在实测到它出现在 `required_status_checks.contexts` 之前，**不得**把它称为必需检查。
+> ✅ **`traceability` 已于 2026-11-02 由主控位加入必需检查。**
+> 判据是 `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection/required_status_checks`
+> 的当前实测值：`contexts` = `["audit", "install-lint-build", "traceability"]`（三项齐全），
+> `strict = false`、`enforce_admins.enabled = true`、`required_approving_review_count = 0`。
+> 改动前后的原始输出见 `tasks/done/TASK-056-collaboration-upgrade/handoffs/HANDOFF-002-implementer-to-coordinator.md`；
+> 逐字段终态见 `docs/operations/github-capability.md` §2 / §3。
+>
+> **启用顺序不可颠倒（历史说明，保留）：** 该作业是**先随 TASK-056 合并进入 `main`、之后才加入必需检查**的。
+> 若顺序颠倒（作业尚不在默认分支就加入必需检查），所有 PR 会永久等待一个不存在的作业，
+> 而 `enforce_admins=true` 没有绕过通道。后续新增任何检查作业仍须遵守该顺序：
+> **先在默认分支落地作业并确认它确实上报状态，再加入必需检查。**
 
 ### 14.2 合并策略
 
@@ -428,7 +434,7 @@ Task 规则（TASK.md 的 Task Rules 节）
 ### 14.4 平台门禁现状（务必如实理解）
 
 > **自 2026-10-14 起，本仓库已配置经典分支保护**（作用于 `main`）：
-> 要求合并前必须经过 PR、必需检查 `install-lint-build` + `audit`、必需批准数 **0**、
+> 要求合并前必须经过 PR、必需检查 `install-lint-build` + `audit` + `traceability`（三项，2026-11-02 实测）、必需批准数 **0**、
 > **不允许绕过**（对管理员与所有者同样生效）、禁强制推送、禁删除分支。
 > 逐字段终态与实测证据见 `docs/operations/github-capability.md` §2 / §4。
 
