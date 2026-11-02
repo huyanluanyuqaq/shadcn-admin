@@ -29,6 +29,8 @@
  *      把冒烟服务端自己杀掉，后续用例全部 ECONNREFUSED；
  *   SMOKE_DB_DIR=<服务端数据库所在目录> —— 恢复标记 `.restore-pending.json` 写在
  *      数据库同目录，19.19 需要删掉它，否则残留会被下一次服务启动当成待恢复任务应用。
+ *      **必须填 .db 文件所在的那个目录本身**（隔离快照放在哪就填哪）：另设一个
+ *      与库文件不同级的「数据目录」会让 19.17 在错误的位置找不到标记（TASK-058 C 簇根因）。
  */
 
 import { createServer, type Server } from 'node:http'
@@ -676,8 +678,16 @@ async function backupImportAndRestore(token: string) {
 
   // 19.17 标记内容正确
   let markerOk = false
-  let markerDetail: unknown = null
-  if (existsSync(RESTORE_MARKER_PATH)) {
+  // 两个分支都会赋值，故不赋初值（否则 `no-useless-assignment` 会判为死赋值）
+  let markerDetail: unknown
+  if (!existsSync(RESTORE_MARKER_PATH)) {
+    // 诊断提示：标记由服务端写在**数据库同目录**（`db/restore.ts` 的
+    // `restoreMarkerPath`），SMOKE_DB_DIR 填成别的目录时就会在这里看不到它。
+    markerDetail = {
+      missing: RESTORE_MARKER_PATH,
+      hint: 'SMOKE_DB_DIR 必须是服务端 .db 文件所在目录本身（恢复标记写在数据库同目录）',
+    }
+  } else {
     try {
       const marker = JSON.parse(readFileSync(RESTORE_MARKER_PATH, 'utf8')) as {
         filename?: string
