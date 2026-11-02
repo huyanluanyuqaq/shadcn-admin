@@ -275,7 +275,7 @@ docker compose up -d --build
   `@faker-js/faker` 与 `features/*/data/data.ts` **均已移除**（复核命令见
   `docs/operations/negative-assertion-review.md`）。新增领域模块时数据源**必须是真实 API**，
   不得重新引入 mock 数据。
-- [补充] **框架快照只读（TASK-039）**：`.agents/` 与 `templates/` 是模板仓库的逐字快照，**不得在本项目内直接修改**；项目级规则覆盖一律通过本文件 §10 的 [覆盖] / [补充] / [增强] 标记表达（优先级见 `.agents/protocols/rule-precedence.md`）。框架演进在模板仓库进行，完成后同步快照并走交付请求。
+- [补充] **框架快照只读（TASK-039）**：`.agents/` 与 `templates/` 是模板仓库的逐字快照，**不得在本项目内直接修改**；项目级规则覆盖一律通过本文件 §10 的 [覆盖] / [补充] / [增强] 标记表达（优先级见 `.agents/protocols/rule-precedence.md`）。框架演进在模板仓库进行，完成后同步快照并走交付请求。框架快照一致性由 `scripts/audit-repo.py` **F10 门禁**保证（TASK-059），可复现，**不再为口头声称**（`diff` 输出为零 = 一致，任何差异均 FAIL）。
 - [增强] 涉及认证（Clerk → JWT 迁移）、密钥、数据库迁移的变更，必须经 **Security 角色**审查后方可合入。
 
 ---
