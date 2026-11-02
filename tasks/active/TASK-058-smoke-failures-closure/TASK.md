@@ -516,6 +516,15 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | 10 | **smoke.ts 本身** | 运行 ② | **0** | 185 通过 / 0 失败 |
 | 附 | 框架全量自检 | `python shared/scripts/audit_framework.py` | 0 | PASS=13 FAIL=0 WARN=0 SKIP=0 |
 
+> **平台侧复核（PR #33，`gh api` / `gh pr view` 实测）**：
+> CI run **41478242197**（`event=pull_request`、`head_sha=9ae2af3…`、head 分支
+> `bugfix/TASK-058-smoke-failures-closure`）三个作业全部 success：
+> `install-lint-build` / `traceability` / `audit`；`gh pr view 33 --json statusCheckRollup`
+> 三项均为 `SUCCESS`。前一次运行 **41477718219**（`head_sha=8b1781f…`）同样三项 success。
+> **注意**：`smoke.ts` **不在 CI 作业里**（`ci.yml` 无该步骤），它只是本任务
+> Requirements 5 清单上的一项**本地门禁**；平台侧只能证明其余九项，冒烟证据以上方
+> 运行 ② 的本地原始输出为准。
+
 > 环境说明（如实记录）：本环境的 `pnpm` 与安装 `node_modules` 的运行时不一致，
 > 任何 `pnpm <script>` 都会先在依赖状态检查处失败（`ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY`）。
 > 因此上表一律用 `node <包入口>` 直接调用同一工具的同一版本，**不是**换了门禁项。
