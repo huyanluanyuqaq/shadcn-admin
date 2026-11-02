@@ -147,9 +147,9 @@ grep -rh "Current State" tasks/*/*/handoffs/*.md | sort | uniq -c | sort -rn | h
 
 | 指标 | 基线值 | 数据来源 |
 |------|--------|---------|
-| M6 `ci.yml` 近 30 次成功率 | 见 `gh run list` 实跑输出（TASK-056 Handoff 粘原始输出） | `gh run list --workflow=ci.yml` |
-| M4 远端分支数 | 1（`main`）+ 1（在途任务分支） | `git ls-remote --heads origin` |
-| M3 可计算性 | 近 5 个 PR 中仅部分有平台 review 记录，其余审查落在 `handoffs/` | `gh pr list` + `tasks/**/handoffs` |
+| M6 `ci.yml` 近 30 次结论分布 | `{"success": 26, "failure": 4}`（失败率 **13.3%**） | `gh run list --workflow=ci.yml --limit 30 --json conclusion` 实跑（2026-11-02） |
+| M4 远端分支数 | **2**（`main` + 在途任务分支） | `git ls-remote --heads origin` 实跑（2026-11-02） |
+| M3 可计算性 | **不可计算**：PR #27 的 `pulls/27/reviews` 返回 `0`，审查结论全部落在 `handoffs/**` | `gh api repos/:owner/:repo/pulls/27/reviews` 实跑 |
 
 > 基线不追求完整。**先建立口径，再谈趋势** —— 缺数据时写「数据不足」是可接受的结果，
 > 用估计值填表则会使后续所有对比失去意义。
