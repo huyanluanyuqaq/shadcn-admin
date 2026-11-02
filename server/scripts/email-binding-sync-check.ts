@@ -584,6 +584,51 @@ async function main() {
     )
   }
 
+  // —— 场景 12：PATCH 不存在的 id ⇒ 404 而非 409（TASK-055 AC-7）——
+  // 缺陷形态：beforeWrite 先于 notFound 执行，PATCH 一个不存在的 id 时若携带着一个
+  // 撞车邮箱，会先命中判重返回 409，把「记录不存在」误报成「邮箱冲突」。
+  // 修复是 beforeWrite 在「id 非空且按 id 查不到本行」时直接放行，让 CRUD 走到自己的 404。
+  console.log('\n场景 12：PATCH 不存在的 id（带撞车邮箱）→ 404，行数不变')
+  {
+    reset()
+    const poolId = seedPool()
+    const existingId = seedBinding('owner@x.com', poolId, null)
+
+    const countBindings = () => db.select().from(emailBindings).all().length
+    const before = countBindings()
+    console.log(`  调用前 email_bindings 行数=${before}`)
+
+    // 999999 一定不存在；邮箱撞上 owner@x.com（同供应商），足以在旧代码里触发 409
+    const res = await patchJson(`/email-bindings/999999`, { email: 'owner@x.com' })
+
+    const after = countBindings()
+    console.log(`  调用后 email_bindings 行数=${after}`)
+
+    check('状态码为 404（不是 409）', res.status === 404, res)
+    // 文案来自 crud.ts 的 notFound(c, `${name} 不存在`)，name 为「邮箱绑定」
+    check('message 为「邮箱绑定 不存在」', res.json.message === '邮箱绑定 不存在', res.json.message)
+    check('email_bindings 行数不变', after === before, { before, after })
+    check(
+      '未新建任何行（原绑定仍在）',
+      db.select().from(emailBindings).all().some((r) => r.id === existingId)
+    )
+
+    // 对照组：PATCH 一个**存在**的 id 且撞别人邮箱 ⇒ 仍应是 409（本次修复未削弱判重）
+    seedBinding('other@x.com', poolId, null)
+    const withOther = countBindings()
+    const dup = await patchJson(`/email-bindings/${existingId}`, { email: 'other@x.com' })
+    check('对照组：PATCH 存在的 id 撞别人邮箱 → 仍为 409', dup.status === 409, dup)
+    check('对照组：409 时 email_bindings 行数不变', countBindings() === withOther, {
+      after409: countBindings(),
+      expected: withOther,
+    })
+    check(
+      '对照组：409 文案仍为既有 uniqueHint',
+      dup.json.message === '该邮箱已绑定同一供应商下的订阅，请直接编辑已有绑定',
+      dup.json.message
+    )
+  }
+
   console.log(`\n[email-binding-check] 通过 ${passed} / 失败 ${failed}`)
   console.log(`[email-binding-check] 临时目录（未自动删除，供复查）：${WORK}`)
   sqlite.close()

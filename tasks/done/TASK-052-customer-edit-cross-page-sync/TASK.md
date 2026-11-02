@@ -10,7 +10,7 @@
 Task ID: TASK-052
 Title: 客户编辑跨页实时同步（邮箱 / 订阅链接）
 Workflow: feature
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: 鼠鼠戴的工具人 (WorkBuddy)
 Owner Since: 2026-11-01T13:30:00+08:00
@@ -368,19 +368,84 @@ NIT-5 的**定位与引文不精确**（现存逐字表述在 Handoff 003「逻�
 
 ## Merge Record
 
-> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
-> `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
-> 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
-> **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
+> 本节由 **TASK-055**（执行位）按 D13-C 选项 C 于 2026-11-02 实测回填。
+> 原「本节不随 Pass/收尾填写」的机制说明已履行完毕（本任务已由下一个任务回收归档），故替换为实测值。
+> 原表为 6 字段旧格式，现补齐为九要素（「变更规模」一行并入「提交数」一并给出）。
 
-| 项 | 值 |
-|----|----|
-| PR | 待回填 |
-| merge commit | 待回填 |
-| merged at | 待回填 |
-| 变更规模 | 待回填 |
-| 合并时点 head | 待回填 |
-| 合并时点 CI run | 待回填 |
+| 要素 | 值 |
+|------|-----|
+| PR | [#27](https://github.com/huyanluanyuqaq/shadcn-admin/pull/27) `feat(TASK-054): 新增邮箱单事务落库（/email-bindings/bundle）+ 前端单次写请求` |
+| 合并策略 | `rebase-merge`（实测：merge commit 只有 **1 个 parent** `b9f9879`，非双亲合并提交） |
+| 提交数 | **9**（PR #27 全量；变更规模 `changed_files=29`。本任务与 TASK-053、TASK-054 **共用同一个 PR #27**，故三者的提交数/变更规模相同，无法按任务拆分） |
+| merged_at | `2026-11-02T02:09:31Z` |
+| merge_commit_sha | `2ca5d506d0c4f3da8b8d12bc72844c79aef7a2ab` |
+| 合并后 CI run | `41376188754`（Continuous Integration，`event=push` `head_branch=main`，conclusion=**success**，`created_at=2026-11-02T02:09:34Z`） |
+| 合并后 Docker run | `41376188853`（Build and Push Docker Image，`event=push` `head_branch=main`，conclusion=**success**，`created_at=2026-11-02T02:09:34Z`） |
+| 镜像 tag | `sha-2ca5d50`（digest `sha256:0658ac254eeb76a547d26181f1cf7d000d8f96c3bd8fac6d15000732d63a9c16`，`tag_last_pushed=2026/11/2 2:13:44`） |
+| 审查记录 | `handoffs/2026-11-02-review.md`（独立审查，其中 AC-1/6/8 判为「已被裁决取代」）+ 上一轮 `2026-11-01-review.md` / `2026-11-01-coordinator-review.md` |
+
+**与 TASK-053 / TASK-054 同批落地**：本任务**没有独立的 PR 与 merge commit**。TASK-052 的实现
+（`d270802`）、TASK-053 的语义、TASK-054 的接口**共用 PR #27 与同一个 `merge_commit_sha`
+`2ca5d50`**——因为 TASK-052/053 的改动此前只存在于主工作区、从未提交，TASK-054 必须叠在其上
+实现，故三者一并交付。**不得**把本行误读为三次独立合并。
+
+**合并未推进 `latest`**：`latest` 至今仍为 `sha256:b6da326e15e41c9e…`，等于 `v1.0.7` =
+`sha-e563800`（TASK-051 的合并产物），**不是**本任务的 `sha-2ca5d50`
+（`sha256:0658ac254eeb76a5…`）。`docker.yml` 仅由 `v*` tag 触发（`AGENTS.md` §14.3），
+普通合并不发布镜像、不前进 `latest`。
+
+**复现命令**（每条均在 2026-11-02 于本仓实跑，输出即上表数值）：
+
+```bash
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/27 \
+  --jq '{merged:.merged, merged_at:.merged_at, merge_commit_sha:.merge_commit_sha, commits:.commits, changed_files:.changed_files}'
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/27/commits --jq 'length'      # → 9
+gh api "repos/huyanluanyuqaq/shadcn-admin/actions/runs?head_sha=2ca5d506d0c4f3da8b8d12bc72844c79aef7a2ab&per_page=20" \
+  --jq '.workflow_runs[] | {id:.id, name:.name, event:.event, head_branch:.head_branch, conclusion:.conclusion}'
+git log --format="%H %P %s" -1 2ca5d506d0c4f3da8b8d12bc72844c79aef7a2ab
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-2ca5d50
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/latest
+```
+
+### SHA 映射表（rebase-merge 改写前后的对应关系）
+
+rebase-merge **改写了全部 SHA**：审查记录里引用的旧 SHA 在当前 `main` 上**均不可达**
+（`git merge-base --is-ancestor <旧SHA> main` 全部返回非 0）。本表供复核者把历史审查记录
+里的旧 SHA 对应到 `main` 上的真实提交。**九组逐条可核**（判定方式见 AC-6）。
+
+| 审查时 SHA | main 上 SHA | 标题 | 内容对应核对 |
+|-----------|------------|------|--------------|
+| `767c149` | `d270802` | feat(TASK-052/TASK-053): 客户编辑跨页同步 + 邮箱绑定状态重构 | tree 相同 `3bde50ea` |
+| `068bb5d` | `5672338` | feat(server): 新增邮箱单事务落库接口 POST /email-bindings/bundle | tree 相同 `db67a916` |
+| `8caab4f` | `1551bb9` | docs(TASK-054): 档案收口 —— AC 勾选附证据、变更清单、交接记录 | tree 相同 `76a31d72` |
+| `be7c2f2` | `a501c79` | docs(TASK-054): 主控位审查记录 —— PASS（有条件），R1-R3 整改 + B-1 合并前置 | tree 相同 `3b9e8168` |
+| `074e557` | `53e756c` | fix(server): 邮箱大小写变体绕过唯一性判定（TASK-053 R1 / TASK-054 R4） | tree 相同 `972952f2` |
+| `a65970a` | `8ba2c09` | docs: 邮箱归属口径与实测计数校正（TASK-053 R1 合并前置 D/E/F） | tree 相同 `a6d3c835` |
+| `51b7c04` | `20d5d4c` | fix(server): 邮箱绑定 CRUD 补大小写不敏感唯一校验（同根缺陷第三个入口） | tree 相同 `907eb658` |
+| `bee2610` | `b9f9879` | fix(server): 邮箱绑定判重按「身份是否变化」判定（PATCH 只改字段不再误 409） | tree 相同 `3282fcb8` |
+| `07e5217` | `2ca5d50` | docs(TASK-052/053/054): 独立审查入库 + 053 阻塞项修复收口 + 任务目录/状态补正 | tree 相同 `d3ab9af1`，即 merge commit |
+
+核对方式（TASK-055 执行位实跑，非照抄）：
+
+```bash
+# ① 旧 SHA 在 main 上不可达（全部返回非 0）
+for s in 767c149 068bb5d 8caab4f be7c2f2 074e557 a65970a 51b7c04 bee2610 07e5217; do
+  git merge-base --is-ancestor $s main; echo "$s => $?"
+done
+# ② 新旧标题逐条一致
+for s in 767c149 068bb5d 8caab4f be7c2f2 074e557 a65970a 51b7c04 bee2610 07e5217 \
+         d270802 5672338 1551bb9 a501c79 53e756c 8ba2c09 20d5d4c b9f9879 2ca5d50; do
+  git log --format="%s" -1 $s
+done
+# ③ tree 相同（证明是同一份内容的 rebase 副本，而非另写一份）
+for p in 767c149:d270802 068bb5d:5672338 8caab4f:1551bb9 be7c2f2:a501c79 \
+         074e557:53e756c a65970a:8ba2c09 51b7c04:20d5d4c bee2610:b9f9879 07e5217:2ca5d50; do
+  o=${p%%:*}; n=${p##*:}
+  echo "$o -> $n : $(git log --format=%T -1 $o) / $(git log --format=%T -1 $n)"
+done
+```
+
+> **本表为追加，未改写任何 `handoffs/*.md` 内文的旧 SHA / 旧数字**（历史记录不得篡改）。
 
 ---
 
