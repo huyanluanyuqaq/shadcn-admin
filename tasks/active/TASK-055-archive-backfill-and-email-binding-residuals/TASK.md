@@ -186,6 +186,7 @@ bee2610 → b9f9879    身份比对重写
       **`NULL 互异` 那一条实测通过**：`✓ 同一邮箱在未指定供应商下可单独绑定（NULL 互异）`
       —— 此前仅有「读代码推断仍会通过」，现已由实跑确认，**该用例未删、断言未改**。
       14 项失败的归属见下方「V 组实测记录」；其中与本任务相关的为 0 项（基线对照证明全部先于本次改动存在）。
+      分簇计数为**阈值 6 + 仪表盘 1 = 7 / sync 6 / 备份 1**（TASK-055 主控位 m-1 整改后口径）。
 - [x] **AC-9** 真实库只读核查两条查询的**原始结果**写入档案（见下方「D 组实测记录」）。
       **两条查询均返回 0 行**，但因 `email_bindings` 总行数为 **0**，该空结果是 **vacuous**
       （无数据可脏），**不等于数据干净**——已在档案与 Known Issues 中明确标注，防止被误读为「已清理」。
@@ -271,7 +272,7 @@ cd server && SMOKE_BASE_URL=http://127.0.0.1:3000 SMOKE_DB_DIR=E:/tmp/t055-smoke
 
 ## Current State
 
-**Status = ACTIVE（R/S/C/V/D 五组实施完毕，待主控位审查）。**
+**Status = ACTIVE（已按主控位审查 §4 完成整改，待复审）。**
 
 分支 `fix/TASK-055-archive-backfill-and-email-binding-residuals`，从 `main`（`2ca5d50`）切出。
 四份档案已按实测值回填九要素并 `git mv` 至 `tasks/done/`，三份已加 SHA 映射表；
@@ -322,15 +323,88 @@ REAL_EXIT_CODE=1
 | 本分支（含 C 组改动） | 168 | 14 | `1` | 见下 |
 | `main` 基线（`resources.ts` 回退） | 168 | 14 | `1` | **与左栏逐条相同** |
 
-14 项失败分三簇，均**先于本任务存在**，本任务不处置（见「本次未做」）：
+14 项失败分三簇，均**先于本任务存在**，本任务不处置（见「本次未做」）。
+分簇口径（TASK-055 主控位 m-1 整改后）：**阈值 6 + 仪表盘 1 = 7 / sync 6 / 备份 1**。
 
-1. **流量阈值通知 7 项**（`{"notified":0,"rows":0}`）：`/api/reminders/scan` 未生成提醒行，
-   连带「仪表盘 stats 返回 trafficThresholds」1 项，共 8 项中的 7 项阈值项 + 1 项仪表盘；
+14 项失败清单（`smoke.ts` 输出逐条摘录，两次运行清单一致）：
+
+| # | 簇 | 失败断言 |
+|---|----|----------|
+| 1 | 阈值 | 客户 A 穿越 50% 阈值：发出 1 条通知 |
+| 2 | 阈值 | 客户 A 停留在 60%：重复扫描不重复通知 |
+| 3 | 阈值 | 客户 A 穿越 80% 阈值：再发 1 条（累计 2 条，最新为 80%） |
+| 4 | 阈值 | 客户 A 回落到 30%：不新增通知（累计仍 2 条） |
+| 5 | 阈值 | 客户 A 重置后再次穿越 50%：重新发 1 条（累计 3 条） |
+| 6 | 阈值 | 客户 B 一次跳到 95%：只发 1 条且为最高阈值 80%（非 50%） |
+| 7 | 仪表盘 | 仪表盘 stats 返回 trafficThresholds（A=50% 已通知 / B=80% / C=50% / D=80% 按套餐） |
+| 8 | sync | sync 创建绑定（action=created，cleaned=0） |
+| 9 | sync | sync 改绑已有绑定（action=updated） |
+| 10 | sync | 同一邮箱可绑定不同供应商（action=created） |
+| 11 | sync | sync 清理陈旧绑定（同一订阅只保留一个供应商身份，cleaned=1） |
+| 12 | sync | 同步后该邮箱仅剩一条绑定（sub2 + syncPool） |
+| 13 | sync | 按 poolId 筛选邮箱绑定（供应商筛选的数据基础） |
+| 14 | 备份 | 19.17 恢复标记存在且 filename 等于请求目标 |
+
+1. **流量阈值通知 6 项 + 仪表盘 stats 1 项 = 7 项**（阈值项均返回 `{"notified":0,"rows":0}`）：
+   `/api/reminders/scan` 未生成提醒行，连带「仪表盘 stats 返回 trafficThresholds」1 项；
 2. **邮箱绑定 sync 5 项**：被 TASK-053 的 R2 守卫（「一条订阅只能对应一个邮箱」）以 409 拒绝，
    smoke 脚本的期望写于该守卫之前，属**脚本期望过期**而非产品缺陷；
 3. **备份恢复标记 1 项**（19.17 恢复标记 `filename` 读到的值与请求目标不符）。
 
 > 说明：smoke.ts 当前整体为红（退出码 1）是**本任务之前就存在的状态**，不是本任务引入的回归。
+
+### M-1 整改对照运行（主控位 §4.1 要求的闭环证据）
+
+M-1：场景 12 最初未携带 `poolId`，判重按 `pool_id IS NULL` 查找而匹配不上种子行，
+导致用例在**未修复代码**上也全绿、不具区分力。整改为请求体补 `poolId` 后，
+按「必须在未修复代码上失败」的原则做了两次对照运行。
+
+**① `resources.ts` 换回 `main` 版本（`git checkout main -- server/src/routes/resources.ts`，
+已确认该文件不含 `TASK-055` 标记、不含 C 组分支）+ 修正后的用例：**
+
+```text
+场景 12：PATCH 不存在的 id（带撞车邮箱）→ 404，行数不变
+  调用前 email_bindings 行数=1
+  调用后 email_bindings 行数=1
+  ✓ email_bindings 行数不变
+  ✓ 未新建任何行（原绑定仍在）
+  ✗ 状态码为 404（不是 409） → {"status":409,"json":{"error":"Conflict","message":"该邮箱已绑定同一供应商下的订阅，请直接编辑已有绑定"}}
+  ✗ message 为「邮箱绑定 不存在」 → "该邮箱已绑定同一供应商下的订阅，请直接编辑已有绑定"
+  ✓ 对照组：PATCH 存在的 id 撞别人邮箱 → 仍为 409
+  ✓ 对照组：409 时 email_bindings 行数不变
+  ✓ 对照组：409 文案仍为既有 uniqueHint
+[email-binding-check] 通过 60 / 失败 2
+[email-binding-check] 临时目录（未自动删除，供复查）：E:\AiData\task052-email-binding-check-1793593502843
+
+[email-binding-check] 通过 60 / 失败 2
+```
+
+→ **「状态码为 404（不是 409）」与「message 为邮箱绑定 不存在」两项失败**，60/62，退出码 **1**。
+这正是 M-1 的闭环判据：用例现在确实能挡住「删掉 `if (id !== null && current === null) return null`」这类回退。
+
+**② 恢复修复版本（`git checkout HEAD -- server/src/routes/resources.ts`）+ 修正后的用例：**
+
+```text
+场景 12：PATCH 不存在的 id（带撞车邮箱）→ 404，行数不变
+  调用前 email_bindings 行数=1
+  调用后 email_bindings 行数=1
+  ✓ 状态码为 404（不是 409）
+  ✓ message 为「邮箱绑定 不存在」
+  ✓ email_bindings 行数不变
+  ✓ 未新建任何行（原绑定仍在）
+  ✓ 对照组：PATCH 存在的 id 撞别人邮箱 → 仍为 409
+  ✓ 对照组：409 时 email_bindings 行数不变
+  ✓ 对照组：409 文案仍为既有 uniqueHint
+[email-binding-check] 通过 62 / 失败 0
+[email-binding-check] 临时目录（未自动删除，供复查）：E:\AiData\task052-email-binding-check-1793593481156
+
+[email-binding-check] 通过 62 / 失败 0
+```
+
+→ 62/62，退出码 **0**。
+
+两次运行均使用 `cd server && node node_modules/tsx/dist/cli.mjs scripts/email-binding-sync-check.ts`，
+临时库位于 `E:\AiData	ask052-email-binding-check-*`（未自动删除，供复查）。
 > 本任务只负责「实跑并如实记录」，修这 14 项需另立任务。
 
 ### D 组实测记录（真实库只读核查）
@@ -401,8 +475,8 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
 
 1. **smoke.ts 当前整体为红（168 通过 / 14 失败，退出码 1），且先于本任务存在**。
    已用 `main` 基线对照证明 14 项失败与本任务改动无关（逐条相同）。三簇成因：
-   ① 流量阈值通知 7 项 + 仪表盘 stats 1 项（`/api/reminders/scan` 未生成提醒行）；
-   ② 邮箱绑定 sync 5 项被 TASK-053 的 R2 守卫 409 拒绝，**smoke 脚本期望过期**；
+   ① 流量阈值 6 项 + 仪表盘 stats 1 项 = 7 项（`/api/reminders/scan` 未生成提醒行）；
+   ② 邮箱绑定 sync **6** 项被 TASK-053 的 R2 守卫 409 拒绝，**smoke 脚本期望过期**；
    ③ 备份恢复标记 1 项（19.17）。修哪一簇都需另立任务，**本任务不处置**。
 2. **D 组两项脏数据查询的结果是 vacuous**：`email_bindings` 表当前 **0 行**，
    两条查询必然返回空。这不等于「数据干净」，只等于「无数据可脏」。
@@ -416,7 +490,20 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
    而 `main` 已前进到 `2ca5d50`。这是 `docker.yml` 仅由 `v*` tag 触发的既定设计
    （`AGENTS.md` §14.3），**不是缺陷**；但已在 052/053/054 三份档案中写明，
    防止后来者误以为「合并即发布」。
-5. **TASK-051 的 D13-C 欠账已滚过三轮**：本应由 TASK-052 补记，实际由 TASK-055 清偿，
+6. **场景 12 曾因未携带 `poolId` 而不具区分力**（主控位 M-1，已整改）。
+   成因：场景 12 最初的请求体只有 `{ email: 'owner@x.com' }`。由于目标行不存在，
+   `beforeWrite` 里 `poolId` 会因「`poolId` 不在 `values` 且 `current` 为 null」而解析成 **null**，
+   判重查询随即按 `pool_id IS NULL` 查找，**永远匹配不上**种子行（其 `pool_id` 非空），
+   于是即使没有本次修复，`beforeWrite` 也直接放行、CRUD 自己返回 404 —— 用例七项断言全绿，
+   但它证明的只是「脚本能跑」，没有证明缺陷被修掉，也没有证明它被守住。
+   **整改**：请求体补 `poolId`，使未修复代码在该处返回 409。
+   **整改后的验证方式（防同类「测试看似通过实则空转」再次发生）**：把 `resources.ts`
+   换回 `main` 版本后重跑，场景 12 的「状态码为 404」与「message」两项**必须失败**。
+   实测：main 版本 + 修正后用例 → 60/62、退出码 1，两项如预期失败；修复版本 → 62/62、退出码 0。
+   两次运行的原始输出已贴在本档案「V 组实测记录」下方的「M-1 整改对照运行」小节。
+   **教训**：写「缺陷应被挡住」的回归用例时，必须先在**未修复代码**上跑一次、
+   确认它确实红，否则门禁只是装饰。
+7. **TASK-051 的 D13-C 欠账已滚过三轮**：本应由 TASK-052 补记，实际由 TASK-055 清偿，
    `github-collaboration.md` §224「至多延后一个任务」的终止条件已被突破。
    已在 TASK-051 档案内如实登记；**根因（回写责任易在传递中落空）未消除**，
    建议后续在框架层加机械门禁（如审计脚本检查 `review/` 中已合并任务的 Merge Record 是否为空）。
@@ -426,13 +513,20 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
 | # | From | To | Date | Summary |
 |---|------|----|------|---------|
 | 001 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | R/S/C/V/D 五组实施完毕；四份 Merge Record 实测回填 + git mv 归档；C 组 404 语义 + 7 项断言；smoke 实跑 168/14 并用 main 基线对照证明失败先于本次改动；D 组只读核查 0 命中（vacuous） |
+| 002 | developer（Codex，执行位） | reviewer（主控位） | 2026-11-02 | 按主控位审查 §4 整改：M-1 场景 12 补 `poolId` 并用「main 版本必须失败」闭环自证；m-1 三处分簇计数改 6+1/6/1 并附 14 项清单；Known Issues 增补第 6 条；全量门禁重跑退出码全 0 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-developer-to-reviewer.md`
-**Next Action：** 主控位读 `HANDOFF-001-developer-to-reviewer.md` + 实际 diff →
-逐条核对 AC-1~AC-11 → 按 Task Rules 安排**不携带实现上下文的独立实例**复核 C 组 404 语义
-与 D 组报告真实性 → 出具 PASS / FAIL。
+**Next Action：** 主控位**复审** §4 整改：闭环判据是「把 `resources.ts` 换回 `main` 版本后，
+场景 12 的『状态码为 404』与『message』两项必须失败」——两次运行的原始输出已贴在本档案
+「M-1 整改对照运行」小节。另需复核 m-1 的三处分簇计数与 14 项清单是否一致。
+复审 PASS 后由人类授权合并（合并动作属主控位/人类，执行位不得自行合并）。
 
 ## Merge Record
+
+> 本节由**下一个任务**按 D13-C 选项 C 回填；在此之前本任务保持 `Status = ACTIVE`、
+> 留在 `tasks/active/`（机制，非遗漏）。**禁止在本任务内自我回写**。
+> 回填时九要素必须填实测值（可被 `gh api` / DockerHub Tags API 当场复现），不得沿用档案自述；
+> 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
 
 | 要素 | 值 |
 |------|-----|

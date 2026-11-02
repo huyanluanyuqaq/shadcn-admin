@@ -12,7 +12,17 @@
 
 ## Current State
 
-R/S/C/V/D 五组实施完毕，全量门禁通过，等待独立审查。**未自审、未自行批准、未合并。**
+**已按主控位审查记录（`handoffs/2026-11-02-coordinator-review.md`）§4 完成整改，待复审。**
+
+主控位结论为 **FAIL（CHANGES_REQUESTED）**，阻断项仅 M-1 一个，且只需改测试的一行入参与一处注释，
+不需要改产品代码。四项整改（M-1 / m-1 / 重跑门禁 / Known Issues 增补）均已执行完毕：
+
+| §4 项 | 内容 | 状态 |
+|-------|------|------|
+| 4.1 | 场景 12 请求体补 `poolId` + 修正注释 + 两次对照运行贴入档案 | ✅ |
+| 4.2 | 三处分簇计数改「阈值 6 + 仪表盘 1 = 7 / sync 6 / 备份 1」并附 14 项清单 | ✅ |
+| 4.3 | 重跑全量门禁，退出码全 0（smoke 仍 1，既有红） | ✅ |
+| 4.4 | `TASK.md` Known Issues 增补第 6 条（成因 + 整改后验证方式 + 教训） | ✅ |
 
 > ⚠️ 本任务的 Status 仍为 `ACTIVE` 而非 `DONE`：TASK-055 自身尚未合并，
 > 其 Merge Record 按 D13-C 由**下一个任务**回填，本任务不得自我回写。
@@ -93,8 +103,8 @@ if (id !== null && current === null) return null
 （`git stash push -- server/src/routes/resources.ts`）后重跑基线，结果
 **168 通过 / 14 失败、退出码 1、失败清单逐条相同**。故 14 项全部先于本任务存在：
 
-1. 流量阈值通知 7 项 + 仪表盘 stats 1 项（`/api/reminders/scan` 未生成提醒行）；
-2. 邮箱绑定 sync 5 项（被 TASK-053 的 R2 守卫 409 拒绝，**smoke 脚本期望过期**）；
+1. 流量阈值通知 **6 项 + 仪表盘 stats 1 项 = 7 项**（`/api/reminders/scan` 未生成提醒行）；
+2. 邮箱绑定 sync **6 项**（被 TASK-053 的 R2 守卫 409 拒绝，**smoke 脚本期望过期**）；
 3. 备份恢复标记 1 项（19.17）。
 
 ### D 组：真实库只读核查
@@ -135,9 +145,36 @@ if (id !== null && current === null) return null
 
 ---
 
+## §4 整改：M-1 闭环自证（场景 12 补 poolId）
+
+主控位 M-1：场景 12 最初请求体只有 `{ email: 'owner@x.com' }`，未带 `poolId`。
+因目标行不存在，`beforeWrite` 里 `poolId` 解析为 `null`，判重按 `pool_id IS NULL` 查找，
+**永远匹配不上**种子行（其 `pool_id` 非空），于是未修复代码也直接放行 —— 用例全绿但不具区分力。
+
+执行位先自行复现了该缺陷：把 `resources.ts` 换成 `main` 版本跑**当时已提交的脚本**，
+场景 12 七项断言全绿、62/62、退出码 0 —— 与修复后逐字节相同，确认测试是空转的。
+
+整改（只改测试，未改产品代码）：
+
+```ts
+const res = await patchJson(`/email-bindings/999999`, { email: 'owner@x.com', poolId })
+```
+
+并按「缺陷应被挡住」的原则做两次对照运行（原始输出已贴入 `TASK.md` 的
+「M-1 整改对照运行」小节）：
+
+| 运行 | 代码版本 | 结果 | 退出码 |
+|------|----------|------|--------|
+| ① 闭环判据 | `main`（`git checkout main -- server/src/routes/resources.ts`） | **60/62**，「状态码为 404」与「message」两项**失败** | **1** |
+| ② 修复版本 | `HEAD`（`git checkout HEAD -- …`） | 62/62 全过 | **0** |
+
+即：补上 `poolId` 后，未修复代码会在该处返回 409，用例才真正能挡住
+「删掉 `if (id !== null && current === null) return null`」这类回退。
+其余 5 项断言与 3 项对照组在两种代码下均通过，无需改动。
+
 ## Tests
 
-全部在 `E:\NDLDSN-WORKSPACE\projects\shadcn-admin` 执行，退出码为实测值。
+整改后重跑的全量门禁（§4.3），全部在 `E:\NDLDSN-WORKSPACE\projects\shadcn-admin` 执行，退出码为实测值。
 
 | 命令 | 结果 | 退出码 |
 |------|------|--------|
@@ -154,6 +191,11 @@ if (id !== null && current === null) return null
 
 > smoke 退出码为 1 是**既有状态**，已用 main 基线对照证明与本任务无关（见上）。
 > AC-10 要求的八项门禁退出码全部为 0，smoke 不在此列。
+>
+> **m-1 整改**：smoke 14 项失败的分簇计数，本交接与 `TASK.md`、PR 描述三处原写作
+> 「阈值 7 + 仪表盘 1 / sync 5 / 备份 1」，实为 **阈值 6 + 仪表盘 1 = 7 / sync 6 / 备份 1**。
+> 总数 14 与「全部先于本任务存在」的结论不受影响，但两簇各偏移 1 项；
+> 若按「sync 5 项」立项清理会漏 1 项。三处已同步修正并附 14 项失败清单。
 
 每移动一份档案跑一次 `audit-repo.py`，四次均 `PASS=9 FAIL=0 WARN=0`。
 
@@ -161,7 +203,8 @@ if (id !== null && current === null) return null
 
 ## Known Issues
 
-1. **smoke.ts 整体为红（14 项失败）**，先于本任务存在，分三簇需分别立项。
+1. **smoke.ts 整体为红（14 项失败）**，先于本任务存在，分簇为
+   **阈值 6 + 仪表盘 1 = 7 / sync 6 / 备份 1**，需分别立项。
 2. **D 组结果是 vacuous**：`email_bindings` 0 行，两项规则在真实库上从未被检验。
 3. **D 组脚本未沉淀**：受 File Scope 限制（`server/package.json` 不可改），改为一次性命令。
 4. **`latest` 长期落后 `main`**：既定设计（`docker.yml` 仅 `v*` 触发），已在三份档案写明。
