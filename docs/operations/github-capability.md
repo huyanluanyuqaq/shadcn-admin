@@ -67,7 +67,7 @@
 **配置方式：** 网页界面 / 命令行 / 接口 —— **均无法通过提交文件完成**。
 本次由用户在网页端完成；**Agent 亦具备该权限**（见 §6），是否代做属授权问题而非能力问题。
 
-**生效证据：** 见 §4 的 V1 / V2 / V4 / V5 实测结果 —— 本节描述的是**已生效**的配置，
+**生效证据：** 见 §4 的 V1 / V2 / V4 / V5 / V6 实测结果 —— 本节描述的是**已生效**的配置，
 不是计划。**自锁风险**（见 §8 末）在本次配置下**已真实具备**。
 
 ---
@@ -120,10 +120,11 @@
 | V1 | 状态检查能否拦截**直接推送**到默认分支（兴趣项） | **是** —— 拒绝消息**同时明列** `2 of 2 required status checks are expected`（完整输出见下） | 2026-10-14 | 检查退化为提示（本设计主要由「要求 PR」承担，非成立条件） |
 | V2 | 例外名单为空时，**所有者**是否仍受约束 | **是** —— 以**仓库所有者身份**（SSH `huyanluanyuqaq`）直推被拒；同一时期推送**非 `main` 分支成功** | 2026-10-14 | 禁强制推送 / 禁删分支对所有者无强制力 |
 | V3 | 检查是否在合并前于工作分支运行 | **是**（run [`38531690034`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38531690034)：`pull_request` 事件、发布在 PR 分支、两作业全绿） | 2026-10-14 | 检查无法构成门禁 |
-| V4 | 必需检查未通过时，合并是否确实被阻止 | **是** —— 探针 PR [#3](https://github.com/huyanluanyuqaq/shadcn-admin/pull/3)（`install-lint-build` 失败）→ `mergeable_state: blocked`；`PUT /pulls/3/merge` 返回 **HTTP 405** `Required status check "install-lint-build" is failing.`；`main` 未变动 | 2026-10-14 | 门禁失效 |
-| V5 | 必需检查**traceability** 未通过时，合并是否确实被阻止 | **是** —— 探针 PR [#35](https://github.com/huyanluanyuqaq/shadcn-admin/pull/35)（提交信息故意无 `Refs` footer）→ `mergeable_state: blocked`；`PUT /pulls/35/merge` 返回 **HTTP 405** `Required status check "traceability" is failing.`；`origin/main` SHA 前后不变（`ea95b89`） | 2026-11-03 | 门禁失效 |
+| V4 | 必需检查未通过时，合并是否确实被阻止 | **是** —— 探针 PR [#3](https://github.com/huyanluanyuqaq/shadcn-admin/pull/3)（install-lint-build 失败）→ mergeable_state: blocked；PUT /pulls/3/merge 返回 **HTTP 405** Required status check "install-lint-build" is failing.；main 未变动 | 2026-10-14 | 门禁失效 |
+| V5 | 必需检查**全绿**时，所有者（批准数 = 0）能否正常合并**自己的 PR**（阳性对照，与 V4 成对） | **是** —— TASK-033 的 PR [#4](https://github.com/huyanluanyuqaq/shadcn-admin/pull/4) 全绿时合并，PUT /pulls/4/merge 返回 merged: true ⇒ 门禁**不误伤**合规交付 | 2026-10-15 | 门禁误伤合规交付（见 §2 的 UI 陷阱：批准数误配 ≥ 1 会让单账号仓库所有 PR 永久无法合并） |
+| V6 | 必需检查**traceability** 未通过时，合并是否确实被阻止 | **是** —— 探针 PR [#35](https://github.com/huyanluanyuqaq/shadcn-admin/pull/35)（提交信息故意无 `Refs` footer）→ `mergeable_state: blocked`；`PUT /pulls/35/merge` 返回 **HTTP 405** `Required status check "traceability" is failing.`；`origin/main` SHA 前后不变（`ea95b89`） | 2026-11-03 | 门禁失效 |
 
-**V5 的原始输出**（探针 PR #35，`traceability` 失败时）：
+**V6 的原始输出**（探针 PR #35，`traceability` 失败时）：
 
 ```
 gh pr view 35 --json mergeable,mergeStateStatus
@@ -139,7 +140,17 @@ git rev-parse origin/main（合并尝试前） → ea95b8978c4957c7804b66aedec72
 git rev-parse origin/main（合并尝试后） → ea95b8978c4957c7804b66aedec72eea6a058a82（相同 ✅）
 ```
 
-**V4 的原始输出**（探针 PR #3，`install-lint-build` 失败时）：
+> **V5 编号裁决（TASK-034，2026-10-15）：** 本节 V5 原义为「直推被拒」，与 V1/V2 实质重复；现已裁决：V5 = 「绿灯可合并」阳性对照（本行所载义），「直推被拒」旧义由 V1 / V2 承载。原 V5 义已迁移至 V6（`traceability` 拦截实证）。
+
+
+**V5 的原始输出**（探针 PR #4，2026-10-15，全绿时）：
+
+```
+PUT /repos/.../pulls/4/merge  → {"merged": true}
+main                          → 正常推进（0ea1916）
+```
+
+**V4 的原始输出**（探针 PR #3，install-lint-build 失败时）：
 
 > **V1 与 V2 不可合并成一条：** 两者出自**同一次直推测试**（同一份 `GH006` 拒绝输出），但**所问不同** ——
 > V2 问「所有者是否受约束」（`enforce_admins` 生效），V1 问「必需检查自身是否参与拦截」
@@ -153,7 +164,7 @@ git rev-parse origin/main（合并尝试后） → ea95b8978c4957c7804b66aedec72
 > **执行记录：** ① 由 PR [#1](https://github.com/huyanluanyuqaq/shadcn-admin/pull/1) 与
 > [#2](https://github.com/huyanluanyuqaq/shadcn-admin/pull/2) 完成（V3 成立）；
 > ② 于 2026-10-14 分支保护配置完成**之后**执行 —— **直推被拒**（V1 / V2）、
-> **红灯 PR 的合并被服务端拒绝**（V4）；**绿灯 PR 正常合并**（V5，2026-10-15，PR #4）。探针 PR #3 已关闭、其分支已删除、`main` 未受影响。
+> **红灯 PR 的合并被服务端拒绝**（V4）；**绿灯 PR 正常合并**（V5（阳性对照），2026-10-15，PR #4）。探针 PR #3 已关闭、其分支已删除、`main` 未受影响。
 >
 > 注意：V1 / V2 需要一次**刻意失败的直推尝试**，属破坏性操作。本次经授权后执行，
 > 因**未成功推送，故未产生任何远端残留**（本地探针分支亦已删除）。
@@ -170,7 +181,7 @@ git rev-parse origin/main（合并尝试后） → ea95b8978c4957c7804b66aedec72
 
 > ⚠️ **本记录的要点：** 该次合并**证明了流程可用**，但**没有证明门禁有效** ——
 > 那时分支保护尚未配置。**门禁有效性由本节 V1 / V2 / V4 于同日稍后单独实测、
-> V5 于 2026-10-15 经 PR #4 取得阳性对照，结论为全部成立。**
+> V5（阳性对照）于 2026-10-15 经 PR #4 取得阳性对照，结论为全部成立。**
 > 两者是**两件不同的结论**，不得混为一谈。
 
 ---
@@ -251,7 +262,7 @@ git rev-parse origin/main（合并尝试后） → ea95b8978c4957c7804b66aedec72
 > **已完成 —— 2026-10-14（阶段 3 第一件：平台门禁）：**
 > ⑤ **分支保护配置完成**（用户在网页端操作，逐字段见 §2）。`gh api .../branches/main/protection` 由 **404 → 200**；
 > ⑥ **V1 / V2 / V4 实测全部成立**（§4）。探针 PR #3 已关闭、其远端与本地分支均已删除，`main` 未受影响
-> （V5 的阳性对照属 2026-10-15，见下方 ⑨）；
+> （V5 阳性对照属 2026-10-15，见下方 ⑨）；
 > ⑦ **`stale.yml` 已处置**（见该文件内注释：去除定时触发 + 禁用 PR 侧处理）。
 >
 > **已完成 —— 2026-10-15（阶段 3 收口）：**
@@ -344,3 +355,6 @@ gh api repos/huyanluanyuqaq/shadcn-admin \
 > **一条纪律：** 上表任何一项被重新提议时，**先读理由**，再判断「重启条件」是否成立。
 > 若成立，修改本节并说明依据；若不成立，不得以「更严格总是更好」为由强行启用 ——
 > 无效的严格只会训练出绕过习惯。
+
+
+
