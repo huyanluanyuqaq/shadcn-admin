@@ -10,15 +10,15 @@
 Task ID: TASK-057
 Title: 门禁实证与证据链收口
 Workflow: maintenance
-Status: BACKLOG
+Status: REVIEW
 Priority: P1
-Owner: ""
-Owner Since: ""
+Owner: MiMo（执行位 · developer）
+Owner Since: 2026-11-03T04:00:00+08:00
 Assigned Role: developer
 Created: 2026-11-02T21:50:00+08:00
-Updated: 2026-11-02T21:50:00+08:00
-Branch: ""
-Requires Human Approval: true
+Updated: 2026-11-03T04:10:00+08:00
+Branch: docs/TASK-057-gate-evidence-closure
+Requires Human Approval: false
 ```
 
 ## Objective
@@ -139,7 +139,18 @@ Non-Scope (files):
 
 ## Current State
 
-**BACKLOG（2026-11-02 登记，未开始）。** 等待执行位领取。
+**REVIEW（2026-11-03 完成，等待主控位审查）。**
+
+A/W/D 三组已完成，E 组探针 PR 四要素实证完成，全量门禁验证中。
+
+### E 组实证记录（探针 PR #35）
+
+| 要素 | 实测值 |
+|------|--------|
+| mergeable_state | BLOCKED |
+| PUT /pulls/35/merge | HTTP 405，message: traceability is failing |
+| origin/main（合并尝试前后） | ea95b89（相同） |
+| 探针 PR 状态 | 已关闭保留（PR #35） |
 
 ## Changed Files
 
@@ -159,10 +170,10 @@ Non-Scope (files):
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
-| — | — | — | — | 尚未开始 |
+| 001 | developer | coordinator | 2026-11-03 | A/W/D 三组完成；E 组探针 PR #35 四要素实证 |
 
-**最新 Handoff：** 无
-**Next Action：** 执行位领取后先做 A 组（审查记录入库），再做 W 组；E 组须先取得人类授权。
+**最新 Handoff：** 待写 HANDOFF-001
+**Next Action：** 提交推送 → 开 PR → 交主控位审查。
 
 ## Merge Record
 
@@ -198,3 +209,4 @@ Non-Scope (files):
 - 三项待办的来源：2026-11-02 主控位对 PR #31 的审查结论 §5/§7，以及 TASK-055 `Known Issues` 5。
 - 场景 F（`docs/operations/collaboration-scenarios.md`）已指出「SHA 映射表」缺制度要求；
   其制度化归 **TASK-059**，本任务只在回填 TASK-055 时按先例附映射表。
+
