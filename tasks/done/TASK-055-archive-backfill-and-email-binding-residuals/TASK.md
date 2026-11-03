@@ -608,7 +608,7 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
 | `36a3f19` | `63235b4` | `f064c5a4769e26f88adb9c748fd0ebf7085ed25c` | fix(server): PATCH 不存在的邮箱绑定 id 返回 404 而非 409 |
 | `2edba55` | `57e8781` | `1e7277d504d0e407618f381e9996bcc508fe3189` | test(TASK-055): 按主控位审查 §4 整改
 
-> **不可达验证**：十一个审查时 SHA 在 `main` 上均不可达（`git merge-base --is-ancestor <SHA> HEAD` 全部非 0）。
+> **不可达验证**：十二个审查时 SHA 在 `main` 上均不可达（`git merge-base --is-ancestor <SHA> HEAD` 全部非 0）。
 > **判据与 TASK-055 原档案不同**：TASK-055 原方案用「tree 相同」，基点半移后 tree 全部不同，改为 `patch-id --stable`。
 
 ## Task Rules
