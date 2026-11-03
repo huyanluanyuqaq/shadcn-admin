@@ -595,17 +595,19 @@ knip 靠 `server/package.json` 的 script 入口识别脚本，而该文件**不
 
 | 审查时 SHA（旧 PR #27 分支） | main 上 SHA（`dc54696` 历史） | patch-id | 对应提交标题 |
 |------|------|------|------|
-| `767c149` | `d270802` | 相同（待实跑确认） | feat(TASK-052/TASK-053): 客户编辑跨页同步 + 邮箱绑定状态重构 |
-| `068bb5d` | `5672338` | 相同（待实跑确认） | feat(server): 新增邮箱单事务落库接口 POST /email-bindings/bundle |
-| `8caab4f` | `1551bb9` | 相同（待实跑确认） | docs(TASK-054): 档案收口 |
-| `be7c2f2` | `a501c79` | 相同（待实跑确认） | docs(TASK-054): 主控位审查记录 |
-| `074e557` | `53e756c` | 相同（待实跑确认） | fix(server): 邮箱大小写变体绕过唯一性判定 |
-| `a65970a` | `8ba2c09` | 相同（待实跑确认） | docs: 邮箱归属口径与实测计数校正 |
-| `51b7c04` | `20d5d4c` | 相同（待实跑确认） | fix(server): 邮箱绑定 CRUD 补大小写不敏感唯一校验 |
-| `bee2610` | `b9f9879` | 相同（待实跑确认） | fix(server): 邮箱绑定判重按「身份是否变化」判定 |
-| `07e5217` | `dc54696` | 相同（待实跑确认） | docs(TASK-055): 主控位复审 R-1/R-2/R-3 已改正（= merge commit） |
+| `767c149` | `d270802` | `5324cd28621d6707788749004d128e3e7395faea` | feat(TASK-052/TASK-053): 客户编辑跨页同步 + 邮箱绑定状态重构 |
+| `068bb5d` | `5672338` | `90ecd57a7ec916794b002d252df0da2808594c3a` | feat(server): 新增邮箱单事务落库接口 POST /email-bindings/bundle |
+| `8caab4f` | `1551bb9` | `3195933e8f2f3c3f40ae8b6655f4d212ea71b980` | docs(TASK-054): 档案收口 |
+| `be7c2f2` | `a501c79` | `2367e491ad96d5196941fa12e871e779b3f62018` | docs(TASK-054): 主控位审查记录 |
+| `074e557` | `53e756c` | `4cac0691fbf53ee9a64d9995c2741a09e28461c4` | fix(server): 邮箱大小写变体绕过唯一性判定 |
+| `a65970a` | `8ba2c09` | `766f7b45c00f097bbafbda7d19ca8f31254fd468` | docs: 邮箱归属口径与实测计数校正 |
+| `51b7c04` | `20d5d4c` | `c3f2b406f79cc87a1dbba10bdbb58a712b3507e6` | fix(server): 邮箱绑定 CRUD 补大小写不敏感唯一校验 |
+| `bee2610` | `b9f9879` | `8482adda6dcaa2fbe9ac5d8acf106711354f7fff` | fix(server): 邮箱绑定判重按「身份是否变化」判定 |
+| `07e5217` | `dc54696` | `e4955f4fb03897f7e9561f5854376f49b5338995` | docs(TASK-055): 主控位复审 R-1/R-2/R-3 已改正（= merge commit） |
+| `36a3f19` | `63235b4` | `f064c5a4769e26f88adb9c748fd0ebf7085ed25c` | fix(server): PATCH 不存在的邮箱绑定 id 返回 404 而非 409 |
+| `2edba55` | `57e8781` | `1e7277d504d0e407618f381e9996bcc508fe3189` | test(TASK-055): 按主控位审查 §4 整改
 
-> **不可达验证**：九个审查时 SHA 在 `main` 上均不可达（`git merge-base --is-ancestor <SHA> HEAD` 全部非 0）。
+> **不可达验证**：十一个审查时 SHA 在 `main` 上均不可达（`git merge-base --is-ancestor <SHA> HEAD` 全部非 0）。
 > **判据与 TASK-055 原档案不同**：TASK-055 原方案用「tree 相同」，基点半移后 tree 全部不同，改为 `patch-id --stable`。
 
 ## Task Rules
