@@ -10,13 +10,13 @@
 Task ID: TASK-059
 Title: 框架模板修复漂移 + SHA 映射表制度化
 Workflow: maintenance
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: main
 Owner Since: 2026-11-02
 Assigned Role: developer
 Created: 2026-11-02T22:05:00+08:00
-Updated: 2026-11-02T22:05:00+08:00
+Updated: 2026-11-03T22:46:37+08:00
 Branch: feat/TASK-059-snapshot-sync
 Requires Human Approval: false
 ```
@@ -177,7 +177,7 @@ Non-Scope (files):
 
 ## Current State
 
-**ACTIVE（2026-11-02 登记，已领取并完成 U+M+D+V 四组操作）。** 全量门禁 PASS=10 FAIL=0 WARN=0，prettier 全绿，待交主控位审查（不得自行合并）。
+**REVIEW（2026-11-03 已合并，归档回写待下一个任务补记）。**
 
 ## Changed Files
 
@@ -209,6 +209,8 @@ Non-Scope (files):
 **Next Action：** 主控位审查 shadcn-admin PR #34（全量门禁退出码 0，prettier 全绿），确认后合并；模板仓库 commit 8f56589 须同步推送到对应远端。
 
 ## Merge Record
+
+> **归档回写待下一个任务补记**，在此之前保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
 
 > **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
 > `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；

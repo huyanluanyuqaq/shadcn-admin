@@ -300,7 +300,9 @@ Task 规则（TASK.md 的 Task Rules 节）
 ## 12. Standalone Mode（独立运行）
 
 本项目被单独 `git clone` 后，**没有 Workspace**。自 **TASK-039（2026-10-15）** 起，双 Agent 协作框架
-已随仓库版本化，Standalone 与 Workspace 两种模式下的规范供给**完全相同**：
+已随仓库版本化，Standalone 与 Workspace 两种模式下的规范供给**完全相同**。
+
+> **唯一例外**是框架快照一致性检查 F10：模板仓库 `projects/_workspace-template` 不可达时它输出 WARN 跳过而非 FAIL，故单独 clone 的下游仓库不受该门禁保护（不把未实测写成已生效）。
 
 **两种模式下均有效：** 本文件（项目规则）、`.agents/`（角色/规则/协议/工作流）、`templates/`（模板）、
 `tasks/` 中的 Task 与 Handoff、`docs/` 中的全部文档。
