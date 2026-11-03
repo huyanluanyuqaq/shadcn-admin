@@ -121,30 +121,25 @@
 | V2 | 例外名单为空时，**所有者**是否仍受约束 | **是** —— 以**仓库所有者身份**（SSH `huyanluanyuqaq`）直推被拒；同一时期推送**非 `main` 分支成功** | 2026-10-14 | 禁强制推送 / 禁删分支对所有者无强制力 |
 | V3 | 检查是否在合并前于工作分支运行 | **是**（run [`38531690034`](https://github.com/huyanluanyuqaq/shadcn-admin/actions/runs/38531690034)：`pull_request` 事件、发布在 PR 分支、两作业全绿） | 2026-10-14 | 检查无法构成门禁 |
 | V4 | 必需检查未通过时，合并是否确实被阻止 | **是** —— 探针 PR [#3](https://github.com/huyanluanyuqaq/shadcn-admin/pull/3)（`install-lint-build` 失败）→ `mergeable_state: blocked`；`PUT /pulls/3/merge` 返回 **HTTP 405** `Required status check "install-lint-build" is failing.`；`main` 未变动 | 2026-10-14 | 门禁失效 |
-| V5 | 必需检查**全绿**时，所有者（批准数 = 0）能否正常合并**自己的 PR**（阳性对照，与 V4 成对） | **是** —— TASK-033 的 PR [#4](https://github.com/huyanluanyuqaq/shadcn-admin/pull/4) 全绿时合并，`PUT /pulls/4/merge` 返回 `merged: true` ⇒ 门禁**不误伤**合规交付 | 2026-10-15 | 门禁误伤合规交付（见 §2 的 UI 陷阱：批准数误配 ≥ 1 会让单账号仓库所有 PR 永久无法合并） |
+| V5 | 必需检查**traceability** 未通过时，合并是否确实被阻止 | **是** —— 探针 PR [#35](https://github.com/huyanluanyuqaq/shadcn-admin/pull/35)（提交信息故意无 `Refs` footer）→ `mergeable_state: blocked`；`PUT /pulls/35/merge` 返回 **HTTP 405** `Required status check "traceability" is failing.`；`origin/main` SHA 前后不变（`ea95b89`） | 2026-11-03 | 门禁失效 |
 
-> **V5 编号裁决（TASK-034，2026-10-15）：** 本行旧定义为「直接推送默认分支是否确实被拒绝」，
-> 其实测证据与 **V2 行完全相同**（同一次直推、同一份 `GH006` 输出），属**实质重复**，已弃用该义。
-> 现义为「绿灯可合并」（阳性对照），其原载体 §7 第 3 项与此行**就此收敛为同一口径**。
-
-**直推测试的原始输出**（V1 / V2 的证据；探针分支 `tmp/v2-probe` → `main`，以**所有者身份**推送）：
+**V5 的原始输出**（探针 PR #35，`traceability` 失败时）：
 
 ```
-remote: error: GH006: Protected branch update failed for refs/heads/main.
-remote: - Changes must be made through a pull request.
-remote: - 2 of 2 required status checks are expected.
- ! [remote rejected] tmp/v2-probe -> main (protected branch hook declined)
-error: failed to push some refs to 'github.com:huyanluanyuqaq/shadcn-admin.git'
+gh pr view 35 --json mergeable,mergeStateStatus
+  → {"mergeable":"MERGEABLE","mergeStateStatus":"BLOCKED"}
+
+gh api -X PUT repos/huyanluanyuqaq/shadcn-admin/pulls/35/merge
+  → HTTP 405
+     {"message":"Required status check \"traceability\" is failing.",
+      "documentation_url":"https://docs.github.com/articles/about-protected-branches",
+      "status":"405"}
+
+git rev-parse origin/main（合并尝试前） → ea95b8978c4957c7804b66aedec72eea6a058a82
+git rev-parse origin/main（合并尝试后） → ea95b8978c4957c7804b66aedec72eea6a058a82（相同 ✅）
 ```
 
 **V4 的原始输出**（探针 PR #3，`install-lint-build` 失败时）：
-
-```
-GET /repos/.../pulls/3        → {"mergeable":true,"mergeable_state":"blocked"}
-PUT /repos/.../pulls/3/merge  → HTTP 405
-  {"message":"Required status check \"install-lint-build\" is failing."}
-main                          → 未变动（e3231e7）
-```
 
 > **V1 与 V2 不可合并成一条：** 两者出自**同一次直推测试**（同一份 `GH006` 拒绝输出），但**所问不同** ——
 > V2 问「所有者是否受约束」（`enforce_admins` 生效），V1 问「必需检查自身是否参与拦截」
