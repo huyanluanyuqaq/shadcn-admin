@@ -106,7 +106,8 @@ be7c2f2 → a501c79    主控位首轮审查记录
 a65970a → 8ba2c09    文档/档案校正
 51b7c04 → 20d5d4c    CRUD beforeWrite
 bee2610 → b9f9879    身份比对重写
-07e5217 → 2ca5d50    收口（= merge commit）
+07e5217 → 2ca5d50    docs(TASK-052/053/054): 独立审查入库 + 053 阻塞项修复收口 + 任务目录/状态补正
+2920eb1 → dc54696    docs(TASK-055): 主控位复审 R-1/R-2/R-3 已改正（= merge commit）
 ```
 
 ### C 组：PATCH 不存在 id 的 404 语义
