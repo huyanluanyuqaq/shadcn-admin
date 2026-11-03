@@ -177,24 +177,85 @@ A/W/D 三组已完成，E 组探针 PR 四要素实证完成，全量门禁验�
 
 ## Merge Record
 
+> **★ 归档回写待下一个任务补记。** 本任务交付请求 [#37](https://github.com/huyanluanyuqaq/shadcn-admin/pull/37)
+> 已于 `2026-11-03T11:38:59Z` 以 rebase-merge 合入 `main`，但**合并后簿记遗漏**：目录仍留在
+> `tasks/active/`（`Status` 已为 `REVIEW`，与所在目录不一致）。本任务 TASK-059 作为 D13-C 选项 C
+> （`.agents/rules/github.md` §6）规定的「下一个任务」承接本次归档回写：回填下列九要素与 SHA 映射表、
+> 并把目录迁入 `tasks/review/`。**本任务保持 `Status = REVIEW`、留在 `tasks/review/`**；其**最终归档**
+> （`Status → DONE` + 移入 `tasks/done/`）待再下一个任务补记 —— 这是 D13-C 机制，不是遗漏。
+
 > **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
 > `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
 > 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
 > **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
 > 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
 > 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
+> （上列原始注释按 TASK-055 先例保留不动；本表由 TASK-059 于 2026-11-03 按上述规则回填。）
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
+| PR | [#37](https://github.com/huyanluanyuqaq/shadcn-admin/pull/37)（`docs/TASK-057-gate-evidence-closure-v2` → `main`）；合并执行者 `huyanluanyuqaq` |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填 |
+| 提交数 | **5**（实测 `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/37 --jq '{commits,changed_files}'` → `commits=5`、`changed_files=13`） |
+| merged_at | `2026-11-03T11:38:59Z` |
+| merge_commit_sha | `7a8fd526f906686859ee81c415d4b3feb2310036`（= 当前 `main` HEAD；父提交唯一 `92081559…`，单亲线性历史，与 rebase-merge 一致） |
+| 合并后 CI run | `41629226311`（Continuous Integration，`event=push` `head_branch=main` `head_sha=7a8fd52…`，conclusion=**success**） |
+| 合并后 Docker run | `41629226467`（Build and Push Docker Image，`event=push` `head_branch=main` `head_sha=7a8fd52…`，conclusion=**success**） |
+| 镜像 tag | `sha-7a8fd52`（DockerHub `nomorelatenights/subscription-admin`，digest `sha256:b777b1e478efe5dccd0e3e25457862dafc0dd7a7a6aa12c67a991a3fd8e9fe89`，`last_updated=2026-11-03T11:42:53.262916Z`） |
+| 审查记录 | `handoffs/2026-11-03-coordinator-review.md`（第 1 轮：FAIL，B-1+M-1+m-1/m-2）→ `round2.md`（FAIL：m-1 未闭合、映射表第 9 行旧 SHA 错）→ `round3.md`（FAIL：修正打进要求块、产出表未动）→ `round4.md`（PASS 有条件：r-1）→ `round5.md`（**PASS**，PR #37 具备合并条件） |
+
+**复现命令**（下列各条于 2026-11-03 由 TASK-059 在解除沙箱网络限制的环境下实跑，输出即上表数值）：
+
+```bash
+gh api repos/huyanluanyuqaq/shadcn-admin/pulls/37 \
+  --jq '{number,merged,merged_at,merge_commit_sha,commits,changed_files,merged_by:.merged_by.login}'
+gh api "repos/huyanluanyuqaq/shadcn-admin/actions/runs/41629226311" \
+  --jq '{id,name,event,head_branch,head_sha,conclusion}'
+gh api "repos/huyanluanyuqaq/shadcn-admin/actions/runs/41629226467" \
+  --jq '{id,name,event,head_branch,head_sha,conclusion}'
+Invoke-RestMethod https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-7a8fd52
+git rev-list --parents -1 7a8fd526f906686859ee81c415d4b3feb2310036   # 单父 → 线性 → rebase-merge
+```
+
+### SHA 映射表（rebase-merge 改写前后的对应关系）
+
+rebase-merge **改写了全部 5 个 SHA**：各轮审查记录引用的旧 SHA 在当前 `main` 上**均不可达**
+（`git merge-base --is-ancestor <旧SHA> origin/main` 对 5 条全部返回 1）。本表供复核者把审查记录里的
+旧 SHA 对应到 `main` 上的真实提交。
+
+> ⚠️ **判据方法与一处事实更正（须自跑复现，不得照抄）。** 按 TASK-059 要求，本表以 **patch-id 相同**
+> 为判据（`git show --format= <SHA> | git patch-id --stable`），并用 `git range-diff` 对 5 条做整体核对。
+> **自检发现与派单预设不同，如实登记**：本任务的 rebase 基点**并未移动**（旧分支
+> `docs/TASK-057-gate-evidence-closure-v2` 与合并后 `main` 同在 `ea95b89` 之上），逐对 tree **实际相同**。
+> 因此本表「patch-id 相同」与「tree 相同」结论一致；仍按纪律以 patch-id 为权威判据，**未套用
+> 「tree 相同」捷径**（该捷径仅在基点未变时成立，此处虽成立仍不据此下结论）。
+
+| 审查时 SHA | main 上 SHA | 标题 | patch-id 判据 |
+|-----------|------------|------|--------------|
+| `3a9712a` | `6e7eb85` | docs(TASK-057): A/W/D/E 四组完成 —— 审查记录入库 + D13-C 回填 + V5 实证 + 探针 PR #35 | `9956cb3e7898…` 相同 |
+| `ce01256` | `4720e16` | docs(TASK-057-v2): cherry-pick 31c5df3 + 三项文字整改 | `4ad5f1c5a0a8…` 相同 |
+| `5041d2b` | `1f67f6a` | docs(TASK-055): SHA 映射表拆分修正 — 07e5217/2920eb1 各归其位 | `cae68a0292df…` 相同 |
+| `b1ab4f2` | `9208155` | docs(TASK-055): SHA 映射表修正（L607 拆分 + L109 要求块恢复） | `ad3f717cf350…` 相同 |
+| `5094c5e` | `7a8fd52` | docs(TASK-055): 不可达验证计数更正 + 四份主控位审查记录入库 | `5c39e81bd085…` 相同 |
+
+**核对命令**（均于 2026-11-03 由 TASK-059 在本仓实跑，输出即上表结论）：
+
+```bash
+# ① 旧 SHA 在 main 上不可达（5 条全部返回 1）
+for s in 3a9712a ce01256 5041d2b b1ab4f2 5094c5e; do
+  git merge-base --is-ancestor "$s" origin/main; echo "$s -> $?"
+done
+# ② 逐对 patch-id 相同（每对两行、前后相等）
+for pair in "3a9712a 6e7eb85" "ce01256 4720e16" "5041d2b 1f67f6a" "b1ab4f2 9208155" "5094c5e 7a8fd52"; do
+  set -- $pair
+  git show --format= "$1" | git patch-id --stable
+  git show --format= "$2" | git patch-id --stable
+done
+# ③ 整体等价（输出 5 行全部为 `=`）
+git range-diff ea95b89..5094c5e ea95b89..7a8fd52
+```
+
+> 本表为追加，**未改写任何 `handoffs/*.md` 内文的旧 SHA / 旧数字**（历史记录不得篡改）。
 
 ## Task Rules
 
