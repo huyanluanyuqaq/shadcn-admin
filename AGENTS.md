@@ -261,7 +261,19 @@ docker compose up -d --build
 | **中央规范仓（源）** | `huyanluanyuqaq/agent-framework` |
 | 任务 | `tasks/` |
 
-**写文档前请先读：** `.agent-framework/quality.md`（TASK-039 起已随仓库版本化，两种模式下均直接可读）。
+**按需读取的公共规范：**
+
+| 场景 | 读哪篇 |
+|------|--------|
+| 写代码 / 测试 / 文档 / 安全 | `.agent-framework/quality.md` |
+| 分支、提交、合并、冲突、回滚 | `.agent-framework/git.md` |
+| PR、检查、平台配置 | `.agent-framework/github.md` |
+| 角色职责、任务分级 S/M/L、拆分、交接 | `.agent-framework/collaboration.md` |
+| 权限边界、职责分离 | `.agent-framework/permissions.md` |
+| 规则冲突裁决 | `.agent-framework/rule-precedence.md` |
+| 删除 / 迁移 / 生产变更 | `.agent-framework/change-safety.md` |
+
+以上 7 篇自 TASK-039 起已随仓库版本化，Workspace 与 Standalone 两种模式下均直接可读。
 
 ---
 

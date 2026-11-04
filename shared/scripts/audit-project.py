@@ -53,12 +53,19 @@ TASK_STATES = {"backlog": {"BACKLOG", "READY"},
                           "TEST_FAILED", "REQUIREMENT_CHANGED"},
                "review": {"REVIEW"}, "done": {"DONE", "CANCELLED"}}
 ALL_STATES = set().union(*TASK_STATES.values())
-SECRET_PATTERNS = [
+# 两级判定（恢复原 F4 的 hard/suspect 分级）：
+#   hard    = 确定是密钥，FAIL
+#   suspect = 疑似，WARN 需人工复核
+SECRET_PATTERNS_HARD = [
     (r"ghp_[A-Za-z0-9]{20,}", "GitHub PAT"),
     (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT"),
+    (r"gho_[A-Za-z0-9]{20,}", "GitHub OAuth token"),
     (r"AKIA[0-9A-Z]{16}", "AWS access key"),
-    (r"-----BEGIN [A-Z ]*PRIVATE KEY-----", "private key"),
-    (r"sk-[A-Za-z0-9]{24,}", "generic secret"),
+    (r"-----BEGIN [A-Z ]*PRIVATE KEY-----", "private key block"),
+]
+SECRET_PATTERNS_SUSPECT = [
+    (r"sk-[A-Za-z0-9]{24,}", "generic secret key"),
+    (r"(?i)\b(password|passwd|secret|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]", "hardcoded credential"),
 ]
 PLACEHOLDER_RE = re.compile(r"\{\{[A-Za-z0-9_]+\}\}")
 WORKFLOW_DIR = ".github/workflows"
@@ -215,14 +222,19 @@ def a6_secrets(root: Path) -> Result:
     targets = [p for p in root.rglob("*")
                if p.is_file() and "node_modules" not in p.parts and ".git" not in p.parts
                and p.suffix in {".md", ".py", ".ts", ".tsx", ".js", ".json", ".yml", ".yaml", ".sh", ".env"}]
-    found = []
+    hard, suspect = [], []
     for p in targets:
         for i, line in enumerate(read(p).splitlines(), 1):
-            for pat, name in SECRET_PATTERNS:
+            for pat, name in SECRET_PATTERNS_HARD:
                 if re.search(pat, line):
-                    found.append(f"{p.relative_to(root)}:{i} {name}")
-    if found:
-        return Result("A6", FAIL, f"{len(found)} 处疑似明文密钥", found)
+                    hard.append(f"{p.relative_to(root)}:{i} {name}")
+            for pat, name in SECRET_PATTERNS_SUSPECT:
+                if re.search(pat, line):
+                    suspect.append(f"{p.relative_to(root)}:{i} {name}")
+    if hard:
+        return Result("A6", FAIL, f"{len(hard)} 处明文密钥", hard)
+    if suspect:
+        return Result("A6", WARN, f"{len(suspect)} 处疑似凭据，需人工复核", suspect)
     return Result("A6", PASS, f"未发现明文密钥（扫描 {len(targets)} 个文件）")
 
 
@@ -263,15 +275,148 @@ def a9_pr_template(root: Path) -> Result:
     pt = root / ".github" / "PULL_REQUEST_TEMPLATE.md"
     if not pt.is_file():
         return Result("A9", WARN, "缺少 PR 模板")
-    required = ["关联任务", "变更摘要", "测试结果", "回滚方案", "遗留问题"]
+    required = ["关联任务", "变更摘要", "包含范围", "排除范围", "测试结果",
+                "未执行的测试", "兼容性", "回滚方案", "遗留问题", "自检"]
     missing = [k for k in required if k not in read(pt)]
     if missing:
         return Result("A9", FAIL, f"PR 模板缺少字段：{missing}")
     return Result("A9", PASS, "PR 模板覆盖必需字段")
 
 
+# A10~A13：补回 PR #43 丢失的门禁能力（替代原 audit-repo.py 的 F5/F6/F8/F10）
+DECLARED_CHECK_ROW = re.compile(
+    r"^\|\s*`([A-Za-z0-9_][A-Za-z0-9_-]*)`\s*\|"
+    r"\s*`([^`]+\.ya?ml)`\s*\|",
+    re.M,
+)
+MERGE_RECORD_HEADING = re.compile(r"^## Merge Record\s*$", re.M)
+
+
+def workflow_job_names(text):
+    jobs = []
+    in_jobs = False
+    for line in text.splitlines():
+        if re.match(r"^jobs:\s*$", line):
+            in_jobs = True
+            continue
+        if in_jobs:
+            if re.match(r"^\S", line):
+                break
+            m = re.match(r"^  ([A-Za-z0-9_-]+):", line)
+            if m:
+                jobs.append(m.group(1))
+    return jobs
+
+
+def central_agents_dir(audit_root):
+    for cand in (
+        audit_root.parent.parent / "agent-framework" / ".agents",
+        audit_root.parent / "agent-framework" / ".agents",
+    ):
+        if cand.is_dir():
+            return cand
+    return None
+
+
+def a10_spec_consistency(root):
+    proj_dir = root / ".agent-framework"
+    central = central_agents_dir(root)
+    if central is None:
+        return Result("A10", WARN, "中央规范仓不可达；无法校验规范内容一致性（Standalone 限制）")
+    if not proj_dir.is_dir():
+        return Result("A10", FAIL, "缺少 .agent-framework/ 目录")
+    proj_files = sorted(q.relative_to(proj_dir) for q in proj_dir.rglob("*") if q.is_file())
+    central_files = sorted(q.relative_to(central) for q in central.rglob("*") if q.is_file())
+    diffs = []
+    if proj_files != central_files:
+        only_p = [str(q) for q in proj_files if q not in central_files]
+        only_c = [str(q) for q in central_files if q not in proj_files]
+        diffs.append(f"文件列表不同（项目独有={only_p}；中央独有={only_c}）")
+    for rel_path in proj_files:
+        if rel_path in central_files and (proj_dir / rel_path).read_bytes() != (central / rel_path).read_bytes():
+            diffs.append(rel_path.as_posix() + "：内容不同")
+    if diffs:
+        return Result("A10", FAIL, f"规范与中央仓有 {len(diffs)} 处差异（必须逐字一致）", diffs)
+    return Result("A10", PASS, f".agent-framework/ {len(proj_files)} 篇与中央仓逐字一致")
+
+
+def a11_required_checks(root):
+    agents = root / "AGENTS.md"
+    if not agents.is_file():
+        return Result("A11", FAIL, "缺少 AGENTS.md")
+    declared = DECLARED_CHECK_ROW.findall(read(agents))
+    if not declared:
+        return Result("A11", WARN, "AGENTS.md 未声明必需检查表")
+    problems = []
+    for job, wf in declared:
+        wf_path = root / wf
+        if not wf_path.is_file():
+            problems.append(f"声明的工作流不存在：{wf}（作业 {job}）")
+            continue
+        actual = workflow_job_names(read(wf_path))
+        if job not in actual:
+            problems.append(f"{wf} 中不存在作业 {job}（实际：{', '.join(actual) or '无'}）")
+    if problems:
+        return Result("A11", FAIL, f"{len(problems)} 处不一致", problems)
+    return Result("A11", PASS, f"{len(declared)} 个必需检查名与工作流作业名一致")
+
+
+def a12_doc_links(root):
+    docs = [root / "AGENTS.md"]
+    af = root / ".agent-framework"
+    if af.is_dir():
+        docs += sorted(af.glob("*.md"))
+    problems = [f"缺失：{q.relative_to(root)}" for q in docs if not q.is_file()]
+    if problems:
+        return Result("A12", FAIL, f"{len(problems)} 个文档缺失", problems)
+    agents_text = read(root / "AGENTS.md")
+    for q in docs[1:]:
+        if q.name not in agents_text:
+            problems.append(f"AGENTS.md 未引用规范文件：{q.name}")
+    link_re = re.compile(r"\[[^\]]*\]\(([^)]+)\)")
+    for q in docs:
+        for raw in link_re.findall(read(q)):
+            target = raw.strip()
+            if target.startswith(("http://", "https://", "mailto:", "#")):
+                continue
+            target = target.split("#", 1)[0].strip()
+            if not target:
+                continue
+            if not (q.parent / target).resolve().exists():
+                problems.append(f"{q.relative_to(root)}：链接目标不存在 -> {raw}")
+    if problems:
+        return Result("A12", FAIL, f"{len(problems)} 个问题", problems)
+    return Result("A12", PASS, f"{len(docs)} 个规范文档存在、被引用且链接有效")
+
+
+def a13_merge_record(root):
+    base = root / "tasks"
+    if not base.is_dir():
+        return Result("A13", SKIP, "无 tasks/ 目录")
+    missing = []
+    checked = 0
+    skipped = 0
+    for tf in sorted(base.rglob("TASK.md")):
+        text = read(tf)
+        m = re.search(r"^Level:\s*([SML])\b", text, re.M)
+        level = m.group(1) if m else None
+        if level == "L":
+            checked += 1
+            if not MERGE_RECORD_HEADING.search(text):
+                missing.append(tf.parent.name + "：L 级任务缺少 Merge Record 章节")
+        else:
+            skipped += 1
+    if missing:
+        return Result("A13", FAIL, f"{len(missing)} 个 L 级档案缺少 Merge Record", missing)
+    if checked == 0:
+        return Result("A13", SKIP, f"无 L 级档案在检（跳过 {skipped} 个非 L 级档案）")
+    return Result("A13", PASS, f"{checked} 个 L 级档案均含 Merge Record（另 {skipped} 个非 L 级不强检）")
+
+
+
 CHECKS = [a1_assets, a2_version, a3_no_legacy, a4_task_consistency,
-          a5_task_ids, a6_secrets, a7_placeholders, a8_workflows, a9_pr_template]
+          a5_task_ids, a6_secrets, a7_placeholders, a8_workflows, a9_pr_template,
+          a10_spec_consistency, a11_required_checks, a12_doc_links, a13_merge_record]
 
 
 def audit_project(root: Path) -> list[Result]:
