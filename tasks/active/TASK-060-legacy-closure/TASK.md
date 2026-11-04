@@ -131,8 +131,13 @@ PR #33 / #37 / #38 / #39 已全部合并入 `main`（`190ea66`）。收尾时实
       `tasks/done/` 共 **59** 个；每移动一份跑一次 `audit-repo.py`，三次均 `PASS=10 FAIL=0`。
       **证据**：2026-11-04 逐份移动后三次均为 `PASS=10 FAIL=0 WARN=0`、退出码 0；
       `review_entries=[]`、`done_task_dirs=59`。
-- [ ] AC-5: `ci.yml` 含 `smoke` 作业，`if: github.event_name == 'pull_request'`；
+- [x] AC-5: `ci.yml` 含 `smoke` 作业，`if: github.event_name == 'pull_request'`；
       本地用隔离快照库实跑 **185 通过 / 0 失败、退出码 0**，输出贴入档案。
+      **证据**：2026-11-04 两路实跑均 185/0、退出码 0——① 真实库快照（`E:/AiData/t060-smoke`，
+      `DATABASE_URL=…/smoke.db` 起服务于 `:3100`）；② 空 schema 库快照（`E:/AiData/t060-empty`，
+      先 `db:migrate` 建库再 `VACUUM INTO` 快照、起服务于 `:3101`），后者模拟 CI 无真实库的起点。
+      两路均 `结果：185 通过 / 0 失败`；真实库 `server/data/app.db` 四表 `4/6/0/6` 与
+      mtime `2026-11-01T14:12:43.146Z` 前后未变。
 - [ ] AC-6: `smoke` 作业在 PR 上至少一次端到端跑通（`gh pr checks` 见 `smoke` 且结论为 pass），
       原始输出可查；**未**加入 `required_status_checks.contexts`。
 - [ ] AC-7: `audit-repo.py` → `PASS=10 FAIL=0 WARN=0`（F6 作业名一致性仍 PASS，含新作业名）；
@@ -185,15 +190,19 @@ Non-Scope (files):
 
 ## Current State
 
-**ACTIVE（2026-11-04 W 组完成，进入 S 组）。** 三份 D13-C 回写与归档已完成，
+**ACTIVE（2026-11-04 W 组完成，S 组代码完成，进入 R 组前暂停）。** 三份 D13-C 回写与归档已完成，
 三次移动后审计均 `PASS=10 FAIL=0 WARN=0`；`tasks/review/` 已空、`tasks/done/` 为 59 个任务目录。
-下一步仅为 `ci.yml` 增加 PR 隔离冒烟并实跑验证；R 组仍未执行，须在 W/S 完成后单独申请人类授权。
+S 组已为 `ci.yml` 新增仅对 PR 生效的 `smoke` 作业（`db:migrate` 建 schema 起点 → `VACUUM INTO`
+隔离快照 → 单 step 起服务 + 跑 smoke），本地两路实跑均 185/0、退出码 0，真实库未动。
+下一步：R 组须**暂停并向人类申请授权**（模板仓配远端属平台/基础设施高风险动作，不得擅自执行）；
+推送分支、开 PR 在 PR 上端到端跑通 smoke（AC-6）也须在提交推送后完成。
 
 ## Changed Files
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| `tasks/active/TASK-060-legacy-closure/TASK.md` | `git mv` + 修改 | 领取任务；登记 W 组实测与验收证据 |
+| `tasks/active/TASK-060-legacy-closure/TASK.md` | `git mv` + 修改 | 领取任务；登记 W/S 组实测与验收证据 |
+| `.github/workflows/ci.yml` | 修改 | 新增 `smoke` 作业（仅 `pull_request`，隔离快照库起服务跑 `smoke.ts`，不写真实库、不入必需检查） |
 | `tasks/done/TASK-057-gate-evidence-closure/**` | `git mv` + 修改 | 重测九要素、五轮审查与 5 组 SHA 映射；DONE 归档 |
 | `tasks/done/TASK-058-smoke-failures-closure/**` | `git mv` + 修改 | 重测九要素、一轮审查与 13 组 SHA 映射（含审查头别名）；DONE 归档 |
 | `tasks/done/TASK-059-template-drift-and-sha-mapping/**` | `git mv` + 修改 + 收纳既有审查记录 | 重测 PR #38/#39 九要素、两轮审查与 4 组 SHA 映射；DONE 归档 |

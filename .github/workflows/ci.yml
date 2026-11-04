@@ -133,3 +133,89 @@ jobs:
         env:
           BASE_REF: origin/${{ github.base_ref }}
         run: python3 scripts/check-traceability.py --base "$BASE_REF"
+
+  # 端到端冒烟（smoke.ts）：仅对 PR 生效，用 VACUUM INTO 隔离快照库起服务再跑，
+  # 绝不写仓库内的真实库。为什么只对 PR：`server/data/app.db` 被 .gitignore 忽略、
+  # 不在仓库里，本地冒烟依赖运维手工维护的真实库快照；CI 上无此真实库，故先在
+  # 临时目录 `db:migrate` 建一份 schema 起点，再 VACUUM INTO 快照出隔离库运行。
+  #
+  # ★ 本作业**未**成为门禁：分支保护的必需检查仍只有 install-lint-build 与 audit
+  #   （traceability / smoke 均为「仅上报、不阻断」）。启用顺序不可颠倒 ——
+  #   作业必须先存在于默认分支并确认稳定上报，再由主控位决定是否入必需检查，
+  #   否则所有 PR 会永久等待一个不存在的作业，而 enforce_admins=true 无绕过通道。
+  #   当前状态以 docs/operations/github-capability.md §3 的实测值为准。
+  #
+  # SMOKE_DB_DIR 必须等于快照 .db 所在目录本身（TASK-058 C 簇根因：恢复标记写在
+  # 数据库同目录，另设数据目录会让 19.17 在错误位置找不到标记）。
+  smoke:
+    name: smoke
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install pnpm
+        run: npm install -g pnpm@12.10.1
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared package
+        run: pnpm build:shared
+
+      # 先建一份 schema 起点库（CI 无真实库可快照），再 VACUUM INTO 出隔离快照。
+      # 快照库目录 = SMOKE_DB_DIR（.db 所在目录本身）。
+      - name: Prepare isolated snapshot database
+        run: |
+          mkdir -p "$SNAP_DIR"
+          DATABASE_URL="$SNAP_DIR/base.db" pnpm db:migrate
+          node -e "const D=require('better-sqlite3');const s=new D(process.env.SNAP_BASE,{readonly:true});s.exec(\"VACUUM INTO '\"+process.env.SNAP_DB+\"'\");s.close()"
+        working-directory: server
+        env:
+          SNAP_DIR: ${{ runner.temp }}/smoke
+          SNAP_BASE: ${{ runner.temp }}/smoke/base.db
+          SNAP_DB: ${{ runner.temp }}/smoke/smoke.db
+
+      # 起服务 + 跑 smoke 必须在**同一个 step**：GitHub Actions 每个 step 是独立 shell，
+      # 跨 step 的后台进程会被 runner 回收，靠 nohup 无法可靠存活。
+      - name: Run smoke test against isolated snapshot
+        run: |
+          DATABASE_URL="$SNAP_DB" PORT=3000 \
+            RESTORE_AUTO_EXIT=false \
+            SMOKE_DB_DIR="$SNAP_DIR" \
+            ENABLE_SCHEDULER=false \
+            TELEGRAM_API_BASE=http://127.0.0.1:3998 \
+            FEISHU_API_BASE=http://127.0.0.1:4000 \
+            node --import tsx src/index.ts > "$SERVER_LOG" 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+
+          for i in $(seq 1 60); do
+            if curl -fsS http://localhost:3000/api/health > /dev/null 2>&1; then
+              echo "server ready after ${i}s"
+              break
+            fi
+            if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+              echo "server exited during startup" >&2
+              cat "$SERVER_LOG" >&2
+              exit 1
+            fi
+            sleep 1
+          done
+
+          SMOKE_BASE_URL=http://localhost:3000 \
+            SMOKE_DB_DIR="$SNAP_DIR" \
+            node node_modules/tsx/dist/cli.mjs scripts/smoke.ts
+        working-directory: server
+        env:
+          SNAP_DIR: ${{ runner.temp }}/smoke
+          SNAP_DB: ${{ runner.temp }}/smoke/smoke.db
+          SERVER_LOG: ${{ runner.temp }}/smoke-server.log
