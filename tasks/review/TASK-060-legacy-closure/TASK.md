@@ -199,7 +199,7 @@ Non-Scope (files):
 |--------|------|------------|
 | AC-1/2 | 文本 + 平台实测 | `gh api …/pulls/<N> --jq '{merged,merged_at,merge_commit_sha,commits}'` 等逐格复现 |
 | AC-3 | git 实测 | `git show --format= <SHA> \| git patch-id --stable` 逐对；`git merge-base --is-ancestor <旧> main` 须非 0 |
-| AC-4 | 文本 + 脚本 | `ls tasks/done \| wc -l` = 59；`ls tasks/review` 空；`python scripts/audit-repo.py` |
+| AC-4 | 文本 + 脚本 | `ls tasks/done \| wc -l` = 59；`ls tasks/review` 除本任务自身外为空；`python scripts/audit-repo.py` |
 | AC-5/6 | 实跑 + 平台 | 隔离配方跑 smoke；`gh pr checks <N>` 见 `smoke` 项 |
 | AC-7 | 门禁 | 九条命令逐一记录退出码 |
 | AC-8 | 只读核查 | `better-sqlite3` `{readonly:true}` 查四表行数 + mtime |
@@ -208,8 +208,8 @@ Non-Scope (files):
 ## Current State
 
 **REVIEW（2026-11-04 W/S/R 三组全部完成，PR #41 已开，等待主控位审查）。** 三份 D13-C 回写与
-归档已完成（`tasks/review/` 空、`tasks/done/` 59 个）；`ci.yml` 已新增仅对 PR 生效的 `smoke` 作业，
-本地两路实跑 185/0、CI 端到端跑通（run `41764222745`，`结果：185 通过 / 0 失败`）；模板仓已配远端
+归档已完成（`tasks/review/` 除本任务自身外为空、`tasks/done/` 59 个）；`ci.yml` 已新增仅对 PR 生效的 `smoke` 作业，
+本地两路实跑 185/0、CI 端到端跑通（run `41774718085`，`结果：185 通过 / 0 失败`）；模板仓已配远端
 并推送 `8f56589`（经人类授权）。全量门禁全绿。PR #41 已开，**执行位不自行合并**，交主控位审查。
 
 ## Changed Files
