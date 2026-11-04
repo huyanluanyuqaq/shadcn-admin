@@ -122,4 +122,25 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
 
 ---
 
+## Merge Record
+
+> **本节由 `gh api` / Actions API 逐项实测填入，未沿用档案自述。**
+> 实测时间：2026-11-04。本任务的交付请求已合并，故在合并后补测并记录。
+
+| 要素 | 值 |
+|---|---|
+| PR | [#43](https://github.com/huyanluanyuqaq/shadcn-admin/pull/43)（`chore/framework-sync-2.0.0`，2 提交 / 80 文件 / +1351 −9219） |
+| 合并策略 | rebase-merge（`main` `c7cd9df` → `926d353`，线性无合并提交） |
+| 提交数 | 2 |
+| merged_at | `2026-11-04T12:10:16Z` |
+| merge_commit_sha | `926d3530954ed7b6f88e4a26710691499a7c1277` |
+| 合并后 CI run | `41826958562`（push / main / **success**） |
+| 合并后 Docker run | `41826958546`（push / main / **success**，作业 `build-and-push`） |
+| 镜像 tag | `sha-926d353`（`type=sha,format=short`；DockerHub 仓库名取自 secret `DOCKERHUB_USERNAME`，**其在位性未复核**） |
+| 审查记录 | **无独立审查。** 本 PR 由人类直接指令合并，未经任何一轮主控位审查；<br>合并事实与裁决留证见 `handoffs/2026-11-04-coordinator-merge-record-pr43.md`（未提交） |
+
+**Definition of Done 状态：未满足。** 缺独立审查（I2）。本记录不构成 PASS。
+
+---
+
 *本文件是项目级任务记录。修改前请确认不削弱受保护规则。*
