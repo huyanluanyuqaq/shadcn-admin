@@ -10,13 +10,13 @@
 Task ID: TASK-059
 Title: 框架模板修复漂移 + SHA 映射表制度化
 Workflow: maintenance
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: main
 Owner Since: 2026-11-02
 Assigned Role: developer
 Created: 2026-11-02T22:05:00+08:00
-Updated: 2026-11-03T22:46:37+08:00
+Updated: 2026-11-04T00:10:47+08:00
 Branch: feat/TASK-059-snapshot-sync
 Requires Human Approval: false
 ```
@@ -177,7 +177,8 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（2026-11-03 已合并，归档回写待下一个任务补记）。**
+**DONE（2026-11-04 由 TASK-060 归档）。** PR #38 与 #39 均已合并；两次合并的
+Merge Record 九要素与 SHA 映射表已由 TASK-060 重新实测，目录按 D13-C 移入 `tasks/done/`。
 
 ## Changed Files
 
@@ -188,6 +189,7 @@ Non-Scope (files):
 | `scripts/audit-repo.py`（本项目） | 新增 F10 检查函数 + 加入 CHECKS 列表 | V 组：快照一致性可执行判据 |
 | `AGENTS.md` §10（本项目） | 新增 F10 门禁指向，逐字快照声称重新为真 | AC-6 |
 | `docs/operations/negative-assertion-review.md`（本项目） | 更新 C9 复核命令；新增 C18 | 漂移修复登记 |
+| `tasks/done/TASK-059-template-drift-and-sha-mapping/TASK.md` 与第二轮审查记录 | `git mv` + 修改 / 收纳 | TASK-060 按 D13-C 重测两次合并的九要素与 SHA 映射，`Status → DONE` 并归档 |
 
 ## Known Issues
 
@@ -206,11 +208,11 @@ Non-Scope (files):
 | 001 | main（执行位） | 主控位 | 2026-11-02 | U+M+D+V 四组全部完成；shadcn-admin PR #34（feat/TASK-059-snapshot-sync）已开；模板仓库本地 commit 8f56589（分支 feat/TASK-059-sha-mapping，无 remote） |
 
 **最新 Handoff：** 见上表
-**Next Action：** 主控位审查 shadcn-admin PR #34（全量门禁退出码 0，prettier 全绿），确认后合并；模板仓库 commit 8f56589 须同步推送到对应远端。
+**Next Action：** 无；PR #38 / #39 已合并，TASK-060 已完成本档案归档。模板仓远端备份由 TASK-060 的 R 组在取得人类授权后处理。
 
 ## Merge Record
 
-> **归档回写待下一个任务补记**，在此之前保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
+> **归档回写已由 TASK-060 完成**：`Status = DONE`，目录已迁入 `tasks/done/`。
 
 > **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
 > `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
@@ -219,17 +221,38 @@ Non-Scope (files):
 > 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
 > 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
 
-| 要素 | 值 |
-|------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填 |
+> 以下九要素由 TASK-060 于 2026-11-04 重新通过 `gh api` / DockerHub Tags API 实测。
+> 本任务有 **两次**已合并交付：PR #38（实现）与 #39（合并后归档收口）；PR #34 已关闭且未合并，
+> 不计入本表。未沿用本档案或 TASK-060 Background 的自述值。
+
+| 要素 | 实测值 | 复现命令 |
+|------|--------|----------|
+| PR | [#38](https://github.com/huyanluanyuqaq/shadcn-admin/pull/38)（实现）与 [#39](https://github.com/huyanluanyuqaq/shadcn-admin/pull/39)（归档收口）；合并执行者均为 `huyanluanyuqaq` | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/38 --jq '{number,merged_by:.merged_by.login}'`；`gh api repos/huyanluanyuqaq/shadcn-admin/pulls/39 --jq '{number,merged_by:.merged_by.login}'` |
+| 合并策略 | 两次均为 rebase-merge；`26097a0` 与 `190ea66` 均为单父线性提交 | `gh api repos/huyanluanyuqaq/shadcn-admin/commits/26097a03e242429008118c5a331d7564940dfde2 --jq '{sha,parents:[.parents[].sha]}'`；`gh api repos/huyanluanyuqaq/shadcn-admin/commits/190ea66d95e854ef9c5a3e9daf738989245b9467 --jq '{sha,parents:[.parents[].sha]}'` |
+| 提交数 | #38 = **3**；#39 = **1** | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/38/commits --paginate --jq 'length'`；`gh api repos/huyanluanyuqaq/shadcn-admin/pulls/39/commits --paginate --jq 'length'` |
+| merged_at | #38 = `2026-11-03T14:33:01Z`；#39 = `2026-11-03T15:00:30Z` | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/38 --jq '.merged_at'`；`gh api repos/huyanluanyuqaq/shadcn-admin/pulls/39 --jq '.merged_at'` |
+| merge_commit_sha | #38 = `26097a03e242429008118c5a331d7564940dfde2`；#39 = `190ea66d95e854ef9c5a3e9daf738989245b9467` | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/38 --jq '.merge_commit_sha'`；`gh api repos/huyanluanyuqaq/shadcn-admin/pulls/39 --jq '.merge_commit_sha'` |
+| 合并后 CI run | #38 = `41654788838`；#39 = `41659361718`；均为 Continuous Integration、`event=push`、`head_branch=main`、conclusion=`success` | `gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/41654788838 --jq '{id,name,event,head_branch,head_sha,conclusion}'`；`gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/41659361718 --jq '{id,name,event,head_branch,head_sha,conclusion}'` |
+| 合并后 Docker run | #38 = `41654788807`；#39 = `41659361604`；均为 Build and Push Docker Image、`event=push`、`head_branch=main`、conclusion=`success` | `gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/41654788807 --jq '{id,name,event,head_branch,head_sha,conclusion}'`；`gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/41659361604 --jq '{id,name,event,head_branch,head_sha,conclusion}'` |
+| 镜像 tag | #38 = `sha-26097a0`，digest `sha256:6d47ff5fd57c2bed5e1c9db1844655c0ee34fabae894d8aa78e69dcc6d9a2320`，`last_updated=2026-11-03T14:39:32.806545Z`；#39 = `sha-190ea66`，digest `sha256:ccf5485e84de10a87c2ce0cdbcf47e459b79827402802444d7b4999f311e19c3`，`last_updated=2026-11-03T15:06:58.656118Z` | `curl -fsSL https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-26097a0`；`curl -fsSL https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-190ea66` |
+| 审查记录 | **两轮 PASS**：`handoffs/2026-11-03-coordinator-review.md`（#38 PASS）→ `handoffs/2026-11-03-coordinator-review-round2.md`（#39 PASS）。两轮为同一主控位会话；第二轮**不是新的独立实例审查**，如实记录，不伪造 | `test -f tasks/done/TASK-059-template-drift-and-sha-mapping/handoffs/2026-11-03-coordinator-review.md && test -f tasks/done/TASK-059-template-drift-and-sha-mapping/handoffs/2026-11-03-coordinator-review-round2.md`（第二轮记录由 TASK-060 收纳入库） |
+
+### SHA 映射表（rebase-merge 改写前后的对应关系）
+
+判据统一采用 `git show --format= <SHA> | git patch-id --stable`。PR #38 的基点
+`7a8fd52`、PR #39 的基点 `26097a0` 均未变，但仍以 patch-id 为权威判据，不使用 tree 捷径。
+4 对提交全部重新实测：**4/4 patch-id SAME，旧 SHA 全部不可达，新 SHA 全部在 `main` 可达**。
+
+| 审查时 SHA | main 上 SHA | 所属 PR / 标题 | patch-id（旧 = 新） | 可达性判据 |
+|-----------|------------|----------------|---------------------|------------|
+| `9ddc2f9` | `543ec11` | #38 / 快照一致性可执行判据与更正 | `8fb0bbc6ca63e2d9819b38ec1be17b47a78ef810`；SAME | 旧不可达 PASS；新在 main PASS |
+| `33c2861` | `a962c1c` | #38 / Handoff 登记与模板仓提交引用 | `a99338f72a4dbcdadd95c9c65d26acd866d1d487`；SAME | 旧不可达 PASS；新在 main PASS |
+| `200910f` | `26097a0` | #38 / TASK-057 D13-C 归档回写 | `23364966fbb8f0c4b0e037013511d8c7cac45255`；SAME | 旧不可达 PASS；新在 main PASS |
+| `2f34c10` | `190ea66` | #39 / 合并后归档收口 | `c2f97fe8a927bbf81a82cda2fa0831ecbaa0a124`；SAME | 旧不可达 PASS；新在 main PASS |
+
+逐对复现：`git show --format= <旧SHA> | git patch-id --stable` 与新 SHA 同法比较；
+反向验证：`git merge-base --is-ancestor <旧SHA> main` 必须非 0；正向验证：
+`git merge-base --is-ancestor <新SHA> main` 必须为 0。全表原始自检输出贴入 TASK-060 的 W 组提交信息。
 
 ## Task Rules
 
