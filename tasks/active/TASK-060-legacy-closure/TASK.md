@@ -144,8 +144,16 @@ PR #33 / #37 / #38 / #39 已全部合并入 `main`（`190ea66`）。收尾时实
       `prettier --check .`、`audit_framework.py`、vitest、`tsc -b`、eslint、knip、
       sync/bundle check 全 exit 0。
 - [ ] AC-8: 真实库 `server/data/app.db` 四表行数与 mtime 在任务前后一致（只读核查留证）。
-- [ ] AC-9: 模板仓配好远端并推送，`8f56589` 在远端可见；F10 在 `shadcn-admin` 仍 PASS。
-- [ ] AC-10: R 组的平台改动**前后原始值都进 Handoff**。
+- [x] AC-9: 模板仓配好远端并推送，`8f56589` 在远端可见；F10 在 `shadcn-admin` 仍 PASS。
+      **证据**：2026-11-04 经人类授权后，在账号 `huyanluanyuqaq` 下新建 PUBLIC 仓库
+      `workspace-template`，`git remote add origin git@github.com:huyanluanyuqaq/workspace-template.git`，
+      推送 `feat/TASK-059-sha-mapping`（tip = `8f56589ad4a2…`）与 `master`，默认分支设为 `master`。
+      `git ls-remote --heads origin` 确认 `8f56589ad4a2ca4426856a4f4d04ae7fe7e2368e` 在
+      `refs/heads/feat/TASK-059-sha-mapping`；复跑 `audit-repo.py` F10 仍 `PASS`。
+- [x] AC-10: R 组的平台改动**前后原始值都进 Handoff**。
+      **证据**：前值（2026-11-04 取证）`git -C projects/_workspace-template remote -v` 输出为空
+      （无任何远端）；后值 `origin = git@github.com:huyanluanyuqaq/workspace-template.git
+      (fetch/push)`。两值均记入下方 R 组 Handoff。
 
 ## File Scope
 
@@ -220,10 +228,11 @@ S 组已为 `ci.yml` 新增仅对 PR 生效的 `smoke` 作业（`db:migrate` 建
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
-| — | — | — | — | 尚未开始 |
+| 001 | 执行位 (devops) | 主控位 (reviewer) | 2026-11-04 | R 组平台动作留证：模板仓配远端并推送 `8f56589`，前后 `remote -v` 原始值 |
 
-**最新 Handoff：** 无
-**Next Action：** 执行位领取后先做 W 组，再做 S 组；R 组须先取得人类授权。
+**最新 Handoff：** `handoffs/HANDOFF-001-R-group-platform-action.md`
+**Next Action：** 执行位继续完成 AC-6（推送分支、开 PR、在 PR 上端到端跑通 smoke）与
+AC-7（全量门禁），随后交主控位审查。
 
 ## Merge Record
 
