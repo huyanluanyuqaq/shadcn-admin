@@ -139,11 +139,12 @@ jobs:
   # 不在仓库里，本地冒烟依赖运维手工维护的真实库快照；CI 上无此真实库，故先在
   # 临时目录 `db:migrate` 建一份 schema 起点，再 VACUUM INTO 快照出隔离库运行。
   #
-  # ★ 本作业**未**成为门禁：分支保护的必需检查仍只有 install-lint-build 与 audit
-  #   （traceability / smoke 均为「仅上报、不阻断」）。启用顺序不可颠倒 ——
-  #   作业必须先存在于默认分支并确认稳定上报，再由主控位决定是否入必需检查，
-  #   否则所有 PR 会永久等待一个不存在的作业，而 enforce_admins=true 无绕过通道。
-  #   当前状态以 docs/operations/github-capability.md §3 的实测值为准。
+  # ★ 必需检查当前为三项：audit / install-lint-build / traceability（traceability
+  #   于 2026-11-02 入列，V6 实证其红灯可阻止合并）。本 smoke 作业**尚未**入列，
+  #   仍为仅上报、不阻断 —— 启用顺序不可颠倒：作业必须先存在于默认分支并确认
+  #   稳定上报，再由主控位决定是否入必需检查，否则所有 PR 会永久等待一个不存在的
+  #   作业，而 enforce_admins=true 无绕过通道。当前状态以
+  #   docs/operations/github-capability.md §3 的实测值为准。
   #
   # SMOKE_DB_DIR 必须等于快照 .db 所在目录本身（TASK-058 C 簇根因：恢复标记写在
   # 数据库同目录，另设数据目录会让 19.17 在错误位置找不到标记）。

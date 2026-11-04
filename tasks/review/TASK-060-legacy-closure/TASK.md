@@ -16,7 +16,7 @@ Owner: "执行位"
 Owner Since: "2026-11-04T00:04:41+08:00"
 Assigned Role: developer
 Created: 2026-11-03T15:20:00+08:00
-Updated: 2026-11-04T11:05:00+08:00
+Updated: 2026-11-04T12:40:55+08:00
 Branch: "chore/TASK-060-legacy-closure"
 Requires Human Approval: true
 ```
@@ -127,10 +127,12 @@ PR #33 / #37 / #38 / #39 已全部合并入 `main`（`190ea66`）。收尾时实
       全表自检输出留证（贴入提交信息或档案）。
       **证据**：057 = 5/5、058 = 13/13（含审查头别名）、059 = 4/4，均 SAME / 旧不可达 PASS / 新在 main PASS；
       完整原始输出见 W 组提交信息。
-- [x] AC-4: 三份 `Status: DONE` 且位于 `tasks/done/`；`tasks/review/` 为空；
+- [x] AC-4: 三份 `Status: DONE` 且位于 `tasks/done/`；`tasks/review/` 除本任务自身外为空；
       `tasks/done/` 共 **59** 个；每移动一份跑一次 `audit-repo.py`，三次均 `PASS=10 FAIL=0`。
       **证据**：2026-11-04 逐份移动后三次均为 `PASS=10 FAIL=0 WARN=0`、退出码 0；
-      `review_entries=[]`、`done_task_dirs=59`。
+      `find tasks/done -mindepth 1 -maxdepth 1 -type d | wc -l` = 59、
+      `find tasks/review -mindepth 1 -maxdepth 1 -type d` = 仅 `TASK-060-legacy-closure`
+      （本任务自身，D13-C 规定动作）。
 - [x] AC-5: `ci.yml` 含 `smoke` 作业，`if: github.event_name == 'pull_request'`；
       本地用隔离快照库实跑 **185 通过 / 0 失败、退出码 0**，输出贴入档案。
       **证据**：2026-11-04 两路实跑均 185/0、退出码 0——① 真实库快照（`E:/AiData/t060-smoke`，
@@ -214,7 +216,9 @@ Non-Scope (files):
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| `tasks/active/TASK-060-legacy-closure/TASK.md` | `git mv` + 修改 | 领取任务；登记 W/S 组实测与验收证据 |
+| `tasks/backlog/TASK-060-legacy-closure/**` | `git mv` | 领取任务：从 `tasks/backlog/` 移入 `tasks/active/` |
+| `tasks/active/TASK-060-legacy-closure/TASK.md` | 修改 | 登记 W/S 组实测与验收证据 |
+| `tasks/review/TASK-060-legacy-closure/TASK.md` | `git mv` + 修改 | 终态路径：交付时移入 `tasks/review/`（D13-C 规定动作），置 `Status: REVIEW` |
 | `.github/workflows/ci.yml` | 修改 | 新增 `smoke` 作业（仅 `pull_request`，隔离快照库起服务跑 `smoke.ts`，不写真实库、不入必需检查） |
 | `tasks/done/TASK-057-gate-evidence-closure/**` | `git mv` + 修改 | 重测九要素、五轮审查与 5 组 SHA 映射；DONE 归档 |
 | `tasks/done/TASK-058-smoke-failures-closure/**` | `git mv` + 修改 | 重测九要素、一轮审查与 13 组 SHA 映射（含审查头别名）；DONE 归档 |
@@ -236,8 +240,7 @@ Non-Scope (files):
 | 001 | 执行位 (devops) | 主控位 (reviewer) | 2026-11-04 | R 组平台动作留证：模板仓配远端并推送 `8f56589`，前后 `remote -v` 原始值 |
 
 **最新 Handoff：** `handoffs/HANDOFF-001-R-group-platform-action.md`
-**Next Action：** 执行位继续完成 AC-6（推送分支、开 PR、在 PR 上端到端跑通 smoke）与
-AC-7（全量门禁），随后交主控位审查。
+**Next Action：** 交主控位审查（PR #41）。
 
 ## Merge Record
 
