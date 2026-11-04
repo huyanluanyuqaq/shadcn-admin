@@ -10,14 +10,14 @@
 Task ID: TASK-060
 Title: 遗留收口（D13-C 三份回写 + smoke 入 CI + 模板仓远端备份）
 Workflow: maintenance
-Status: BACKLOG
+Status: ACTIVE
 Priority: P1
-Owner: ""
-Owner Since: ""
+Owner: "执行位"
+Owner Since: "2026-11-04T00:04:41+08:00"
 Assigned Role: developer
 Created: 2026-11-03T15:20:00+08:00
-Updated: 2026-11-03T15:20:00+08:00
-Branch: ""
+Updated: 2026-11-04T00:16:14+08:00
+Branch: "chore/TASK-060-legacy-closure"
 Requires Human Approval: true
 ```
 
@@ -118,13 +118,19 @@ PR #33 / #37 / #38 / #39 已全部合并入 `main`（`190ea66`）。收尾时实
 
 ## Acceptance Criteria
 
-- [ ] AC-1: TASK-057 / 058 / 059 三份的 Merge Record 九要素全部填实测值、每格附复现命令。
-- [ ] AC-2: 三份的「审查记录」行如实指向审查文件并反映轮数结论；TASK-057 须写明
+- [x] AC-1: TASK-057 / 058 / 059 三份的 Merge Record 九要素全部填实测值、每格附复现命令。
+      **证据**：三份归档的 `Merge Record` 均为「实测值 + 复现命令」三列表；TASK-059 覆盖 PR #38 与 #39 两次合并。
+- [x] AC-2: 三份的「审查记录」行如实指向审查文件并反映轮数结论；TASK-057 须写明
       「五轮：FAIL×3 → PASS（有条件）→ PASS」。
-- [ ] AC-3: 三份各附 SHA 映射表，patch-id 判据全部自跑 SAME，旧 SHA 全部不可达；
+      **证据**：057 五轮、058 一轮、059 两轮均已落表；同一会话的复审未写成新的独立实例审查。
+- [x] AC-3: 三份各附 SHA 映射表，patch-id 判据全部自跑 SAME，旧 SHA 全部不可达；
       全表自检输出留证（贴入提交信息或档案）。
-- [ ] AC-4: 三份 `Status: DONE` 且位于 `tasks/done/`；`tasks/review/` 为空；
+      **证据**：057 = 5/5、058 = 13/13（含审查头别名）、059 = 4/4，均 SAME / 旧不可达 PASS / 新在 main PASS；
+      完整原始输出见 W 组提交信息。
+- [x] AC-4: 三份 `Status: DONE` 且位于 `tasks/done/`；`tasks/review/` 为空；
       `tasks/done/` 共 **59** 个；每移动一份跑一次 `audit-repo.py`，三次均 `PASS=10 FAIL=0`。
+      **证据**：2026-11-04 逐份移动后三次均为 `PASS=10 FAIL=0 WARN=0`、退出码 0；
+      `review_entries=[]`、`done_task_dirs=59`。
 - [ ] AC-5: `ci.yml` 含 `smoke` 作业，`if: github.event_name == 'pull_request'`；
       本地用隔离快照库实跑 **185 通过 / 0 失败、退出码 0**，输出贴入档案。
 - [ ] AC-6: `smoke` 作业在 PR 上至少一次端到端跑通（`gh pr checks` 见 `smoke` 且结论为 pass），
@@ -179,13 +185,18 @@ Non-Scope (files):
 
 ## Current State
 
-**BACKLOG（2026-11-03 登记，未开始）。** 等待执行位领取。
+**ACTIVE（2026-11-04 W 组完成，进入 S 组）。** 三份 D13-C 回写与归档已完成，
+三次移动后审计均 `PASS=10 FAIL=0 WARN=0`；`tasks/review/` 已空、`tasks/done/` 为 59 个任务目录。
+下一步仅为 `ci.yml` 增加 PR 隔离冒烟并实跑验证；R 组仍未执行，须在 W/S 完成后单独申请人类授权。
 
 ## Changed Files
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| — | — | 尚未开始 |
+| `tasks/active/TASK-060-legacy-closure/TASK.md` | `git mv` + 修改 | 领取任务；登记 W 组实测与验收证据 |
+| `tasks/done/TASK-057-gate-evidence-closure/**` | `git mv` + 修改 | 重测九要素、五轮审查与 5 组 SHA 映射；DONE 归档 |
+| `tasks/done/TASK-058-smoke-failures-closure/**` | `git mv` + 修改 | 重测九要素、一轮审查与 13 组 SHA 映射（含审查头别名）；DONE 归档 |
+| `tasks/done/TASK-059-template-drift-and-sha-mapping/**` | `git mv` + 修改 + 收纳既有审查记录 | 重测 PR #38/#39 九要素、两轮审查与 4 组 SHA 映射；DONE 归档 |
 
 ## Known Issues
 

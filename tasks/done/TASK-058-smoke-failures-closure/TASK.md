@@ -10,13 +10,13 @@
 Task ID: TASK-058
 Title: smoke.ts 14 项失败三簇清偿
 Workflow: bugfix
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: Codex（执行位 · developer）
 Owner Since: 2026-11-02T22:05:00+08:00
 Assigned Role: developer
 Created: 2026-11-02T21:50:00+08:00
-Updated: 2026-11-02T23:55:00+08:00
+Updated: 2026-11-04T00:10:47+08:00
 Branch: bugfix/TASK-058-smoke-failures-closure（自 docs/TASK-057-059-backlog-registration 切出，含 TASK-058 登记提交）
 Requires Human Approval: false
 ```
@@ -395,10 +395,9 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（2026-11-03 00:55，目录已移入 `tasks/review/`）。** 三簇 14 项失败已全部清偿，`smoke.ts` 185 通过 / 0 失败、
-退出码 0；全量门禁退出码全 0。分支 `bugfix/TASK-058-smoke-failures-closure` 已推送，
-交付请求已开，等待**主控位**审查（按 D13-C 选项 C，`## Merge Record` 由下一个任务回收归档时回填，
-本任务不自行回写、不自行合并）。
+**DONE（2026-11-04 由 TASK-060 归档）。** PR #33 已合并；Merge Record 九要素与
+SHA 映射表已由 TASK-060 通过平台 API、`git patch-id --stable` 与可达性检查重新实测，
+目录按 D13-C 移入 `tasks/done/`。
 
 ## V 组实测记录（smoke.ts 实跑与对照运行）
 
@@ -569,6 +568,7 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 | `tasks/backlog/TASK-058-smoke-failures-closure/TASK.md` | `git mv` + 修改 | 领取：移入 `tasks/active/`；实现完成后 `Status → REVIEW` 并再 `git mv` 至 `tasks/review/`（`task-lifecycle.md` §4「变更状态」两步，缺一不可）；Owner 填执行位；追加根因定位四元组、实测记录、AC 证据、Known Issues |
 | `tasks/review/TASK-055-archive-backfill-and-email-binding-residuals/TASK.md` | 修改（**仅追加**） | `Known Issues` 第 1 条追加三簇根因验证结论；「V 组实测记录」追加配方修正说明。历史记录一字未改 |
 | `tasks/review/TASK-058-smoke-failures-closure/handoffs/HANDOFF-001-implementer-to-coordinator.md` | 新增 | 执行位 → 主控位交接（随任务目录一同移入 `review/`） |
+| `tasks/done/TASK-058-smoke-failures-closure/TASK.md` | `git mv` + 修改 | TASK-060 按 D13-C 重测九要素与 SHA 映射，`Status → DONE` 并归档 |
 
 > **交付请求 #33 的实际 diff 还含两个非本任务文件，如实披露（Known Issues 8）**：
 > `tasks/backlog/TASK-057-gate-evidence-closure/TASK.md`、
@@ -637,19 +637,13 @@ B2 GET /email-bindings?q=… → total = 0 items = []
 |---|------|----|------|------|
 | 001 | Codex（执行位 · developer） | 主控位 · Reviewer | 2026-11-02 | 三簇 14 项失败清偿：A/B 为脚本侧过期、C 为配方错误；0 产品缺陷；smoke 185/0 退出码 0；全量门禁全 0；待审查 |
 
-**目录状态：** `tasks/review/TASK-058-smoke-failures-closure/`（`Status: REVIEW` 与所在目录一致，
-符合 `.agents/protocols/task-lifecycle.md` §5 的状态一致性检查）。
+**目录状态：** `tasks/done/TASK-058-smoke-failures-closure/`（`Status: DONE`，TASK-060 已归档）。
 
-**交付请求：** [#33](https://github.com/huyanluanyuqaq/shadcn-admin/pull/33)
-（`bugfix/TASK-058-smoke-failures-closure` → `main`，**9 commits / 6 changed files**，
-`state=OPEN`、`mergeable=MERGEABLE`；三项必需检查 `install-lint-build` / `traceability` /
-`audit` 全部 SUCCESS。分支另带主控位登记提交 `b0714ad`，故 diff 含 TASK-057/059
-两份任务定义，见 Known Issues 7。**执行位未合并**，等待主控位审查。）
+**交付请求：** [#33](https://github.com/huyanluanyuqaq/shadcn-admin/pull/33) 已于
+`2026-11-02T17:40:55Z` 合并；最终平台实测为 **12 commits**，详见下表逐格复现命令。
 
 **最新 Handoff：** `handoffs/HANDOFF-001-implementer-to-coordinator.md`
-**Next Action：** 主控位按 `.agents/workflows/bugfix.md` 第 5 阶段审查**实际差异**
-（`git diff main...HEAD`），逐条核对 AC-1~AC-8 的证据是否可复现；
-PASS 后由主控位合并并回填 `## Merge Record`，FAIL 则回 `CHANGES_REQUESTED`。
+**Next Action：** 无；审查、合并与 D13-C 归档均已完成。
 
 ## Merge Record
 
@@ -660,17 +654,48 @@ PASS 后由主控位合并并回填 `## Merge Record`，FAIL 则回 `CHANGES_REQ
 > 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
 > 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
 
-| 要素 | 值 |
-|------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填 |
+> 以下九要素由 TASK-060 于 2026-11-04 重新通过 `gh api` / DockerHub Tags API 实测，
+> 未沿用本档案或 TASK-060 Background 的自述值。
+
+| 要素 | 实测值 | 复现命令 |
+|------|--------|----------|
+| PR | [#33](https://github.com/huyanluanyuqaq/shadcn-admin/pull/33)（`bugfix/TASK-058-smoke-failures-closure` → `main`）；合并执行者 `huyanluanyuqaq` | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/33 --jq '{number,merged_by:.merged_by.login,head:.head.ref,base:.base.ref}'` |
+| 合并策略 | rebase-merge；合并头 `ea95b89` 为单父线性提交 | `gh api repos/huyanluanyuqaq/shadcn-admin/commits/ea95b8978c4957c7804b66aedec72eea6a058a82 --jq '{sha,parents:[.parents[].sha]}'` |
+| 提交数 | **12** | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/33/commits --paginate --jq 'length'` |
+| merged_at | `2026-11-02T17:40:55Z` | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/33 --jq '.merged_at'` |
+| merge_commit_sha | `ea95b8978c4957c7804b66aedec72eea6a058a82` | `gh api repos/huyanluanyuqaq/shadcn-admin/pulls/33 --jq '.merge_commit_sha'` |
+| 合并后 CI run | `41493459791`；Continuous Integration，`event=push`、`head_branch=main`、conclusion=`success` | `gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/41493459791 --jq '{id,name,event,head_branch,head_sha,conclusion}'` |
+| 合并后 Docker run | `41493459973`；Build and Push Docker Image，`event=push`、`head_branch=main`、conclusion=`success` | `gh api repos/huyanluanyuqaq/shadcn-admin/actions/runs/41493459973 --jq '{id,name,event,head_branch,head_sha,conclusion}'` |
+| 镜像 tag | `sha-ea95b89`；digest `sha256:5b66577422c69535f39f157b6132e17167105586ab5681641aae1f4b2f6f760c`；`last_updated=2026-11-02T17:47:44.489941Z` | `curl -fsSL https://hub.docker.com/v2/repositories/nomorelatenights/subscription-admin/tags/sha-ea95b89` |
+| 审查记录 | `handoffs/2026-11-03-coordinator-review.md`：**一轮 PASS**。审查实例为 Claude Code（Opus 5），与执行位 Codex 不同；记录声明审查前未接触实现过程产物并独立复跑 | `gh api "repos/huyanluanyuqaq/shadcn-admin/contents/tasks/review/TASK-058-smoke-failures-closure/handoffs?ref=ea95b8978c4957c7804b66aedec72eea6a058a82" --jq '.[].name'` |
+
+### SHA 映射表（rebase-merge 改写前后的对应关系）
+
+判据统一采用 `git show --format= <SHA> | git patch-id --stable`。最终 PR 的 rebase 基点
+`760e18c` 未变；审查记录头 `0388650b` 所在历史则因 PR #32 先合并而发生基点前移，
+故不使用 tree 捷径。12 个最终 PR 旧 SHA 加 1 个审查头别名均重新实测：**13/13 patch-id SAME，
+旧 SHA 全部不可达，新 SHA 全部在 `main` 可达**。`0388650b` 与最终 PR 头 `74c26ec`
+是同一补丁的两个旧头，共同映射到 `ea95b89`。
+
+| 审查时 SHA | main 上 SHA | 标题 | patch-id（旧 = 新） | 可达性判据 |
+|-----------|------------|------|---------------------|------------|
+| `ce7a7ba` | `56dff14` | 领取任务并转入 active | `74afe28cb101b78318cfa36fae000f5cb020105b`；SAME | 旧不可达 PASS；新在 main PASS |
+| `312d686` | `a8c0606` | smoke 阈值客户补生效上限来源 | `7cc3277f18f0ae1fc82c203ac0846007466fbacc`；SAME | 旧不可达 PASS；新在 main PASS |
+| `8f3404a` | `9ccb52d` | smoke 12.9 段改用未占用订阅 | `58dac6c057535a3722c7f51df4755bb92e79f60f`；SAME | 旧不可达 PASS；新在 main PASS |
+| `3d4e787` | `3a2063f` | 注明 SMOKE_DB_DIR 口径并补诊断 | `b0d86b466636bf1e37570d0f18014de622b549b2`；SAME | 旧不可达 PASS；新在 main PASS |
+| `067e30f` | `45a4a68` | 档案落盘三簇根因与实测记录 | `bf31926156fbc52ca5ba12cf4f77f6c4651e7572`；SAME | 旧不可达 PASS；新在 main PASS |
+| `fd2a028` | `4e0160a` | TASK-055 追加根因与配方修正 | `ecc47cd4fb9c5d4c206baffa28ebd83b81488d83`；SAME | 旧不可达 PASS；新在 main PASS |
+| `3ee607a` | `8829d3f` | 登记 PR #33 与范围外溢披露 | `5e85cd43c019f62604057452145872d8e7411518`；SAME | 旧不可达 PASS；新在 main PASS |
+| `52aa116` | `fc4e35a` | 登记 PR #33 平台检查实证 | `9487d0d11cdf024b2e76a5e815ef2eacfe844bb9`；SAME | 旧不可达 PASS；新在 main PASS |
+| `c6a489c` | `be45e52` | 回填最终提交数与三次 CI | `cb260962ad5245c7b8d77a328927a99a8713b72c`；SAME | 旧不可达 PASS；新在 main PASS |
+| `5d4e152` | `aa13d89` | 补记第 4 次 CI 并限定快照 | `59e64e74f10f7e34c7fd3ea183d69dd143dc3943`；SAME | 旧不可达 PASS；新在 main PASS |
+| `fba9d9e` | `f0279c1` | 任务目录移入 review | `4a963c71445d00003c399ccd7ee6dc73fa4644e4`；SAME | 旧不可达 PASS；新在 main PASS |
+| `74c26ec` | `ea95b89` | 补记第 5/6 次 CI（最终 PR 头） | `fd896c5b8697105248cba0b3d40ba713ca70f862`；SAME | 旧不可达 PASS；新在 main PASS |
+| `0388650` | `ea95b89` | 补记第 5/6 次 CI（审查记录头别名） | `fd896c5b8697105248cba0b3d40ba713ca70f862`；SAME | 旧不可达 PASS；新在 main PASS |
+
+逐对复现：`git show --format= <旧SHA> | git patch-id --stable` 与新 SHA 同法比较；
+反向验证：`git merge-base --is-ancestor <旧SHA> main` 必须非 0；正向验证：
+`git merge-base --is-ancestor <新SHA> main` 必须为 0。全表原始自检输出贴入 TASK-060 的 W 组提交信息。
 
 ## Task Rules
 
