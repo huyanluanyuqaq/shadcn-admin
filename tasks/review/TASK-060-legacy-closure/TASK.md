@@ -10,13 +10,13 @@
 Task ID: TASK-060
 Title: 遗留收口（D13-C 三份回写 + smoke 入 CI + 模板仓远端备份）
 Workflow: maintenance
-Status: ACTIVE
+Status: REVIEW
 Priority: P1
 Owner: "执行位"
 Owner Since: "2026-11-04T00:04:41+08:00"
 Assigned Role: developer
 Created: 2026-11-03T15:20:00+08:00
-Updated: 2026-11-04T00:16:14+08:00
+Updated: 2026-11-04T11:05:00+08:00
 Branch: "chore/TASK-060-legacy-closure"
 Requires Human Approval: true
 ```
@@ -138,12 +138,19 @@ PR #33 / #37 / #38 / #39 已全部合并入 `main`（`190ea66`）。收尾时实
       先 `db:migrate` 建库再 `VACUUM INTO` 快照、起服务于 `:3101`），后者模拟 CI 无真实库的起点。
       两路均 `结果：185 通过 / 0 失败`；真实库 `server/data/app.db` 四表 `4/6/0/6` 与
       mtime `2026-11-01T14:12:43.146Z` 前后未变。
-- [ ] AC-6: `smoke` 作业在 PR 上至少一次端到端跑通（`gh pr checks` 见 `smoke` 且结论为 pass），
+- [x] AC-6: `smoke` 作业在 PR 上至少一次端到端跑通（`gh pr checks` 见 `smoke` 且结论为 pass），
       原始输出可查；**未**加入 `required_status_checks.contexts`。
-- [ ] AC-7: `audit-repo.py` → `PASS=10 FAIL=0 WARN=0`（F6 作业名一致性仍 PASS，含新作业名）；
+      **证据**：PR #41（run `41764222745`）`smoke` 作业 conclusion=**success**（18s），
+      日志原始输出 `server ready after 3s` + `结果：185 通过 / 0 失败`；`gh api …/required_status_checks`
+      实测 `contexts = ["audit","install-lint-build","traceability"]`，**不含 smoke**。
+- [x] AC-7: `audit-repo.py` → `PASS=10 FAIL=0 WARN=0`（F6 作业名一致性仍 PASS，含新作业名）；
       `prettier --check .`、`audit_framework.py`、vitest、`tsc -b`、eslint、knip、
       sync/bundle check 全 exit 0。
-- [ ] AC-8: 真实库 `server/data/app.db` 四表行数与 mtime 在任务前后一致（只读核查留证）。
+      **证据**：2026-11-04 全量门禁实跑——`audit-repo.py` PASS=10 FAIL=0；`prettier --check .`
+      全绿；`audit_framework.py` PASS=13 FAIL=0；sync 62/0、bundle 68/0；vitest 27 文件
+      345 用例 passed；`tsc -b`、eslint、knip 退出码 0。
+- [x] AC-8: 真实库 `server/data/app.db` 四表行数与 mtime 在任务前后一致（只读核查留证）。
+      **证据**：任务开始与结束均 `4 / 6 / 0 / 6`、mtime `2026-11-01T14:12:43.146Z`、size 266240。
 - [x] AC-9: 模板仓配好远端并推送，`8f56589` 在远端可见；F10 在 `shadcn-admin` 仍 PASS。
       **证据**：2026-11-04 经人类授权后，在账号 `huyanluanyuqaq` 下新建 PUBLIC 仓库
       `workspace-template`，`git remote add origin git@github.com:huyanluanyuqaq/workspace-template.git`，
@@ -198,12 +205,10 @@ Non-Scope (files):
 
 ## Current State
 
-**ACTIVE（2026-11-04 W 组完成，S 组代码完成，进入 R 组前暂停）。** 三份 D13-C 回写与归档已完成，
-三次移动后审计均 `PASS=10 FAIL=0 WARN=0`；`tasks/review/` 已空、`tasks/done/` 为 59 个任务目录。
-S 组已为 `ci.yml` 新增仅对 PR 生效的 `smoke` 作业（`db:migrate` 建 schema 起点 → `VACUUM INTO`
-隔离快照 → 单 step 起服务 + 跑 smoke），本地两路实跑均 185/0、退出码 0，真实库未动。
-下一步：R 组须**暂停并向人类申请授权**（模板仓配远端属平台/基础设施高风险动作，不得擅自执行）；
-推送分支、开 PR 在 PR 上端到端跑通 smoke（AC-6）也须在提交推送后完成。
+**REVIEW（2026-11-04 W/S/R 三组全部完成，PR #41 已开，等待主控位审查）。** 三份 D13-C 回写与
+归档已完成（`tasks/review/` 空、`tasks/done/` 59 个）；`ci.yml` 已新增仅对 PR 生效的 `smoke` 作业，
+本地两路实跑 185/0、CI 端到端跑通（run `41764222745`，`结果：185 通过 / 0 失败`）；模板仓已配远端
+并推送 `8f56589`（经人类授权）。全量门禁全绿。PR #41 已开，**执行位不自行合并**，交主控位审查。
 
 ## Changed Files
 
