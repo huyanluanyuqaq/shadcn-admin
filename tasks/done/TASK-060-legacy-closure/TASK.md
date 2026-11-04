@@ -10,13 +10,13 @@
 Task ID: TASK-060
 Title: 遗留收口（D13-C 三份回写 + smoke 入 CI + 模板仓远端备份）
 Workflow: maintenance
-Status: REVIEW
+Status: DONE
 Priority: P1
 Owner: "执行位"
 Owner Since: "2026-11-04T00:04:41+08:00"
 Assigned Role: developer
 Created: 2026-11-03T15:20:00+08:00
-Updated: 2026-11-04T12:40:55+08:00
+Updated: 2026-11-04T13:00:00+08:00
 Branch: "chore/TASK-060-legacy-closure"
 Requires Human Approval: true
 ```
@@ -207,10 +207,11 @@ Non-Scope (files):
 
 ## Current State
 
-**REVIEW（2026-11-04 W/S/R 三组全部完成，PR #41 已开，等待主控位审查）。** 三份 D13-C 回写与
-归档已完成（`tasks/review/` 除本任务自身外为空、`tasks/done/` 59 个）；`ci.yml` 已新增仅对 PR 生效的 `smoke` 作业，
-本地两路实跑 185/0、CI 端到端跑通（run `41774718085`，`结果：185 通过 / 0 失败`）；模板仓已配远端
-并推送 `8f56589`（经人类授权）。全量门禁全绿。PR #41 已开，**执行位不自行合并**，交主控位审查。
+**DONE（2026-11-04T13:00 归档）。** W/S/R 三组全部完成并经 PR #41（rebase-merge，`78fbb4de`）合入 `main`；
+6 轮主控位审查记录见 `handoffs/`（第 1~5 轮经 PR #42 入库，第 6 轮未提交）。
+本任务的 Merge Record 按旧 D13-C 机制应回填而未回填，已在「Merge Record」节如实标注，
+不补写。归档动作本身（`Status → DONE` + 移入 `tasks/done/`）为一次独立的档案整理提交，
+`Refs: TASK-060`，未新建任务编号。
 
 ## Changed Files
 
@@ -231,7 +232,14 @@ Non-Scope (files):
    **不得**靠放宽断言变绿。
 2. **R 组依赖人类授权**：模板仓配远端属平台/基础设施动作（`change-safety.md` 高风险清单）。
    执行位做到 R 组须停下来申请，不得擅自执行。
-3. **三份回写后本任务的 Merge Record 仍待再下一个任务回填** —— D13-C 机制，非遗漏。
+3. ~~**三份回写后本任务的 Merge Record 仍待再下一个任务回填**~~ —— **已结案**。
+   框架 v2.0.0 废弃 D13-C 后，此项不再回填；归档时已在「Merge Record」节如实标注
+   「旧机制遗留，未回填」，并记录可实测的合并事实（PR #41 / rebase-merge / `78fbb4de` /
+   2026-11-04T06:04:22Z / 6 提交）。**不补写、不伪造。**
+4. **第 6 轮审查记录 `handoffs/2026-11-04-coordinator-review-pr42.md` 未提交、未推送** ——
+   归档时原样保留其未跟踪状态。是否入库由人类决定；不代为提交。
+5. **`smoke` 作业至今未入必需检查** —— 按本任务 Task Rules 第 3 条，入否由主控位在作业
+   稳定上报后另行决定。当前 `required_status_checks.contexts = ["audit","install-lint-build","traceability"]`。
 
 ## Handoff
 
@@ -244,24 +252,23 @@ Non-Scope (files):
 
 ## Merge Record
 
-> **本节不随「Pass/收尾」填写。** 按 D13-C 选项 C（`.agents/rules/github.md` §2 / §6、
-> `AGENTS.md` §14.2），本表由**下一个任务**在回收本任务归档时回填；
-> 在此之前任务保持 `Status = REVIEW`、留在 `tasks/review/`（机制，非遗漏）。
-> **禁止在本任务内自我回写**（那会造成档案与提交历史不一致）。
-> 回填时九要素必须填实测值（可被 `gh api` / Tags API 复现），不得沿用档案自述；
-> 无合并前独立审查档时，「审查记录」行须如实写「无（A3 断档）」，**不得补写、不得伪造**。
-
-| 要素 | 值 |
-|------|-----|
-| PR | 待回填 |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填 |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填 |
+> **本节未按九要素回填 —— 旧 D13-C 机制遗留，如实标注，不补写、不伪造。**
+>
+> 本任务于 **2026-11-04T06:04:22Z** 由 **PR #41** 以 **rebase-merge** 合入 `main`，
+> `merge_commit_sha = 78fbb4de2a5113cfaa06c72c0c9015b244bc8d3f`，**6 个提交**。
+> 以上为合并时点已可实测的事实（`gh api repos/:owner/:repo/pulls/41`），据实记录。
+>
+> **九要素中的其余项未回填**：合并后 CI run / 合并后 Docker run / 镜像 tag / 审查记录。
+> 原因：框架 v2.0.0（2026-11-04）已废弃 D13-C「由下一个任务回填 Merge Record」机制，
+> 改为「同一 PR 内自填」（见 `.agent-framework/github.md` §5）。本任务属旧机制下的遗留，
+> 按新规**不追溯补写**；若要补，应由一次独立的、可复现的实测产生，而非照抄档案自述。
+>
+> **本表不是审查结论。** 本任务的审查记录见 `handoffs/`（第 1~6 轮主控位审查）；
+> 其中第 6 轮 `2026-11-04-coordinator-review-pr42.md` 至今**未提交、未推送**，
+> 归档时原样保留其未跟踪状态，不代为提交。
+>
+> **D13-C 欠账链条在此终止。** 本任务是该机制下的最后一个遗留
+> （TASK-055 → TASK-057/058/059 → TASK-060），此后的任务一律按新规执行。
 
 ## Task Rules
 
