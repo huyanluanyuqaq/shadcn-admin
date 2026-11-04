@@ -5,8 +5,9 @@
 > - **Workspace 模式**（项目位于 Workspace 的 `projects/` 下）：本文件 + Workspace `AGENTS.md` + Task 规则共同生效。
 > - **Standalone 模式**（项目被单独 clone，无 Workspace）：本文件 + Task 规则生效，见 §12。
 >
-> **框架基线（TASK-039，2026-10-15）：** 双 Agent 协作框架已整体入仓 —— `.agents/`（角色/规则/协议/工作流）
-> 与 `templates/`（任务/交接/ADR/GitHub 模板）逐字复制自 Workspace 模板仓库 `projects/_workspace-template/`，
+> **框架基线（v2.0.0，2026-11-04）：** 公共 Agent 规范已入仓 —— `.agent-framework/` 存放 7 篇规范
+> （collaboration / git / github / quality / rule-precedence / permissions / change-safety），
+> 源为中央规范仓 `huyanluanyuqaq/agent-framework`，由 `shared/scripts/sync-framework.py` 同步，
 > 独立 clone 后完整可用（见 §4 / §12）。
 
 ---
@@ -74,9 +75,8 @@ Upstream: satnaing/shadcn-admin（本仓库为其 fork，接入时尚无自定�
 shadcn-admin/
 ├── AGENTS.md              ← 本文件
 ├── README.md              ← 上游原文 + 末尾「Agent 协作」章节（TASK-039 追加；其中 Auth/Clerk/Sponsor 等主体表述描述上游状态，本仓库已移除 Clerk，见 §13.3）
-├── .agents/               ← 【TASK-039】双 Agent 协作框架（roles/workflows/rules/protocols/state/proposals），
-│                            逐字复制自模板仓库；**项目内只读**，项目级覆盖走本文件 §10
-├── templates/             ← 【TASK-039】框架模板（task/handoff/adr/github/project），同样逐字复制、只读
+├── .agent-framework/        ← 公共 Agent 规范只读副本（7 篇，由中央仓同步，勿在本项目内直接改）
+├── shared/scripts/          ← audit-project.py（项目级框架合规审计）
 ├── docs/                  ← 协调层（新增）
 │   ├── requirements/  architecture/  technical/  decisions/  operations/
 ├── tasks/                 ← 协调层（新增）：backlog/ active/ review/ done/
@@ -238,7 +238,7 @@ docker compose up -d --build
 ```
 
 **部署约束：** 目标形态为**单容器 + SQLite 数据卷**的 `docker compose` 部署；
-生产部署需人类批准（见 `.agents/protocols/change-safety.md`）。
+生产部署需人类批准（见 `.agent-framework/change-safety.md`）。
 
 ---
 
@@ -257,11 +257,11 @@ docker compose up -d --build
 | **Agent 协作流程** | `docs/agent-collaboration.md` |
 | **Git 工作流** | `docs/git-workflow.md` |
 | **GitHub 平台能力记录** | `docs/operations/github-capability.md` |
-| **框架规范（角色/规则/协议/工作流）** | `.agents/`（TASK-039 起随仓库版本化，逐字快照只读） |
-| **框架模板（任务/交接/ADR/GitHub）** | `templates/`（TASK-039 起随仓库版本化，逐字快照只读） |
+| **公共 Agent 规范（7 篇）** | `.agent-framework/`（只读副本，由中央仓同步） |
+| **中央规范仓（源）** | `huyanluanyuqaq/agent-framework` |
 | 任务 | `tasks/` |
 
-**写文档前请先读：** `.agents/rules/documentation.md`（TASK-039 起已随仓库版本化，两种模式下均直接可读）。
+**写文档前请先读：** `.agent-framework/quality.md`（TASK-039 起已随仓库版本化，两种模式下均直接可读）。
 
 ---
 
@@ -275,7 +275,7 @@ docker compose up -d --build
   `@faker-js/faker` 与 `features/*/data/data.ts` **均已移除**（复核命令见
   `docs/operations/negative-assertion-review.md`）。新增领域模块时数据源**必须是真实 API**，
   不得重新引入 mock 数据。
-- [补充] **框架快照只读（TASK-039）**：`.agents/` 与 `templates/` 是模板仓库的逐字快照，**不得在本项目内直接修改**；项目级规则覆盖一律通过本文件 §10 的 [覆盖] / [补充] / [增强] 标记表达（优先级见 `.agents/protocols/rule-precedence.md`）。框架演进在模板仓库进行，完成后同步快照并走交付请求。框架快照一致性由 `scripts/audit-repo.py` **F10 门禁**保证（TASK-059），可复现，**不再为口头声称**（`diff` 输出为零 = 一致，任何差异均 FAIL）。
+- [补充] **公共规范只读（v2.0.0）**：`.agent-framework/` 是中央规范仓的只读副本，**不得在本项目内直接修改**；项目级规则覆盖一律通过本文件 §10 的 [覆盖] / [补充] / [增强] 标记表达（优先级见 `.agent-framework/rule-precedence.md`）。规范演进在中央仓进行，通过 `shared/scripts/sync-framework.py` 同步到本项目并走交付请求。规范版本由 `framework-version.json` 记录，`shared/scripts/audit-project.py` 的 A1/A2/A3 门禁校验其在位性与版本一致性。
 - [增强] 涉及认证（Clerk → JWT 迁移）、密钥、数据库迁移的变更，必须经 **Security 角色**审查后方可合入。
 
 ---
@@ -299,25 +299,23 @@ Task 规则（TASK.md 的 Task Rules 节）
 
 ## 12. Standalone Mode（独立运行）
 
-本项目被单独 `git clone` 后，**没有 Workspace**。自 **TASK-039（2026-10-15）** 起，双 Agent 协作框架
+本项目被单独 `git clone` 后，**没有 Workspace**。自 **v2.0.0（2026-11-04）** 起，公共 Agent 规范
 已随仓库版本化，Standalone 与 Workspace 两种模式下的规范供给**完全相同**。
 
-> **唯一例外**是框架快照一致性检查 F10：模板仓库 `projects/_workspace-template` 不可达时它输出 WARN 跳过而非 FAIL，故单独 clone 的下游仓库不受该门禁保护（不把未实测写成已生效）。
+**两种模式下均有效：** 本文件（项目规则）、`.agent-framework/`（7 篇公共规范）、
+`tasks/` 中的任务与交接记录、`docs/` 中的全部文档。
 
-**两种模式下均有效：** 本文件（项目规则）、`.agents/`（角色/规则/协议/工作流）、`templates/`（模板）、
-`tasks/` 中的 Task 与 Handoff、`docs/` 中的全部文档。
+**Workspace 模式额外生效：** Workspace 根 `AGENTS.md`（多项目 Discovery 与跨项目要求）。
 
-**Workspace 模式额外生效：** Workspace 根 `AGENTS.md`（多项目 Discovery 与跨项目状态，见 `.agents/state/`）。
-
-**要点摘要：** `docs/operations/agent-constraints.md` 是受保护规则的摘要；与 `.agents/rules/security.md`
+**要点摘要：** `docs/operations/agent-constraints.md` 是受保护规则的摘要；与 `.agent-framework/quality.md`
 等原文不一致时**以原文为准**，摘要不得作为削弱受保护规则的依据。
 
 **最小工作流：**
 
 ```
-读本文件 → 按需读 .agents/ 的 role / workflow / rule / protocol
-        → 读 TASK.md → 按 §3 技术栈与 §5-§8 命令实施
-        → 遵守 §10 项目规则 → 写 Handoff 到 task 的 handoffs/
+读本文件 → 按需读 .agent-framework/ 的对应规范
+        → 读任务文件 → 按 §3 技术栈与 §5-§8 命令实施
+        → 遵守 §10 项目规则 → 按任务级别写交接记录
 ```
 
 ---
@@ -391,7 +389,7 @@ Task 规则（TASK.md 的 Task Rules 节）
 | `traceability` | `.github/workflows/ci.yml` | 交付可追溯性：PR 内每个提交必须引用真实存在的任务 | 是（2026-11-02 起） |
 
 作业名**必须与工作流文件中的名称完全一致**，否则必需检查会永远处于「待处理」状态。
-`scripts/audit-repo.py` 会在 CI 中校验本节与工作流实际作业名是否一致。
+`shared/scripts/audit-project.py` 会在 CI 中校验本节与工作流实际作业名是否一致。
 
 > ✅ **`traceability` 已于 2026-11-02 由主控位加入必需检查。**
 > 判据是 `gh api repos/huyanluanyuqaq/shadcn-admin/branches/main/protection/required_status_checks`
@@ -410,10 +408,11 @@ Task 规则（TASK.md 的 Task Rules 节）
 - **默认合并策略：`rebase-merge`**（保持 `main` 线性 + 保留可追溯的提交粒度）。
 - 本条**覆盖**上层通用 Git 规范中「优先 squash」的默认值，理由见 `docs/git-workflow.md` §4。
 - 合并后删除工作分支，并回写 `tasks/**/TASK.md` 的 `Merge Record`。
-  **★ 回写路径（D13 裁决 · 选项 C）：** 回写**并入下一个任务的交付请求**，**不单独开「回写专用」交付请求**。
-  因此在下一个任务出现之前，最近完成的任务**保持 `Status = REVIEW`、留在 `tasks/review/`**，
-  并须在其 `TASK.md` 诚实标注「归档回写待下一个任务补记」。
-  规范来源：`.agents/rules/github.md` §2 / §6（TASK-039 起 `.agents/**` **已在本仓库内**，独立 clone 后同样可读）。
+  **★ 回写路径（v2.0.0 起）：** 回写在**同一个交付请求内**完成（合并前把状态改为 `DONE`），
+  **不再**延后到下一个任务。原 D13-C「下一个任务回填」机制已废弃 —— 它导致任务长期滞留
+  `review/` 并产生跨任务债务（TASK-055/057/058/059 四轮欠账）。
+  历史档案中的相关记录**不回溯修改**。
+  规范来源：`.agent-framework/github.md` §5（`.agent-framework/**` 已在本仓库内，独立 clone 后同样可读）。
 
 ### 14.3 构建与发布（重要）
 
@@ -461,7 +460,7 @@ Task 规则（TASK.md 的 Task Rules 节）
 ### 14.5 交付请求模板与审计脚本
 
 - 交付请求模板：`.github/PULL_REQUEST_TEMPLATE.md`（字段来源见 `docs/agent-collaboration.md` §5，**不得双写**）。
-- 仓库级框架审计：`scripts/audit-repo.py`（只读、无网络、可在本地直接运行）。
+- 仓库级框架审计：`shared/scripts/audit-project.py`（只读、无网络、可在本地直接运行）。
 - **可追溯性检查**：`scripts/check-traceability.py`（TASK-056；只读、无网络）
   —— 校验 PR 内每个提交的 `Refs: TASK-NNN` 且该任务真实存在，判据区间为 `base..HEAD`，**不追溯历史**。
 - 依赖更新：`.github/dependabot.yml`（npm / github-actions / docker）。
