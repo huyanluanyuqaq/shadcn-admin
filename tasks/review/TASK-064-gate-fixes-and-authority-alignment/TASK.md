@@ -210,8 +210,8 @@ Non-Scope (files):
 但历史会出现重复提交）。
 
 **当前状态（2026-11-05，移交时点）：** 实现与自检完成，PR **#53** 已创建。
-PR 侧 CI run `42049299643` 四作业（`install-lint-build` / `audit` / `traceability` / `smoke`）
-**全部 pass**；其中 `audit` 作业实测 `PASS=9 FAIL=0 WARN=5 SKIP=0` / exit 0
+PR 侧 CI 已实测两次四作业全 pass（run `42049299643`、`42050504614`；作业
+`install-lint-build` / `audit` / `traceability` / `smoke`）；其中 `audit` 作业实测 `PASS=9 FAIL=0 WARN=5 SKIP=0` / exit 0
 （A2 / A10 / A14 在单仓 checkout 下降级为 WARN，见 Known Issues #1）。
 `Status` 改为 `REVIEW`、目录移入 `tasks/review/`，等待 **Reviewer 位独立审查 + Security 位审查**
 （Task Rules 增强条，`AGENTS.md` §10）。Developer 不自行批准本交付物。
@@ -314,7 +314,7 @@ Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
-| PR 侧 CI run | `42049299643`（Continuous Integration / `event=pull_request`）—— 四作业全 pass：`install-lint-build` / `audit` / `traceability` / `smoke` |
+| PR 侧 CI run | 已实测**两次**四作业全 pass：`42049299643`、`42050504614`（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，合并前以 `gh pr checks 53` 复核 |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
 | 审查记录 | **移交时点：无。** Reviewer 位与 Security 位审查待出具；合并前按实测填入 `handoffs/YYYY-MM-DD-review.md` / `YYYY-MM-DD-security-review.md`，无则如实写「无」，不补写 |
