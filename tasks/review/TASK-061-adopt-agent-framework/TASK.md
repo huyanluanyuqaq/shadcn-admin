@@ -113,6 +113,23 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
 - TASK-045 编号重复（两个目录）—— 2026-10-21 已裁决共存，审计脚本中已登记豁免
 - TASK-038 编号断号 —— 归档后移除所致，审计中为 WARN
 - `ci.yml` 原注释称「traceability 尚未成为门禁」，实际已是必需检查 —— 注释与现实漂移，需修正
+- **reviewer 位对本任务（PR #43 / TASK-061）与 TASK-062（PR #45）的独立审查记录未入库**
+  （TASK-063 AC-5 于 2026-11-05 实测登记，`Status` 与下方 DoD 结论均未改写）：
+
+  | 检索对象 | 实测命令 / 方式 | 结果 |
+  |----------|----------------|------|
+  | 平台 review | `gh api …/pulls/43/reviews`、`/pulls/45/reviews`、`/pulls/46/reviews` 的 `length` | 均为 `0` |
+  | `main` 及全部分支树 | `git for-each-ref refs/heads refs/remotes` + 逐 ref `git ls-tree -r --name-only` 过滤 `TASK-06(1\|2).*/.*review.*\.md` | 唯一命中是未合并的 `docs/TASK-062-archive-and-record-writeback`（PR #47 越权产物）上的主控位记录，**无 reviewer 位独立审查记录** |
+  | Workspace `.workbuddy/memory/` | 目录列举 | 最新文件为 `2026-11-04.md`，无本项记录 |
+  | 项目 `.workbuddy/` | 文件列举 | 无本项记录 |
+
+  人类陈述已完成，但仓库内无可验证载体，**本任务不代为结案**。
+  另需区分：TASK-063 本次补入的
+  [`handoffs/2026-11-05-pr46-review.md`](handoffs/2026-11-05-pr46-review.md)
+  对象是 **PR #46 的主控位审查记录归档**，与本条所指的 reviewer 位独立审查不是同一件事，
+  不使 DoD 结案。
+  `handoffs/2026-11-04-coordinator-merge-record-pr43.md` 中「（未提交）」是该记录成文时点的
+  状态描述（PR #46 已将其入库），按「历史档案不回溯重排」保留原文，此处仅注明现状。
 
 ## Handoff
 
