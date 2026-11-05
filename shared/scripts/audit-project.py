@@ -61,10 +61,10 @@ SECRET_PATTERNS_HARD = [
     (r"github_pat_[A-Za-z0-9_]{20,}", "GitHub fine-grained PAT"),
     (r"gho_[A-Za-z0-9]{20,}", "GitHub OAuth token"),
     (r"AKIA[0-9A-Z]{16}", "AWS access key"),
+    (r"sk-[A-Za-z0-9]{24,}", "generic secret key"),
     (r"-----BEGIN [A-Z ]*PRIVATE KEY-----", "private key block"),
 ]
 SECRET_PATTERNS_SUSPECT = [
-    (r"sk-[A-Za-z0-9]{24,}", "generic secret key"),
     (r"(?i)\b(password|passwd|secret|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]", "hardcoded credential"),
 ]
 PLACEHOLDER_RE = re.compile(r"\{\{[A-Za-z0-9_]+\}\}")
