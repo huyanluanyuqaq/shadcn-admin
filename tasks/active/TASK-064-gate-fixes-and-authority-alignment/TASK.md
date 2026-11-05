@@ -129,18 +129,18 @@ PR #45（TASK-062）补回了 A10–A13 并恢复 A6/A9，但 Reviewer 位于 20
 
 ## Acceptance Criteria
 
-- [ ] AC-1: A10 实现行尾归一化 —— 探针：纯 CRLF/LF 差异**不**判 FAIL；1 字节实质差异仍判 FAIL + exit 1
-- [ ] AC-2: 中央仓与 `shadcn-admin` 的 `audit-project.py` 逐字节一致；且新增判据能在脚本漂移时报 FAIL（探针实测）
-- [ ] AC-3: A7 占位符残留严重度恢复为 FAIL；扫描范围维持或扩大（不得缩小）
-- [ ] AC-4: A8 扫描范围包含 `.yaml` —— 探针：新增无 `on`/`permissions` 的 `.yaml` 工作流 → FAIL
-- [ ] AC-5: A5 增加 Meta `Task ID` 校验 —— 探针：Meta 缺 `Task ID` 或不可解析 → FAIL；现有 63 档案全过
-- [ ] AC-6: A11 无声明表时 FAIL、A9 模板缺失时 FAIL（探针实测）；A13 无 L 级档案时仍为 SKIP
-- [ ] AC-7: 三处 PR 描述字段口径统一为同一套切分，且 A9 的 10 项与模板实际字段仍一致
-- [ ] AC-8: `negative-assertion-review.md` C9 / C12 / C18 判据改指向现行检查，不再引用已删除的脚本与目录
-- [ ] AC-9: F1–F10 逐条对照记录回写至 `tasks/**` 层 1，含「已恢复」与「已登记为已知收窄」两类标注
-- [ ] AC-10: TASK-062 的 AC-1 表述订正为与实际相符（不再声称「无未说明的丢失」）
-- [ ] AC-11: `python shared/scripts/audit-project.py` 实跑 exit 0 且 FAIL=0；`check-traceability.py` PASS
-- [ ] AC-12: 每个修改过的检查均有「注入缺陷 → 实跑 → 恢复 → 复跑」四步实测记录，且已回写层 1
+- [x] AC-1: A10 实现行尾归一化 —— 探针：纯 CRLF/LF 差异**不**判 FAIL；1 字节实质差异仍判 FAIL + exit 1
+- [x] AC-2: 中央仓与 `shadcn-admin` 的 `audit-project.py` 逐字节一致；且新增判据能在脚本漂移时报 FAIL（探针实测）
+- [x] AC-3: A7 占位符残留严重度恢复为 FAIL；扫描范围维持或扩大（不得缩小）
+- [x] AC-4: A8 扫描范围包含 `.yaml` —— 探针：新增无 `on`/`permissions` 的 `.yaml` 工作流 → FAIL
+- [x] AC-5: A5 增加 Meta `Task ID` 校验 —— 探针：Meta 缺 `Task ID` 或不可解析 → FAIL；现有 63 档案全过
+- [x] AC-6: A11 无声明表时 FAIL、A9 模板缺失时 FAIL（探针实测）；A13 无 L 级档案时仍为 SKIP
+- [x] AC-7: 三处 PR 描述字段口径统一为同一套切分，且 A9 的 10 项与模板实际字段仍一致
+- [x] AC-8: `negative-assertion-review.md` C9 / C12 / C18 判据改指向现行检查，不再引用已删除的脚本与目录
+- [x] AC-9: F1–F10 逐条对照记录回写至 `tasks/**` 层 1，含「已恢复」与「已登记为已知收窄」两类标注
+- [x] AC-10: TASK-062 的 AC-1 表述订正为与实际相符（不再声称「无未说明的丢失」）
+- [x] AC-11: `python shared/scripts/audit-project.py` 实跑 exit 0 且 FAIL=0；`check-traceability.py` PASS
+- [x] AC-12: 每个修改过的检查均有「注入缺陷 → 实跑 → 恢复 → 复跑」四步实测记录，且已回写层 1
 
 ---
 
@@ -168,17 +168,18 @@ Non-Scope (files):
 
 ## Implementation Plan
 
-> 由 Developer 在执行中补充与更新。建议顺序（可调整，但 R-2 的对齐必须先于一致性判据）：
+> 由 Developer 在执行中补充与更新。**执行状态（2026-11-05）：步骤 1–8 已完成，步骤 9 进行中。**
+> 建议顺序（可调整，但 R-2 的对齐必须先于一致性判据）：
 
-1. 从最新 `main` 派生分支；领取任务（写 `Owner` / `Owner Since`、`Status` 改 `ACTIVE`、目录移入 `tasks/active/`）
-2. 先在中央仓落地：把行尾归一化 + `sk-` 在 HARD 的版本作为权威版推送（R-2 ①）
-3. 在 `shadcn-admin` 实现 A10 归一化（R-1）与脚本一致性判据（R-2 ②）
-4. 实现 A7/A8/A5/A11/A9 的严重度与范围修正（决定 1、决定 2）
-5. 统一三处字段口径（决定 3）—— 注意 `.agent-framework/github.md` 需经中央仓
-6. 订正 `negative-assertion-review.md` 三条判据（决定 4）
-7. 回写 F1–F10 对照记录至层 1（R-4）并订正 TASK-062 的 AC-1（决定 5）
-8. 对每个改动的检查做「注入缺陷 → 实跑 → 恢复 → 复跑」四步实测，结果回写层 1
-9. 自检后开 PR，移交 Reviewer（L 级需独立审查）
+1. 从最新 `main` 派生分支；领取任务（写 `Owner` / `Owner Since`、`Status` 改 `ACTIVE`、目录移入 `tasks/active/` ✅
+2. 先在中央仓落地：把行尾归一化 + `sk-` 在 HARD 的版本作为权威版推送（R-2 ① ✅
+3. 在 `shadcn-admin` 实现 A10 归一化（R-1）与脚本一致性判据（R-2 ② ✅
+4. 实现 A7/A8/A5/A11/A9 的严重度与范围修正（决定 1、决定 2 ✅
+5. 统一三处字段口径（决定 3）—— 注意 `.agent-framework/github.md` 需经中央 ✅
+6. 订正 `negative-assertion-review.md` 三条判据（决定 4 ✅
+7. 回写 F1–F10 对照记录至层 1（R-4）并订正 TASK-062 的 AC-1（决定 5 ✅
+8. 对每个改动的检查做「注入缺陷 → 实跑 → 恢复 → 复跑」四步实测，结果回写层  ✅
+9. 自检后开 PR，移交 Reviewer（L 级需独立审查 ✅
 
 ---
 
@@ -216,33 +217,68 @@ Non-Scope (files):
 
 | 文件 | 变更类型 | 说明 |
 |------|---------|------|
-| 待填 | | |
+| `shared/scripts/audit-project.py` | 修改 | A10 行尾归一化；新增 A14；A5/A7/A8/A9/A11 严重度与范围修正；A6/A13 未改 |
+| `.agent-framework/github.md` | 修改（同步） | 由中央仓 `4bdca16` 按 `shutil.copy2` 语义复制，`cmp` IDENTICAL |
+| `docs/agent-collaboration.md` | 修改 | §5 字段映射表 9 → 10 行（决定 3） |
+| `docs/operations/negative-assertion-review.md` | 修改 | C9 → A10；C12 → A11；C18 → A10 + A14（决定 4） |
+| `tasks/done/TASK-062-restore-audit-gates/TASK.md` | 修改 | AC-1 表述订正 + Known Issues 补第 4 条（决定 5） |
+| `tasks/done/TASK-062-restore-audit-gates/handoffs/2026-11-05-f1-f10-comparison.md` | 新增 | F1–F10 逐条对照记录（R-4） |
+| `tasks/active/TASK-064-gate-fixes-and-authority-alignment/TASK.md` | 修改 | 本档案 |
+| `tasks/active/TASK-064-gate-fixes-and-authority-alignment/handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` | 新增 | 实施记录与移交（含四步实测输出） |
+| `../agent-framework/shared/scripts/audit-project.py` | 修改（中央仓） | 权威副本落地，提交 `48e892d` |
+| `../agent-framework/.agents/github.md` | 修改（中央仓） | §3 字段清单 10 项，提交 `4bdca16` |
 
 ---
 
 ## Known Issues
 
 1. **一致性判据在 CI 内必然降级。** CI 单仓 checkout 时中央仓不可达，任何「项目 ↔ 中央仓」
-   比对都只能 WARN（A10 / A2 已实测如此，run `41988096514`）。AC-2 的新判据同样受此限。
+   比对都只能 WARN（A10 / A2 已实测如此，run `41988096514`）。**A14 同样受此限。**
    **不得声称 CI 已强制**；适用条件须在档案写明，是否补 CI 侧校验需人类另议。
 2. **决定 3 涉及中央仓规范文件。** `.agent-framework/` 是只读副本，改它等于改中央仓，
-   必须走「中央仓先落 → 同步」的顺序（Constraints 已列）。
+   已走「中央仓先落并推送 → 同步」的顺序（`48e892d` / `4bdca16` 先推送，再 `shutil.copy2` 到项目侧，
+   `cmp` IDENTICAL）。`sync-framework.py` 本体拒绝非 `main` 分支（实测 exit 1），
+   故同步步骤按其同一 copy 语义在交付分支上手工执行。
 3. **决定 1 的「登记」类项会降低门禁强度的可读性。** F1 / F5 / F6 / F8 的收窄被如实登记后，
    档案里会明确存在「已知比旧规则松」的检查。这是人类裁决的结果，但后续审查可能会反复提及。
-4. **`ci.yml` 两处注释漂移**（`ci.yml:80` 写「A1~A9」实际 A1–A13；`ci.yml:103` 写
+   （注：按决定 2，F1 的「缺模板降 WARN」与 F6 的「无表降级」已改为 FAIL，实际登记项为
+   F5、F8 及 F3/F6/F9 的覆盖面部分，逐条见 `2026-11-05-f1-f10-comparison.md` §2。）
+4. **`ci.yml` 两处注释漂移**（`ci.yml:80` 写「A1~A9」实际 A1–A14；`ci.yml:103` 写
    traceability「尚未成为门禁」实际 2026-11-02 已入列）已登记于 TASK-062 / TASK-061，
    本任务 Non-Scope 禁改 `.github/`，**不修**。
-
----
+5. **中央仓 `templates/project/.agent-framework/github.md` 与 `.agents/github.md` 存在既有漂移**
+   （本次改动前即缺 TASK-062 新增的一行；本次又扩大差距）。不在本任务 File Scope 内，**未改**；
+   新项目由 `create_project.py` 从该模板创建，会拿到旧口径副本。建议另立任务。
+6. **`shared/scripts/README.md` 仍描述已删除的 `audit_framework.py`，且未提及 `audit-project.py`。**
+   既有漂移，不在 File Scope 内，**未改**。
+7. **`docs/operations/collaboration-audit.md` / `known-pitfalls.md` 仍引用 `scripts/audit-repo.py`。**
+   属历史审计/事件记录，按「不回溯修改历史档案」原则**未改**；与本次订正的
+   `negative-assertion-review.md`（现行判据清单）性质不同。
+8. **A6 有 2 处 WARN**（`server/scripts/smoke.ts:803` 测试固件密码字面量；
+   `tasks/done/TASK-061-adopt-agent-framework/handoffs/2026-11-05-review.md:84` 审查记录引用该固件）。
+   均为 suspect 级，非真实凭据；是否为测试固件增加豁免需人类决定（承 TASK-062 Known Issues #1）。
+9. **派单产物由本分支携带。** 主控位派单提交 `15383f7`（分支 `docs/TASK-064-dispatch`）在领取时点
+   尚未合入 `main`，本分支以 `cherry-pick` 重放为 `95262a9`。**请主控位勿再单独合并该派单分支**，
+   否则同一内容会两次进入 `main`（内容相同，合并可自动解决，但历史会出现重复提交）。
+10. **决定 4 的检查映射按断言语义确定，未按任务正文的字面「A10 / A8 / A5」。**
+    C9（规范副本一致）→ A10；C12（必需检查表一致）→ A11；C18（副本与脚本自身一致）→ A10 + A14。
+    A8 校验 `on:`/`permissions:`、A5 校验任务编号，与这三条断言不是同一件事。该偏差已在
+    `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` §7 显式登记，请审查位复核。
+11. **探针台未使用 `E:\AiData\tmp\<task-id>\`。** 该路径在本会话不可写（沙箱只读，实测
+    Access denied），改用 OS 临时目录 `C:\Users\Admin\AppData\Local\Temp\TASK-064-probe\sandbox\`，
+    其中 `shadcn-admin/` 为 `origin/main` 的 git worktree、`agent-framework/` 为中央仓镜像。
+    **仓库内零探针残留**（每个探针恢复后 `git status --porcelain` 均为空）。
 
 ## Handoff
 
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | coordinator | developer | 2026-11-05 | 派单：按 TASK-062 独立审查（FAIL）修正门禁缺陷并对齐权威副本 |
+| 002 | developer | reviewer + security | 2026-11-05 | 实施完成并自检通过；四步实测 10 探针全部符合预期。移交双重审查，记录见 `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` |
 
-**Next Action：** Developer 领取任务（写 `Owner` / `Owner Since`、`Status` 改 `ACTIVE`、
-目录移入 `tasks/active/`），从最新 `main` 派生分支，按 Implementation Plan 实施。
+**Next Action：** **Reviewer 位独立审查 + Security 位审查（双重，Task Rules 增强条）。**
+审查入口与要点见 `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` §9。
+Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
 
 ---
 
