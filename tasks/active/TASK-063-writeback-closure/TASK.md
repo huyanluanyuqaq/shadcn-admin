@@ -155,9 +155,9 @@ Non-Scope (files):
 | 1 | 从最新 `main` 派生分支 | `git fetch origin main` → HEAD=`ba1b1db42e6f10f464fbbca896d7047d995542d6`；分支 `docs/TASK-063-writeback-closure` |
 | 2 | 领取任务 | `Owner: "Developer"`、`Owner Since: 2026-11-05T13:00:27+08:00`、`Status: ACTIVE`、`git mv` 移入 `tasks/active/` |
 | 3 | AC-1~AC-5 实施 | 见 Changed Files；所有 PR / SHA / run / `merged_at` 由 `gh api` / Actions API 当场实测，未沿用 PR #47 文本 |
-| 4 | 自检 | 审计 exit 0 / FAIL=0 / A4 PASS；`check-traceability.py --base origin/main --verbose` exit 0（原始输出见 Verification Plan） |
-| 5 | 开 PR | 描述按 `.github/PULL_REQUEST_TEMPLATE.md` 全字段填写；分支已推送远端 |
-| 6 | 移交 Reviewer | L 级需独立审查；见 Handoff 002 与 `handoffs/HANDOFF-002-developer-to-reviewer.md` |
+| 4 | 自检 | `audit-project.py` exit 0 / FAIL=0 / A4 PASS；`check-traceability.py --base origin/main --verbose` exit 0（两份原始输出见 Verification Plan 与 Handoff 002） |
+| 5 | 提交与交付请求 | 交付树 2 个提交，每个 footer 均带 `Refs:` 且引用真实任务；分支 `docs/TASK-063-writeback-closure` 推送远端后按 `.github/PULL_REQUEST_TEMPLATE.md` 全字段开 PR。**PR 号不在本档案预填**，由主控位在合并前回填 Merge Record |
+| 6 | 移交 Reviewer | L 级需独立审查；交接记录 `handoffs/HANDOFF-002-developer-to-reviewer.md` 含测试原始输出、Known Issues 与合并前置动作 |
 
 ---
 
@@ -166,12 +166,12 @@ Non-Scope (files):
 | 验证项 | 方式 | 命令 / 步骤 | 结果 |
 |--------|------|------------|------|
 | AC-1 / AC-6 | 自动 | `python shared/scripts/audit-project.py` | **exit 0**；`PASS=11 FAIL=0 WARN=2 SKIP=0`；A4 `63 个档案的 Status 与目录一致、Owner 齐全` |
-| AC-7 | 自动 | `python scripts/check-traceability.py --base origin/main --verbose` | **exit 0**，原始输出见 `handoffs/HANDOFF-002-developer-to-reviewer.md` |
+| AC-7 | 自动 | `python scripts/check-traceability.py --base origin/main --verbose` | **exit 0**；`fe402a9` 引用 `TASK-061` / `TASK-062` / `TASK-063` 三项均判定 OK，原始输出见下方与 Handoff 002 |
 | AC-2 / AC-3 | 手工 | `gh api …/pulls/45`、`/actions/runs/*/jobs`、`gh run view 41951504720 --log` | 九要素逐项复现，见 TASK-062 Merge Record 的「实测判据」 |
 | AC-4 | 手工 | 文件首行 / 结论 / 审查项 / 依据核对 | 首行含 `TASK-061`、结论 `PASS`、8 项审查项与依据齐备 |
 | AC-5 | 手工 | `git diff` 逐行核对 TASK-061 | `Status: REVIEW` 与 `Definition of Done 状态：未满足` 未出现在 diff 中；缺口登记为新增行 |
 
-**审计原始输出（交付树，2026-11-05）：**
+**审计原始输出关键行（交付树，2026-11-05；完整 15 行输出见 Handoff 002）：**
 
 ```text
 模式：项目内审计（shadcn-admin）
@@ -184,16 +184,31 @@ Non-Scope (files):
 PASS=11  FAIL=0  WARN=2  SKIP=0
 ```
 
-> A6 由基线 `main`（`ba1b1db`）的 2 处 WARN 降为 1 处：TASK-062 的 Known Issues 原第 1 条
-> 直接引用测试固件字面量、命中自身 suspect 正则，本次订正已移除该字面量。
+> `exit=0`。A6 由基线 `main`（`ba1b1db`）的 2 处 WARN 降为 1 处：TASK-062 的 Known Issues
+> 原第 1 条直接引用测试固件字面量、命中自身 suspect 正则，本次订正已移除该字面量。
 > 这是**文档内容改动**导致的计数变化，`audit-project.py` 的判定语义未改，门禁强度未降低。
+
+**可追溯性原始输出（采集时点：提交 `fe402a9`，即交付树首个提交后）：**
+
+```text
+[traceability] 基线 origin/main，待检 1 个提交，已知任务 62 个。
+  OK   fe402a9c TASK-061, TASK-062, TASK-063  docs(TASK-063): 收拢 PR #45 / PR #46 的回写缺口
+[traceability] PASS —— 1 个提交均引用了真实存在的任务。
+```
+
+> `exit=0`。本档案所在的「验证输出回填」为第 2 个提交，footer 同样为 `Refs: TASK-063`；
+> 以**最终 head** 复跑时输出会变为「待检 2 个提交」，故不预先写死提交计数。
+
+**新增行凭据扫描：** `git diff -U0 origin/main | grep '^+'` 对 hard 与 suspect 两组模式
+均无命中（原始输出见 Handoff 002）。
 
 ---
 
 ## Current State
 
 **实现完成，待独立审查。** AC-1~AC-7 已由 Developer 逐条自检通过（见 Acceptance Criteria
-与 Verification Plan），分支已推送并开出交付请求。按 L 级流程，本任务**尚未结案**：
+与 Verification Plan）；交付树含 2 个提交，交付请求以分支 `docs/TASK-063-writeback-closure`
+承载（PR 号不在本档案预填，由主控位在合并前回填 Merge Record）。按 L 级流程，本任务**尚未结案**：
 - 需 Reviewer 以不携带实现上下文的新实例出具独立审查结论（I2）；
 - 合并、Merge Record 九要素回填均属主控位职权，执行位未执行；
 - `Status` 保持 `ACTIVE`、目录保持 `tasks/active/`，与 A4 门禁一致
@@ -217,11 +232,13 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
 | `tasks/backlog/TASK-063-writeback-closure/TASK.md` → `tasks/active/TASK-063-writeback-closure/TASK.md` | 重命名 + 修改 | 领取（Owner / Owner Since / Status / Branch）、File Scope 补列、AC 勾选、Implementation Plan / Verification Plan / Current State / Changed Files / Known Issues / Handoff / Merge Record 口径 / Notes 回写 |
 | `tasks/active/TASK-063-writeback-closure/handoffs/HANDOFF-002-developer-to-reviewer.md` | 新增 | L 级交接记录，含测试原始输出与合并前置动作 |
 
-> **边界核对：** 改动仅涉及 TASK-062 / TASK-061 / TASK-063 三个任务目录内共 5 个文件
-> （2 次 rename 各含源与目标路径），全部在 File Scope 内；未触碰 `.agent-framework/`、
-> `.github/`、`AGENTS.md`、`shared/scripts/`、`src/`、`server/`。
-> 工作区无与本任务无关的未跟踪文件；本次新增文件均已纳入提交（Non-Scope 的
-> 「不提交任何未跟踪文件」指不夹带用户遗留的未跟踪文件，而非禁止新建交付物）。
+> **边界核对：** 相对 `origin/main` 共 6 条变更路径，仅涉及 TASK-062 / TASK-061 / TASK-063
+> 三个任务目录，全部在 File Scope 内；未触碰 `.agent-framework/`、`.github/`、`AGENTS.md`、
+> `shared/scripts/`、`src/`、`server/`。其中 1 条为 rename（TASK-062）、2 条为任务档案领取
+> 产生的 A/D 对（Git 因内容改动大未判为 rename）、2 条为本任务新建交付文件、1 条为修改。
+> 判据：`git diff --name-status -M origin/main`（逐行见 Handoff 002）。
+> 工作区无与本任务无关的未跟踪文件；两份新增文件均为**本任务新建并随同批提交纳入版本控制**，
+> 不属于派单 Non-Scope「不提交任何未跟踪文件」所指的用户遗留文件（歧义见 Known Issues R-4）。
 
 ---
 
@@ -265,6 +282,13 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
    合并后 CI run / 合并后 Docker run / 镜像 tag 在开 PR 时不可得，且合并属主控位职权。
    按 `github.md` §5 与「以合并时点 head 的 run 为准」的既定口径，由主控位在合并前实测填入；
    已列为 Handoff 的合并前置动作。执行位不预填、不伪造。
+9. **R-4｜派单 Non-Scope「不提交任何未跟踪文件」的措辞歧义（已在 TASK 正文留注记，未静默改词）：**
+   本任务按要求必须新建两份交付物（PR #46 审查记录归档补录、L 级交接记录），二者在领取时点
+   均为未跟踪文件；若按字面禁止提交任何未跟踪文件，AC-4 与 L 级交接要求无法同时满足。
+   本次按 `rule-precedence.md` §4 取不冲突的解释：该条约束的是「不得夹带用户遗留的、
+   与本任务无关的未跟踪文件」，本任务新建交付物全部随**同批提交**纳入版本控制；
+   `git status --porcelain` 实测无其他未跟踪项。此为**派单措辞缺陷**，按 R-N 披露，
+   未静默改词、未扩大 File Scope、未削弱任何受保护规则。
 
 ---
 
@@ -273,7 +297,7 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | coordinator | developer | 2026-11-05 | 任务定义与派单：收拢 PR #45/#46 回写缺口 |
-| 002 | developer | reviewer | 2026-11-05 | 实现完成并开交付请求，移交独立审查；详见 `handoffs/HANDOFF-002-developer-to-reviewer.md` |
+| 002 | developer | reviewer | 2026-11-05 | 实现完成并移交独立审查；交付请求以本分支承载，交接记录含测试原始输出：`handoffs/HANDOFF-002-developer-to-reviewer.md` |
 
 **Next Action（合并前置，按序）：**
 
