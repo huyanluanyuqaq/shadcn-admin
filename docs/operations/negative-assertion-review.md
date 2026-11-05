@@ -45,10 +45,10 @@
 | C6 | `AGENTS.md` §4 / §10 | `data/` 仅存于 customers / notifications / subscriptions 且**不含 mock 数据**（仅 `schema.ts` + 其测试）；`@faker-js/faker` 与 `data.ts` 零残留 | `ls src/features/*/data/`；`grep -rn faker package.json server/package.json shared/package.json`；`grep -rln faker src/`（后两者空 = 成立） | 执行位 | 2026-10-15 |
 | C7 | `AGENTS.md` §6 | 测试范例指向 `features/customers/`（原 `features/users/` 已不存在） | `ls src/features/customers/components/*.test.tsx` | 执行位 | 2026-10-15 |
 | C8 | `AGENTS.md` §9 表 | `docs/operations/` 含 `agent-constraints.md` / `github-capability.md` / `negative-assertion-review.md`；`agent-collaboration.md` / `git-workflow.md` 存在 | `ls docs/operations/*.md docs/agent-collaboration.md docs/git-workflow.md` | 执行位 | 2026-10-15 |
-| C9 | `AGENTS.md` §4 / §12 | `.agents/` 与 `templates/` 已入仓，且与模板仓库逐字一致 | `ls .agents templates`（两目录均在）+ `python scripts/audit-repo.py`（F10：无 FAIL = 逐字一致；模板仓库不可达时 F10 输出 WARN 而非 FAIL） | 执行位 | 2026-11-02 |
+| C9 | `AGENTS.md` §4 / §12 | `.agent-framework/` 7 篇规范与中央规范仓 `.agents/` 逐字一致 | `ls .agent-framework`（7 篇均在）+ `python shared/scripts/audit-project.py`（A10：PASS = 逐字一致；中央仓不可达时 A10 输出 WARN 而非 FAIL） | 执行位 | 2026-11-05 |
 | C10 | `AGENTS.md` §13.1 | `projects/business-manager` 为 Tailwind 3.4 | `grep '"tailwindcss"' ../business-manager/src/client/package.json` | architect | 2026-10-15 |
 | C11 | `AGENTS.md` §13.6 | better-sqlite3 限定 `^12.4.1`（v13 起无预编译） | `grep better-sqlite3 server/package.json` | 执行位 | 2026-10-15 |
-| C12 | `AGENTS.md` §14.1 | 必需检查表与工作流作业名一致 | `python scripts/audit-repo.py`（F6） | 执行位 | 2026-10-15 |
+| C12 | `AGENTS.md` §14.1 | 必需检查表与工作流作业名一致 | `python shared/scripts/audit-project.py`（A11：PASS = 一致；声明表被删时 A11 报 FAIL 而非放行） | 执行位 | 2026-11-05 |
 | C13 | `AGENTS.md` §14.5 | 不设 `.github/CODEOWNERS` | `ls .github/CODEOWNERS 2>/dev/null`（有输出即为失真） | 执行位 | 2026-10-15 |
 | C14 | `AGENTS.md` §14.6 | `stale.yml` 已处置：无 schedule 触发器、PR 侧 `-1` 禁用、最小权限、**无任何无人值守自动运行** | `grep -A2 '^on:' .github/workflows/stale.yml`（应仅见 `workflow_dispatch`）+ `grep "days-before-pr-stale" .github/workflows/stale.yml`（应为 -1） | 执行位 | 2026-10-15 |
 | C15 | `AGENTS.md` §14.6 | 上游遗留资产存在：`.github/ISSUE_TEMPLATE/`、`.github/CODE_OF_CONDUCT.md`、`.github/FUNDING.yml`、根 `netlify.toml`；`.github/CODEOWNERS` 不存在 | `ls .github/ISSUE_TEMPLATE .github/CODE_OF_CONDUCT.md .github/FUNDING.yml netlify.toml` + `ls .github/CODEOWNERS 2>&1`（后者应不存在） | 执行位 | 2026-10-15 |
@@ -58,7 +58,7 @@
 | P3 | `docs/operations/github-capability.md` §1 | Issues **已关闭**（`has_issues=false`），平台不存在任务状态 | `gh api repos/huyanluanyuqaq/shadcn-admin --jq .has_issues`（应输出 `false`） | 主控位 | 2026-11-02 |
 | P4 | `docs/operations/github-capability.md` §1 | 合并后自动删除源分支（`delete_branch_on_merge=true`） | `gh api repos/huyanluanyuqaq/shadcn-admin --jq .delete_branch_on_merge`（应输出 `true`） | 主控位 | 2026-11-02 |
 | C17 | `AGENTS.md` §14.3 / `docs/git-workflow.md` §4 / `docs/agent-collaboration.md` §6 / 能力记录 §5 | `docker.yml` 为**合并即构建** + `latest` 仅 tag 前进（**不是** tag-only） | `grep -nE 'branches:\|tags:' .github/workflows/docker.yml`（应同时见 `branches: ["main"]` 与 `tags: ["v*"]`）+ `grep -n 'ref_type' .github/workflows/docker.yml`（应见 `enable` 门禁） | 执行位 | 2026-11-02 |
-| C18 | `AGENTS.md` §10 | `.agents/` 与 `templates/` 与模板仓库逐字一致（TASK-059 修复漂移后重新为真；原 `c47509a` 处漂移 12 天） | `python scripts/audit-repo.py`（F10 PASS = 一致；F10 FAIL 且命名差异文件 = 有漂移） | 执行位 | 2026-11-02 |
+| C18 | `AGENTS.md` §10 / `shared/scripts/audit-project.py` | 框架只读副本**与审计脚本自身**均与中央规范仓一致（TASK-064 新增 A14 后，「门禁自身被同步回退」亦可检出；原 `c47509a` 处漂移 12 天） | `python shared/scripts/audit-project.py`（A10 PASS = 规范副本一致；A14 PASS = 审计脚本一致；任一 FAIL 即有漂移） | 执行位 | 2026-11-05 |
 | H1 | `docs/architecture/overview.md` §1 | 「现状与差距」为接入时基线快照（历史声明） | `sed -n '1,6p' docs/architecture/overview.md`（声明必须在场） | architect | 2026-10-15 |
 | H2 | `docs/decisions/ADR-001/002` 背景节 | 「纯前端 / faker / Clerk / 两套认证路由」为**决策时点**状态 | `sed -n '15,25p' docs/decisions/ADR-001-backend-stack.md` 等（历史记录，禁止改为现状） | architect | 2026-10-15 |
 | H3 | `docs/decisions/ADR-003` | 镜像内不含 mihomo 二进制 | `grep -c mihomo Dockerfile`（应为 0） | architect | 2026-10-15 |
