@@ -294,12 +294,13 @@ suspect 组 1 处命中且位于仓库既有的 `server/scripts/smoke.ts:803`，
    基线 `main` 实跑为 2 处，第 2 处是该档案自述引用测试固件字面量命中自身 suspect 正则
    （判据自污染）。本次订正为 2 处并移除字面量引用，交付树 A6 降为 1 处 WARN。
    此为文档内容改动，**未改 `audit-project.py` 判定语义、未降低门禁强度**。
-8. **本任务 Merge Record 九要素中的五项在交付时保持「待回填」**：
-   `merged_at` / `merge_commit_sha` / 合并后 CI run / 合并后 Docker run / 镜像 tag
-   在开 PR 与合并前均**物理上不可得**，且合并属主控位职权。
-   主控位已在合并前填入可知的四项（PR 号、合并策略、提交数、审查记录），
-   剩余五项显式标注「合并后实测回填」，列为 Handoff 的合并后动作。
-   按「小 PR 收尾」处置，不按 D13-C 推迟、不预先写死猜测值。
+8. **Merge Record 九要素的回填分两次完成（已全部填完）：**
+   合并前由主控位填入可知的四项（PR 号、合并策略、提交数、审查记录）；
+   合并后由主控位在本分支补入剩余五项（`merged_at` / `merge_commit_sha` / 合并后 CI run /
+   Docker run / 镜像 tag），并补 SHA 映射表的 patch-id 与反向验证实测输出。
+   **同时订正一处本主控位引入的误差：** 合并前回填时「提交数」误写为 4
+   （第 5 个提交 `e980bc2` 在计数之后才产生，计数未随之更新），实测合并后为 **5**，已订正。
+   全程未预先写死猜测值，未按 D13-C 推迟。
 9. **R-4｜派单 Non-Scope「不提交任何未跟踪文件」的措辞歧义（已在 TASK 正文留注记，未静默改词）：**
    本任务按要求必须新建两份交付物（PR #46 审查记录归档补录、L 级交接记录），二者在领取时点
    均为未跟踪文件；若按字面禁止提交任何未跟踪文件，AC-4 与 L 级交接要求无法同时满足。
@@ -323,16 +324,15 @@ suspect 组 1 处命中且位于仓库既有的 `server/scripts/smoke.ts:803`，
 | 001 | coordinator | developer | 2026-11-05 | 任务定义与派单：收拢 PR #45/#46 回写缺口 |
 | 002 | developer | reviewer | 2026-11-05 | 实现完成并移交独立审查；交付请求以本分支承载，交接记录含测试原始输出：`handoffs/HANDOFF-002-developer-to-reviewer.md` |
 | 003 | reviewer | coordinator | 2026-11-05 | 独立审查结论 **PASS**（AC-1~AC-7 全过、R-1~R-5 已裁定）；未批准、未合并、未代主控位署名：`handoffs/2026-11-05-review.md` |
-| 004 | coordinator | coordinator | 2026-11-05 | 合并前集成（`aff6fea`）：入库 Reviewer 记录与 PR #46 原始审查记录、结案 R-1；合并前回写：`Status→DONE`、目录移入 `tasks/done/` |
+| 004 | coordinator | coordinator | 2026-11-05 | 合并前集成（`436017e`）：入库 Reviewer 记录与 PR #46 原始审查记录、结案 R-1；合并前回写：`Status→DONE`、目录移入 `tasks/done/` |
+| 005 | coordinator | coordinator | 2026-11-05 | PR #49 已合并（`768d47c`）；合并后回填 Merge Record 剩余五项 + SHA 映射表实测，并订正「提交数」4→5 |
 
-**Next Action（剩余，按序）：**
+**Next Action（剩余）：**
 
-1. **主控位合并** —— 前置条件已满足：必需检查三项（+`smoke`）全 pass、`MERGEABLE`/`CLEAN`、
-   非 draft、Reviewer 独立审查 PASS 且记录已入库、人类显式授权。`rebase-merge`，合并后删分支。
-2. **合并后回填 Merge Record 剩余五要素** —— `merged_at` / `merge_commit_sha` / 合并后 CI run /
-   Docker run / 镜像 tag 在合并时点不可得，由主控位合并后立即以小 PR 实测补齐
-   （本任务已知的次序限制，非遗漏）。
-3. **不属本任务**：TASK-061 的 DoD 仍「未满足」（reviewer 对 PR #43/TASK-061 与
+1. **本任务已无待办。** 九要素齐备、独立审查记录已入库、`Status: DONE`、目录在 `tasks/done/`。
+   本分支（`docs/TASK-063-merge-record-backfill`）的交付请求由**人类或执行位会话合并** ——
+   按 I2，本主控位不合并自己写入的内容。
+2. **不属本任务**：TASK-061 的 DoD 仍「未满足」（reviewer 对 PR #43/TASK-061 与
    PR #45/TASK-062 的独立审查记录未入库），需人类提供审查结论后才能结案。
 
 > 合并前须显式知悉：本 PR 的审查记录与交接文件在合并时点均为**已跟踪文件**
@@ -355,18 +355,45 @@ suspect 组 1 处命中且位于仓库既有的 `server/scripts/smoke.ts:803`，
 > 审查记录）。剩余五项（`merged_at` / `merge_commit_sha` / 合并后 CI run / Docker run / 镜像 tag）
 > 在合并动作完成前**物理上不可得**，已显式标注「合并后实测回填」，列为 Handoff 的合并后动作。
 > 这是本任务的次序限制，按「小 PR 收尾」处置，不按 D13-C 推迟、不预先写死猜测值。
+>
+> **主控位合并后回填（2026-11-05，本分支）：** 下表九项现已全部由 `gh api` / Actions API /
+> Docker run 作业日志实测填入。同时订正一处**本主控位引入的误差**：合并前回填时「提交数」
+> 误写为 4（当时第 5 个提交尚未产生，计数后未随新提交更新），实测合并后为 **5**，已订正。
 
 | 要素 | 值 |
 |------|-----|
 | PR | [#49](https://github.com/huyanluanyuqaq/shadcn-admin/pull/49)（分支 `docs/TASK-063-writeback-closure`） |
-| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 4（`fe402a9` 主体实现 + `bbefd23` 回填验证原始输出 + `c8e73c7` 移除判据自污染 + `aff6fea` 合并前集成） |
-| merged_at | **合并后实测回填**（合并动作完成前不可得） |
-| merge_commit_sha | **合并后实测回填**（全 40 位） |
-| 合并后 CI run | **合并后实测回填**（`actions/runs?head_sha=<merge_commit>`） |
-| 合并后 Docker run | **合并后实测回填** |
-| 镜像 tag | **合并后实测回填**（`sha-<短SHA>`） |
+| 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认）。`gh api …/pulls/49` 的 `merge_method` 字段实测**不存在**（非 `null`，是字段缺失），故以提交结构佐证：`merge_commit_sha` 在 `main` 上为单亲线性提交（唯一父 `ba1b1db`），并非双亲合并提交 |
+| 提交数 | **5**（`c14635e` 主体实现 + `47431e6` 回填验证原始输出 + `2c34a68` 移除判据自污染 + `436017e` 合并前集成 + `768d47c` 合并前回写）。合并后重放 SHA 与分支原 SHA 不同，判据见下 |
+| merged_at | `2026-11-05T07:33:40Z`（`merged_by=huyanluanyuqaq`） |
+| merge_commit_sha | `768d47caf65c8d9f910945d2c6c4477063d43144`（40 位） |
+| 合并后 CI run | `41988096514` —— Continuous Integration / `event=push` / `head_sha=768d47ca…` / **success**；作业 `install-lint-build`=success、`audit`=success，`traceability`/`smoke` 因仅对 PR 生效而 skipped |
+| 合并后 Docker run | `41988096469` —— Build and Push Docker Image / `event=push` / `head_sha=768d47ca…` / **success**；作业 `build-and-push`=success |
+| 镜像 tag | `sha-768d47c` —— 取自该 run 作业 `127113545665` 日志的 `DOCKER_METADATA_OUTPUT_TAGS` / `DOCKER_METADATA_OUTPUT_VERSION`（镜像 `***/subscription-admin:sha-768d47c`），manifest digest `sha256:6d4df6398f0b725f85b6fac7d06eab76b4a7011e5e847ad54747b356dca88008`。`DOCKER_METADATA_OUTPUT_JSON` 的 `tags` 数组**仅此一个**，`latest` 未推进（`docker.yml` 的 `enable=${{ github.ref_type == 'tag' }}` 门禁） |
 | 审查记录 | **有。** `handoffs/2026-11-05-review.md` —— Reviewer 位独立审查，结论 **PASS**，AC-1~AC-7 全过、R-1~R-5 已裁定；该记录明确未批准、未合并、未代主控位署名（I2 成立） |
+
+### SHA 映射表（rebase-merge 改写 SHA）
+
+rebase 基点前移（分支派生时 `main` 头为 `ba1b1db`），5 个提交的 SHA 均被重写，
+故按 **patch-id 相同**判据验证（基点前移时逐对 tree 已不同，patch-id 为有效判据）：
+
+| 分支原 SHA | 合并后 SHA | patch-id（前 12 位） | 判据 |
+|---|---|---|---|
+| `c14635e` ← `fe402a9c5` | `c14635e` | `40a6f2473799` | **SAME** |
+| `47431e6` ← `bbefd23a0` | `47431e6` | `da4caeeda5a0` | **SAME** |
+| `2c34a68` ← `c8e73c73e` | `2c34a68` | `d097953584e6` | **SAME** |
+| `436017e` ← `aff6feaa` | `436017e` | `663167014956` | **SAME** |
+| `768d47c` ← `e980bc2e` | `768d47c` | `5d0d19d05c9b` | **SAME** |
+
+判据命令：`git show --format= <SHA> | git patch-id --stable`，逐对字符串相等。
+
+**反向验证（强制）：** 分支原 5 个 SHA 在 `main` 上必须不可达。
+`git merge-base --is-ancestor <旧SHA> main` 逐条实测，**5/5 均输出非零退出码**
+（即 `PASS（main 不可达）`）：`fe402a9c5` / `bbefd23a0` / `c8e73c73e` / `aff6feaa` / `e980bc2e`。
+说明 rebase 确已生效，旧 SHA 未被保留在 `main` 历史中。
+
+> 旧 SHA 仍可从本地 remote-tracking ref `remotes/origin/docs/TASK-063-writeback-closure`
+> 读取（远端分支已删，本地追踪 ref 尚存）；这不影响「在 `main` 上不可达」的判定。
 
 ---
 
