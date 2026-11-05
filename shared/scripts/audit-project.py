@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """audit-project.py — 项目级框架合规审计。
 
-对单个项目检查框架资产的在位性、一致性、任务档案规范性与安全问题。
-**本地可跑、无网络、只报告不修改。**
+对单个项目检查框架资产的在位性、一致性、任务档案规范性与安全问题
+（A1–A14；A14 校验审计脚本自身未被同步回退）。**本地可跑、无网络、只报告不修改。**
 
 用法：
   python shared/scripts/audit-project.py                    # 审计所有 projects/*
@@ -69,6 +69,13 @@ SECRET_PATTERNS_SUSPECT = [
 ]
 PLACEHOLDER_RE = re.compile(r"\{\{[A-Za-z0-9_]+\}\}")
 WORKFLOW_DIR = ".github/workflows"
+# A5（承自旧 audit-repo.py 的 F9 口径）：档案 Meta 的 `Task ID: TASK-XXX` 必须可解析。
+# 接受两种历史形态：YAML Meta 的 `Task ID: TASK-XXX` 与表格 Meta 的 `| Task ID | `TASK-XXX` |`。
+TASK_META_ID = re.compile(
+    r"^(?:Task ID:\s*(TASK-\d{3,})\s*|"
+    r"\|\s*Task ID\s*\|\s*`(TASK-\d{3,})`\s*\|)\s*$",
+    re.M,
+)
 
 
 class Result:
@@ -187,10 +194,17 @@ def a5_task_ids(root: Path) -> Result:
     base = root / "tasks"
     if not base.is_dir():
         return Result("A5", SKIP, "无 tasks/ 目录")
+    unparseable: list[str] = []
     for tf in sorted(base.rglob("TASK.md")):
+        # Meta 的 Task ID 必须可解析（旧 F9 的判据）：只认目录名不够，
+        # 目录名与档案内容脱钩时，编号唯一性会退化为字符串游戏。
+        if not TASK_META_ID.search(read(tf)):
+            unparseable.append(f"{tf.parent.name}：Meta 中缺少可解析的 `Task ID: TASK-XXX` 行")
         m = re.match(r"TASK-(\d+)-", tf.parent.name)
         if m:
             ids.setdefault(m.group(1), []).append(tf.parent.name)
+    if unparseable:
+        return Result("A5", FAIL, f"{len(unparseable)} 个档案的 Meta Task ID 不可解析", unparseable)
     if not ids:
         return Result("A5", SKIP, "未找到可解析编号的任务档案")
 
@@ -250,7 +264,10 @@ def a7_placeholders(root: Path) -> Result:
             if PLACEHOLDER_RE.search(line):
                 found.append(f"{p.relative_to(root)}:{i}")
     if found:
-        return Result("A7", WARN, f"{len(found)} 处占位符残留", found)
+        # 严重度 FAIL（恢复旧 F3）：占位符残留意味着「模板未填充即交付」，
+        # 不是可人工复核的疑似项。扫描范围维持现状（.agent-framework/*.md + 根 AGENTS.md），
+        # 覆盖面的已知收窄见 tasks/** 的 F1–F10 对照记录。
+        return Result("A7", FAIL, f"{len(found)} 处占位符残留", found)
     return Result("A7", PASS, f"无占位符残留（检查 {len(targets)} 个文件）")
 
 
@@ -259,7 +276,9 @@ def a8_workflows(root: Path) -> Result:
     if not wd.is_dir():
         return Result("A8", SKIP, "无 .github/workflows/")
     bad, checked = [], 0
-    for f in sorted(wd.glob("*.yml")):
+    # glob 用 *.y*ml（对齐旧 F2 口径）：只 glob *.yml 会漏掉 .yaml 工作流，
+    # 新增一个无 on/permissions 的 .yaml 即可让门禁静默失明。
+    for f in sorted(wd.glob("*.y*ml")):
         checked += 1
         text = read(f)
         if not re.search(r"^on:", text, re.M):
@@ -274,7 +293,9 @@ def a8_workflows(root: Path) -> Result:
 def a9_pr_template(root: Path) -> Result:
     pt = root / ".github" / "PULL_REQUEST_TEMPLATE.md"
     if not pt.is_file():
-        return Result("A9", WARN, "缺少 PR 模板")
+        # FAIL（恢复旧 F1）：模板缺失时字段校验整体失去对象，
+        # WARN 会让「删掉模板」成为一条让门禁变暗的路径。
+        return Result("A9", FAIL, "缺少 PR 模板")
     required = ["关联任务", "变更摘要", "包含范围", "排除范围", "测试结果",
                 "未执行的测试", "兼容性", "回滚方案", "遗留问题", "自检"]
     missing = [k for k in required if k not in read(pt)]
@@ -333,8 +354,14 @@ def a10_spec_consistency(root):
         only_c = [str(q) for q in central_files if q not in proj_files]
         diffs.append(f"文件列表不同（项目独有={only_p}；中央独有={only_c}）")
     for rel_path in proj_files:
-        if rel_path in central_files and (proj_dir / rel_path).read_bytes() != (central / rel_path).read_bytes():
-            diffs.append(rel_path.as_posix() + "：内容不同")
+        if rel_path not in central_files:
+            continue
+        # 行尾归一化后再比对：Windows 检出（core.autocrlf）与 Linux CI 的行尾不同
+        # 不是内容差异，不判 FAIL；但任何实质字节差异仍判 FAIL。
+        a = (proj_dir / rel_path).read_bytes().replace(b"\r\n", b"\n")
+        b = (central / rel_path).read_bytes().replace(b"\r\n", b"\n")
+        if a != b:
+            diffs.append(rel_path.as_posix() + "：内容不同（行尾已归一化）")
     if diffs:
         return Result("A10", FAIL, f"规范与中央仓有 {len(diffs)} 处差异（必须逐字一致）", diffs)
     return Result("A10", PASS, f".agent-framework/ {len(proj_files)} 篇与中央仓逐字一致")
@@ -346,7 +373,9 @@ def a11_required_checks(root):
         return Result("A11", FAIL, "缺少 AGENTS.md")
     declared = DECLARED_CHECK_ROW.findall(read(agents))
     if not declared:
-        return Result("A11", WARN, "AGENTS.md 未声明必需检查表")
+        # FAIL（恢复旧 F6）：整张声明表被删会让本检查整体失去对象，
+        # WARN 会让「删表」成为一条让门禁静默变暗的路径。
+        return Result("A11", FAIL, "AGENTS.md 未声明必需检查表")
     problems = []
     for job, wf in declared:
         wf_path = root / wf
@@ -414,9 +443,49 @@ def a13_merge_record(root):
 
 
 
+def central_script_file(audit_root):
+    """定位中央规范仓的权威审计脚本（Standalone 模式下可能不可达）。"""
+    for cand in (
+        audit_root.parent.parent / "agent-framework" / "shared" / "scripts" / "audit-project.py",
+        audit_root.parent / "agent-framework" / "shared" / "scripts" / "audit-project.py",
+    ):
+        if cand.is_file():
+            return cand
+    return None
+
+
+def a14_script_consistency(root):
+    """A14 审计脚本自身的一致性（R-2）。
+
+    `sync-framework.py` 的 `SYNC_SCRIPTS` 会把中央仓的 `audit-project.py` 复制到项目侧
+    （`shutil.copy2`，方向为中央 -> 项目）。因此「项目副本 != 权威副本」意味着
+    **任何人跑一次同步即可静默改写门禁自身**，而旧版没有任何检查会发现。
+    本检查使该漂移可被检出。
+
+    行尾处理与 A10 同构：只豁免纯行尾差异，不豁免任何实质内容差异
+    （否则会在 Windows 检出机上造成永久假红，正是 R-1 的教训）。
+    """
+    proj = root / "shared" / "scripts" / "audit-project.py"
+    central = central_script_file(root)
+    if central is None:
+        return Result("A14", WARN,
+                      "中央规范仓不可达；无法校验审计脚本自身一致性（Standalone 限制）")
+    if not proj.is_file():
+        return Result("A14", FAIL, "缺少 shared/scripts/audit-project.py")
+    raw_proj, raw_central = proj.read_bytes(), central.read_bytes()
+    if raw_proj == raw_central:
+        return Result("A14", PASS, "审计脚本与中央仓权威副本逐字节一致")
+    if raw_proj.replace(b"\r\n", b"\n") != raw_central.replace(b"\r\n", b"\n"):
+        return Result("A14", FAIL, "审计脚本与中央仓权威副本不一致（同步会覆盖门禁自身）",
+                      [f"项目副本：{proj}", f"中央权威：{central}",
+                       "权威在中央仓：改中央仓并同步，不要在项目内手改副本"])
+    return Result("A14", PASS, "审计脚本与中央仓权威副本内容一致（行尾已归一化）")
+
+
 CHECKS = [a1_assets, a2_version, a3_no_legacy, a4_task_consistency,
           a5_task_ids, a6_secrets, a7_placeholders, a8_workflows, a9_pr_template,
-          a10_spec_consistency, a11_required_checks, a12_doc_links, a13_merge_record]
+          a10_spec_consistency, a11_required_checks, a12_doc_links, a13_merge_record,
+          a14_script_consistency]
 
 
 def audit_project(root: Path) -> list[Result]:
