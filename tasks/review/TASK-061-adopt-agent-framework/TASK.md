@@ -141,6 +141,12 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
 
 **Definition of Done 状态：未满足。** 缺独立审查（I2）。本记录不构成 PASS。
 
+> **2026-11-05 补充（主控位）：** 人类陈述 reviewer 位已完成对 PR #43 / TASK-061 的独立审查，
+> 但截至本提交，该审查记录**未入库** —— 已检索 `main` 及仓库全部分支、Workspace 内
+> `.workbuddy/memory/`（最新为 2026-11-04，内容为 TASK-060）与 `projects/shadcn-admin/.workbuddy/`（空），
+> 均未发现。因此本节状态**不做修改**：在审查记录实际入库前，「缺独立审查」仍是仓库内可验证的事实。
+> 与 PR #45 相关的审查结论同样未见记录（TASK-062 的 Merge Record 已如实登记该缺口）。
+
 ---
 
 *本文件是项目级任务记录。修改前请确认不削弱受保护规则。*
