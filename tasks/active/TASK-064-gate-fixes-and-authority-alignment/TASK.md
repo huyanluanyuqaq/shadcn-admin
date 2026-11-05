@@ -10,15 +10,15 @@
 Task ID: TASK-064
 Title: 修正审计脚本门禁缺陷并对齐权威副本
 Workflow: bugfix
-Status: READY
+Status: ACTIVE
 Priority: P0
 Level: L
-Owner: ""
-Owner Since: ""
+Owner: "Developer"
+Owner Since: "2026-11-05T22:34:00+08:00"
 Assigned Role: developer
 Created: 2026-11-05
 Updated: 2026-11-05
-Branch: ""
+Branch: "fix/TASK-064-gate-fixes-and-authority-alignment"
 Requires Human Approval: false
 ```
 
@@ -198,9 +198,15 @@ Non-Scope (files):
 
 ## Current State
 
-**待领取。** 任务已由 Coordinator 定义并派单，尚未分配 Owner。
-输入审查记录（`tasks/done/TASK-062-restore-audit-gates/handoffs/2026-11-05-review.md`）
-当前为**工作树内未跟踪文件**，须先入库（见 Dependencies）。
+**已领取（2026-11-05 22:34，Developer / 执行位）。** 分支 `fix/TASK-064-gate-fixes-and-authority-alignment`
+派生自 `origin/main` @ `1f931ce`（本地 `main` 已 ff 至该提交）。
+
+派单产物入库情况：主控位的派单提交 `15383f7`（分支 `docs/TASK-064-dispatch`）在领取时点
+**尚未合入 `main`**（本地与远端均只在派单分支上）。按本任务 Dependencies「该记录须随本任务或前置 PR
+入库」的授权，本分支以 `cherry-pick` 将 `15383f7` 重放为 `95262a9`（内容逐字不变），
+使任务定义与 `2026-11-05-review.md` 审查记录随本任务入库。**请主控位勿再单独合并
+`docs/TASK-064-dispatch`**，否则同一内容会两次进入 `main`（内容相同，合并可自动解决，
+但历史会出现重复提交）。
 
 ---
 
