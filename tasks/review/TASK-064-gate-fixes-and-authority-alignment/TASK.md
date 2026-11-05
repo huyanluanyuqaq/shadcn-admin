@@ -308,9 +308,9 @@ Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
 
 | 要素 | 值 |
 |------|-----|
-| PR | [#53](https://github.com/huyanluanyuqaq/shadcn-admin/pull/53)，分支 `fix/TASK-064-gate-fixes-and-authority-alignment`；7 提交 / 9 文件 / +1088 −19；`state=OPEN`（建单时实测） |
+| PR | [#53](https://github.com/huyanluanyuqaq/shadcn-admin/pull/53)，分支 `fix/TASK-064-gate-fixes-and-authority-alignment`；9 提交 / 9 文件 / +1114 −19；`state=OPEN`（建单时实测 7 提交，末次推送后为 9 提交） |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 7 |
+| 提交数 | 9 |
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
