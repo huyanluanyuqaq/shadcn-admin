@@ -10,7 +10,7 @@
 Task ID: TASK-063
 Title: 收拢 PR #45 / PR #46 的回写缺口
 Workflow: maintenance
-Status: ACTIVE
+Status: DONE
 Priority: P1
 Level: L
 Owner: "Developer"
@@ -208,18 +208,29 @@ suspect 组 1 处命中且位于仓库既有的 `server/scripts/smoke.ts:803`，
 
 ## Current State
 
-**实现完成，待独立审查。** AC-1~AC-7 已由 Developer 逐条自检通过（见 Acceptance Criteria
-与 Verification Plan）；交付树提交数不在此写死（每轮档案整改会产生新 head，判据为
-`git log --oneline origin/main..HEAD`），交付请求以分支 `docs/TASK-063-writeback-closure`
-承载（PR 号不在本档案预填，由主控位在合并前回填 Merge Record）。按 L 级流程，本任务**尚未结案**：
-- 需 Reviewer 以不携带实现上下文的新实例出具独立审查结论（I2）；
-- 合并、Merge Record 九要素回填均属主控位职权，执行位未执行；
-- `Status` 保持 `ACTIVE`、目录保持 `tasks/active/`，与 A4 门禁一致
-  （`ACTIVE` ↔ `active/`；若主控位在合并前改 `DONE`，须同步移入 `tasks/done/`）。
+**独立审查已完成，合并前集成与回写已完成，待主控位合并。**
 
-**阻塞项（不改变本任务的交付完整性）：** reviewer 位对 PR #43 / TASK-061 与
-PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实登记缺口」，
-已满足；但 TASK-061 的 DoD 仍**未满足**，不得据此结案。
+- **Reviewer 独立审查：PASS。** 由不携带实现上下文的新实例出具
+  （`handoffs/2026-11-05-review.md`），AC-1~AC-7 逐条复核通过，R-1~R-5 均已裁定；
+  该记录明确未批准、未合并、未代主控位署名，I2 成立。
+- **R-1 已由主控位结案：** 采用「补出原始记录」而非「接受归档补录」——
+  主控位已把 PR #46 的原始审查记录
+  （`tasks/review/TASK-061-.../handoffs/2026-11-05-coordinator-review-pr46.md`）入库，
+  AC-4 的证据强度由「归档补录」提升为「原始记录」。执行位的归档补录文件
+  `2026-11-05-pr46-review.md` **保留不改**，其文内已自行声明「若主控位另行出具原始记录，
+  应以其为准」，两份并存、关系由各自性质声明说明。
+- **合并前集成（主控位执行，`aff6fea`）：** 上述两份审查记录由未跟踪/异分支状态纳入
+  本 PR 的版本控制；不含任何实现改动。
+- **合并前回写（主控位执行）：** `Status → DONE`、目录移入 `tasks/done/`，
+  与 A4 门禁一致（`DONE` ↔ `done/`）。
+- **Merge Record 九要素中，合并后才存在的字段**（`merged_at` / `merge_commit_sha` /
+  合并后 CI run / Docker run / 镜像 tag）在合并时点不可得，已在 Merge Record 中显式标注
+  「待合并后实测回填」，由主控位在合并后立即以小 PR 补齐 —— 这是本任务已知的次序限制，
+  不是遗漏。
+
+**仍未结案（不属本任务范围）：** reviewer 位对 PR #43 / TASK-061 与 PR #45 / TASK-062 的
+独立审查记录仍未入库，TASK-061 的 DoD 仍为「未满足」。本任务只负责**如实登记**该缺口
+（AC-5），不代为结案。
 
 ---
 
@@ -234,14 +245,13 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
 | `tasks/review/TASK-061-adopt-agent-framework/handoffs/2026-11-05-pr46-review.md` | 新增 | PR #46 主控位审查结论的归档补录；首行含任务号、结论 PASS、8 项审查项与实测依据、复现命令、边界披露 |
 | `tasks/backlog/TASK-063-writeback-closure/TASK.md` → `tasks/active/TASK-063-writeback-closure/TASK.md` | 重命名 + 修改 | 领取（Owner / Owner Since / Status / Branch）、File Scope 补列、AC 勾选、Implementation Plan / Verification Plan / Current State / Changed Files / Known Issues / Handoff / Merge Record 口径 / Notes 回写 |
 | `tasks/active/TASK-063-writeback-closure/handoffs/HANDOFF-002-developer-to-reviewer.md` | 新增 | L 级交接记录，含测试原始输出与合并前置动作 |
+| `tasks/active/TASK-063-.../handoffs/2026-11-05-review.md` | 新增（合并前集成，`aff6fea`） | Reviewer 位独立审查记录，结论 PASS；此前为未跟踪文件 |
+| `tasks/review/TASK-061-.../handoffs/2026-11-05-coordinator-review-pr46.md` | 新增（合并前集成，`aff6fea`） | PR #46 的主控位**原始**审查记录，用于结案 R-1；原文见于已关闭的 PR #47 分支 `ea4a9ec8` |
 
-> **边界核对：** 相对 `origin/main` 共 6 条变更路径，仅涉及 TASK-062 / TASK-061 / TASK-063
+> **边界核对：** 相对 `origin/main` 的变更路径仅涉及 TASK-062 / TASK-061 / TASK-063
 > 三个任务目录，全部在 File Scope 内；未触碰 `.agent-framework/`、`.github/`、`AGENTS.md`、
-> `shared/scripts/`、`src/`、`server/`。其中 1 条为 rename（TASK-062）、2 条为任务档案领取
-> 产生的 A/D 对（Git 因内容改动大未判为 rename）、2 条为本任务新建交付文件、1 条为修改。
-> 判据：`git diff --name-status -M origin/main`（逐行见 Handoff 002）。
-> 工作区无与本任务无关的未跟踪文件；两份新增文件均为**本任务新建并随同批提交纳入版本控制**，
-> 不属于派单 Non-Scope「不提交任何未跟踪文件」所指的用户遗留文件（歧义见 Known Issues R-4）。
+> `shared/scripts/`、`src/`、`server/`。合并前集成提交 `aff6fea` 只新增两份**审查记录**，
+> 不含任何实现改动。工作区无与本任务无关的未跟踪文件。
 
 ---
 
@@ -265,14 +275,17 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
    本次实测：`state=closed`、`merged=false`、`merge_commit_sha` 存在但 `merged_at=null`，
    关闭评论（`2026-11-05T04:09:52Z`）载明越权原因，分支 `ea4a9ec8…` 仍在远端。
    本次实现**未搬运其任何文件、未沿用其文本**；所有数值独立复现。
-5. **R-1｜AC-4 的角色边界（派单措辞与受保护规则的张力，须由独立审查复核）：**
+5. **R-1｜AC-4 的角色边界 —— 已由主控位结案（2026-11-05）：**
    派单 Scope 写「补入 PR #46 的主控位审查记录」，但主控位合并前独立会话的**原始记录文本
-   在仓库内不存在**（已检索 `main` 及全部分支、Workspace `.workbuddy/memory/`、项目 `.workbuddy/`），
-   而 `permissions.md` P3 / I2 与「执行位不得代写主控位署名文件」禁止 Developer
-   冒充主控位出具新的审查结论。本次处置为「**归档既有结论 + 当场实测复核**」：
-   文件明确标注归档方为 Developer、结论出具方为主控位、结论来源三条、
-   证据强度弱于原始记录，且不构成独立审查。若主控位认为 AC-4 必须取得原始记录文本，
-   则该项**不能由执行位满足**，需由主控位补出原始记录或明确接受本处置。
+   在仓库内不存在**（Developer 交付时已检索 `main` 及全部分支、Workspace `.workbuddy/memory/`、
+   项目 `.workbuddy/`），而 `permissions.md` P3 / I2 与「执行位不得代写主控位署名文件」
+   禁止 Developer 冒充主控位出具新的审查结论。
+   Developer 的处置为「**归档既有结论 + 当场实测复核**」，并自行声明证据强度弱于原始记录。
+   **主控位采纳「补出原始记录」而非「接受归档补录」：** 已把 PR #46 的原始审查记录
+   （`tasks/review/TASK-061-.../handoffs/2026-11-05-coordinator-review-pr46.md`）入库，
+   AC-4 的证据强度由此提升为「原始记录」。Developer 的归档补录文件**保留不改**
+   （其文内已声明「若主控位另行出具原始记录，应以其为准」），两份并存。
+   **R-1 由此结案。**
 6. **R-2｜派单 File Scope 路径缺陷（已在 TASK 正文留注记，未静默改词）：**
    Implementation Plan 第 2 步要求领取后「目录移入 `tasks/active/`」，
    但 File Scope 只列了 `tasks/backlog/TASK-063-*/**`。本次按用户指令与派单第 2 步移入
@@ -281,10 +294,12 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
    基线 `main` 实跑为 2 处，第 2 处是该档案自述引用测试固件字面量命中自身 suspect 正则
    （判据自污染）。本次订正为 2 处并移除字面量引用，交付树 A6 降为 1 处 WARN。
    此为文档内容改动，**未改 `audit-project.py` 判定语义、未降低门禁强度**。
-8. **本任务 Merge Record 九要素在交付时保持「待回填」**：`merged_at` / `merge_commit_sha` /
-   合并后 CI run / 合并后 Docker run / 镜像 tag 在开 PR 时不可得，且合并属主控位职权。
-   按 `github.md` §5 与「以合并时点 head 的 run 为准」的既定口径，由主控位在合并前实测填入；
-   已列为 Handoff 的合并前置动作。执行位不预填、不伪造。
+8. **本任务 Merge Record 九要素中的五项在交付时保持「待回填」**：
+   `merged_at` / `merge_commit_sha` / 合并后 CI run / 合并后 Docker run / 镜像 tag
+   在开 PR 与合并前均**物理上不可得**，且合并属主控位职权。
+   主控位已在合并前填入可知的四项（PR 号、合并策略、提交数、审查记录），
+   剩余五项显式标注「合并后实测回填」，列为 Handoff 的合并后动作。
+   按「小 PR 收尾」处置，不按 D13-C 推迟、不预先写死猜测值。
 9. **R-4｜派单 Non-Scope「不提交任何未跟踪文件」的措辞歧义（已在 TASK 正文留注记，未静默改词）：**
    本任务按要求必须新建两份交付物（PR #46 审查记录归档补录、L 级交接记录），二者在领取时点
    均为未跟踪文件；若按字面禁止提交任何未跟踪文件，AC-4 与 L 级交接要求无法同时满足。
@@ -307,23 +322,22 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
 |---|------|----|------|------|
 | 001 | coordinator | developer | 2026-11-05 | 任务定义与派单：收拢 PR #45/#46 回写缺口 |
 | 002 | developer | reviewer | 2026-11-05 | 实现完成并移交独立审查；交付请求以本分支承载，交接记录含测试原始输出：`handoffs/HANDOFF-002-developer-to-reviewer.md` |
+| 003 | reviewer | coordinator | 2026-11-05 | 独立审查结论 **PASS**（AC-1~AC-7 全过、R-1~R-5 已裁定）；未批准、未合并、未代主控位署名：`handoffs/2026-11-05-review.md` |
+| 004 | coordinator | coordinator | 2026-11-05 | 合并前集成（`aff6fea`）：入库 Reviewer 记录与 PR #46 原始审查记录、结案 R-1；合并前回写：`Status→DONE`、目录移入 `tasks/done/` |
 
-**Next Action（合并前置，按序）：**
+**Next Action（剩余，按序）：**
 
-1. **Reviewer 独立审查** —— L 级 I2 要求：不携带本实现上下文的新实例核对 AC-1~AC-7，
-   并复核 Known Issues R-1（AC-4 处置是否被主控位接受）、R-2、R-3。
-   审查记录命名 `handoffs/YYYY-MM-DD-review.md`，首行含任务号。
-2. **主控位核对交付完整性** —— AC 复选框与交付状态一致、Handoff 表登记最新交接、
-   `Next Action` 指向未完成动作、文档判据条数与脚本实际输出一致。
-3. **合并前自填本任务 Merge Record 九要素** —— 以**合并时点 head** 的 run 为准
-   （`gh api` / Actions API 实测），同时把 `Status` 改 `DONE` 并把目录移入 `tasks/done/`
-   以维持 A4 一致。审查记录若缺失，如实写「无」，不补写。
-4. **必需检查通过 + 人类显式授权后由主控位合并**（`rebase-merge`），执行位不合并、不批准。
-5. **合并后**：删除工作分支；确认 `traceability` / `audit` / `install-lint-build` 三项与
-   Docker `sha-*` run；`latest` 不因合并前进。
+1. **主控位合并** —— 前置条件已满足：必需检查三项（+`smoke`）全 pass、`MERGEABLE`/`CLEAN`、
+   非 draft、Reviewer 独立审查 PASS 且记录已入库、人类显式授权。`rebase-merge`，合并后删分支。
+2. **合并后回填 Merge Record 剩余五要素** —— `merged_at` / `merge_commit_sha` / 合并后 CI run /
+   Docker run / 镜像 tag 在合并时点不可得，由主控位合并后立即以小 PR 实测补齐
+   （本任务已知的次序限制，非遗漏）。
+3. **不属本任务**：TASK-061 的 DoD 仍「未满足」（reviewer 对 PR #43/TASK-061 与
+   PR #45/TASK-062 的独立审查记录未入库），需人类提供审查结论后才能结案。
 
-> 合并前须显式知悉：本 PR 的审查记录与交接文件均为**同一批提交**，
-> 在合并时点它们已是被跟踪文件，不存在「记录自身未跟踪」的自述矛盾。
+> 合并前须显式知悉：本 PR 的审查记录与交接文件在合并时点均为**已跟踪文件**
+> （Reviewer 记录原为未跟踪状态，已由集成提交 `aff6fea` 纳入版本控制），
+> 不存在「记录自身未跟踪」的自述矛盾。
 
 ---
 
@@ -336,19 +350,23 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
 > 合并后 Docker run / 镜像 tag 在开 PR 时均不可得，故下表保持「待回填」。
 > 九要素须由主控位在**合并时点**按 `gh api` / Actions API 实测填入，**以合并时点 head 的 run 为准**
 > （每轮纯文案提交都会产生新 head，预先写死的 run 号必然失真）。
-> 该回填已列为 Handoff 的合并前置动作。
+>
+> **主控位合并前回填（2026-11-05）：** 下表已填入合并前可知的要素（PR 号、合并策略、提交数、
+> 审查记录）。剩余五项（`merged_at` / `merge_commit_sha` / 合并后 CI run / Docker run / 镜像 tag）
+> 在合并动作完成前**物理上不可得**，已显式标注「合并后实测回填」，列为 Handoff 的合并后动作。
+> 这是本任务的次序限制，按「小 PR 收尾」处置，不按 D13-C 推迟、不预先写死猜测值。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
+| PR | [#49](https://github.com/huyanluanyuqaq/shadcn-admin/pull/49)（分支 `docs/TASK-063-writeback-closure`） |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
-| merged_at | 待回填 |
-| merge_commit_sha | 待回填（全 40 位） |
-| 合并后 CI run | 待回填 |
-| 合并后 Docker run | 待回填 |
-| 镜像 tag | 待回填 |
-| 审查记录 | 待回填（指向 `handoffs/YYYY-MM-DD-review.md`；无则如实写「无」，不补写） |
+| 提交数 | 4（`fe402a9` 主体实现 + `bbefd23` 回填验证原始输出 + `c8e73c7` 移除判据自污染 + `aff6fea` 合并前集成） |
+| merged_at | **合并后实测回填**（合并动作完成前不可得） |
+| merge_commit_sha | **合并后实测回填**（全 40 位） |
+| 合并后 CI run | **合并后实测回填**（`actions/runs?head_sha=<merge_commit>`） |
+| 合并后 Docker run | **合并后实测回填** |
+| 镜像 tag | **合并后实测回填**（`sha-<短SHA>`） |
+| 审查记录 | **有。** `handoffs/2026-11-05-review.md` —— Reviewer 位独立审查，结论 **PASS**，AC-1~AC-7 全过、R-1~R-5 已裁定；该记录明确未批准、未合并、未代主控位署名（I2 成立） |
 
 ---
 
