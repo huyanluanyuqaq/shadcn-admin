@@ -156,7 +156,7 @@ Non-Scope (files):
 | 2 | 领取任务 | `Owner: "Developer"`、`Owner Since: 2026-11-05T13:00:27+08:00`、`Status: ACTIVE`、`git mv` 移入 `tasks/active/` |
 | 3 | AC-1~AC-5 实施 | 见 Changed Files；所有 PR / SHA / run / `merged_at` 由 `gh api` / Actions API 当场实测，未沿用 PR #47 文本 |
 | 4 | 自检 | `audit-project.py` exit 0 / FAIL=0 / A4 PASS；`check-traceability.py --base origin/main --verbose` exit 0（两份原始输出见 Verification Plan 与 Handoff 002） |
-| 5 | 提交与交付请求 | 交付树 2 个提交，每个 footer 均带 `Refs:` 且引用真实任务；分支 `docs/TASK-063-writeback-closure` 推送远端后按 `.github/PULL_REQUEST_TEMPLATE.md` 全字段开 PR。**PR 号不在本档案预填**，由主控位在合并前回填 Merge Record |
+| 5 | 提交与交付请求 | 交付树每个提交的 footer 均带 `Refs:` 且引用真实任务（提交数以 `git log --oneline origin/main..HEAD` 为准，不写死）；分支 `docs/TASK-063-writeback-closure` 推送远端后按 `.github/PULL_REQUEST_TEMPLATE.md` 全字段开 PR。**PR 号不在本档案预填**，由主控位在合并前回填 Merge Record |
 | 6 | 移交 Reviewer | L 级需独立审查；交接记录 `handoffs/HANDOFF-002-developer-to-reviewer.md` 含测试原始输出、Known Issues 与合并前置动作 |
 
 ---
@@ -196,18 +196,21 @@ PASS=11  FAIL=0  WARN=2  SKIP=0
 [traceability] PASS —— 1 个提交均引用了真实存在的任务。
 ```
 
-> `exit=0`。本档案所在的「验证输出回填」为第 2 个提交，footer 同样为 `Refs: TASK-063`；
-> 以**最终 head** 复跑时输出会变为「待检 2 个提交」，故不预先写死提交计数。
+> `exit=0`。其后每个档案回填 / 判据订正提交的 footer 同样含 `Refs: TASK-063`；
+> 以**最终 head** 复跑时「待检 N 个提交」的计数随之增加，故不预先写死提交计数。
 
-**新增行凭据扫描：** `git diff -U0 origin/main | grep '^+'` 对 hard 与 suspect 两组模式
-均无命中（原始输出见 Handoff 002）。
+**凭据扫描：** 以 `audit-project.py` 的 A6 为唯一判据 —— hard 组 0 处命中（无 FAIL）、
+suspect 组 1 处命中且位于仓库既有的 `server/scripts/smoke.ts:803`，非本次引入。
+交接记录初版曾把临时 grep 判据的模式字面量写入档案，导致**判据自污染**（假阳性），
+已移除并改为引用 A6 实跑结果；详见 Handoff 002 的 Tests 第 3 节。
 
 ---
 
 ## Current State
 
 **实现完成，待独立审查。** AC-1~AC-7 已由 Developer 逐条自检通过（见 Acceptance Criteria
-与 Verification Plan）；交付树含 2 个提交，交付请求以分支 `docs/TASK-063-writeback-closure`
+与 Verification Plan）；交付树提交数不在此写死（每轮档案整改会产生新 head，判据为
+`git log --oneline origin/main..HEAD`），交付请求以分支 `docs/TASK-063-writeback-closure`
 承载（PR 号不在本档案预填，由主控位在合并前回填 Merge Record）。按 L 级流程，本任务**尚未结案**：
 - 需 Reviewer 以不携带实现上下文的新实例出具独立审查结论（I2）；
 - 合并、Merge Record 九要素回填均属主控位职权，执行位未执行；
@@ -289,6 +292,12 @@ PR #45 / TASK-062 的独立审查记录仍未入库。AC-5 的判据是「如实
    与本任务无关的未跟踪文件」，本任务新建交付物全部随**同批提交**纳入版本控制；
    `git status --porcelain` 实测无其他未跟踪项。此为**派单措辞缺陷**，按 R-N 披露，
    未静默改词、未扩大 File Scope、未削弱任何受保护规则。
+10. **R-5｜交接记录初版的临时判据自污染（已修正，留痕供独立审查核对）：**
+    初版把临时 grep 判据的**模式字面量**原样写入 `handoffs/HANDOFF-002-…md` 的 Tests 节，
+    使扫 `git diff` 新增行的 hard 判据命中判据自身（假阳性）。权威门禁 A6 不受影响
+    （其 hard 模式要求相应前缀后跟 20+ 字符，实跑 FAIL=0），但档案「无命中」的自述不严谨。
+    现已在交接记录与 Verification Plan 中移除模式字面量、改以 A6 实跑结果为唯一判据，
+    并在此登记，避免同类失真再次发生。
 
 ---
 

@@ -25,8 +25,9 @@ Status: ACTIVE（实现完成，待独立审查；未结案）
 
 - 任务档案 `Status: ACTIVE`、目录 `tasks/active/`，与 `audit-project.py` A4 门禁一致。
 - AC-1~AC-7 已由执行位逐条自检通过；两项本地门禁实跑 exit 0（原始输出见 **Tests**）。
-- 交付树含 **2 个提交**：`fe402a9`（主体实现）+ 本回填提交（本文件 + 档案措辞订正）。
-  两个提交的 footer 均含 `Refs:`，引用真实存在的任务目录。
+- 交付树提交以 `git log --oneline origin/main..HEAD` 为准：首个 `fe402a9` 为主体实现，
+  其余为档案回填 / 判据订正提交；**此处刻意不写死提交数**（每轮档案整改都会新增 head）。
+  每个提交的 footer 均含 `Refs:`，引用真实存在的任务目录。
 - 交付路径：执行位推送分支 `docs/TASK-063-writeback-closure` → 按 PR 模板开交付请求 → 移交独立审查。
   **PR 号不在任务档案预填**，由主控位在合并前按 `gh api` 实测回填 Merge Record。
 - 本任务**尚未结案**：缺 reviewer 位独立审查结论；合并、Merge Record 回填均属主控位职权。
@@ -133,18 +134,30 @@ $ python scripts/check-traceability.py --base origin/main --verbose
 exit=0
 ```
 
-> **采集时点声明：** 该输出采集于交付树第 1 个提交 `fe402a9` 之后。本文件所在的
-> 「验证输出回填」为第 2 个提交，footer 同样为 `Refs: TASK-063`；以**最终 head**
-> 复跑时输出会变为「待检 2 个提交」，故此处**不预先写死提交计数**。
+> **采集时点声明：** 该输出采集于交付树第 1 个提交 `fe402a9` 之后。其后每个档案回填 /
+> 判据订正提交的 footer 同样含 `Refs: TASK-063`；以**最终 head** 复跑时「待检 N 个提交」
+> 的计数随之增加，故此处**不预先写死提交计数**。最终 head 的复跑输出随交付请求提交。
 
-### 3. 新增行凭据扫描
+### 3. 凭据扫描（以仓库权威判据为准）
 
 ```text
-$ git diff -U0 origin/main | grep '^+' | grep -E "ghp_|github_pat_|gho_|AKIA|BEGIN.*PRIVATE KEY|sk-[A-Za-z0-9]{24,}"
-无 hard 命中
-$ git diff -U0 origin/main | grep '^+' | grep -iE "(password|passwd|secret|token)\s*[:=]\s*['\"][^'\"]{8,}['\"]"
-无 suspect 命中
+$ python shared/scripts/audit-project.py
+[WARN] A6  1 处疑似凭据，需人工复核
+         - server\scripts\smoke.ts:803 hardcoded credential
+PASS=11  FAIL=0  WARN=2  SKIP=0
+exit=0
 ```
+
+> **判据口径：** `a6_secrets()` 扫描全仓 `.md/.py/.ts/...` 文件，hard 组
+> （`SECRET_PATTERNS_HARD`）**0 处命中 → 无 FAIL**；suspect 组 1 处命中，
+> 位于 `server/scripts/smoke.ts:803`，属**仓库既有**、非本次改动引入。
+>
+> **★ 判据自污染（已识别并移除）：** 本文件初版曾把一条临时 grep 判据的**模式字面量**
+> 原样写进 Tests 节，导致用该临时判据扫 `git diff` 新增行时，命中的正是判据自身，
+> 属**假阳性**，不是凭据，也不触发 A6（A6 的 hard 模式要求相应前缀后跟 20+ 字符，
+> 正则字面量不满足）。本项目已多次出现同类失真，故此处**刻意不在版本化档案中复述
+> 任何模式字面量**，改为直接引用 A6 实跑结果作为唯一判据；临时判据只在交付请求的
+> 「测试结果」中给出（PR 描述不进入 `git diff`，不会自污染）。
 
 **未执行的测试及原因：** 本次变更为纯 Markdown 任务档案，未触碰任何 `src/**` / `server/**`
 代码，故未跑 `pnpm test` / `pnpm build` / `pnpm lint` / Prettier。`.prettierignore` 为白名单，
