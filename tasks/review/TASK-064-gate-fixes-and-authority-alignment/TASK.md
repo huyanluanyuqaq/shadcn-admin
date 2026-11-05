@@ -209,8 +209,10 @@ Non-Scope (files):
 `docs/TASK-064-dispatch`**，否则同一内容会两次进入 `main`（内容相同，合并可自动解决，
 但历史会出现重复提交）。
 
-**当前状态（2026-11-05，移交时点）：** 实现与自检完成，PR **#53** 已创建，
-CI 实测 `audit` / `smoke` / `traceability` 均 pass（`install-lint-build` 建单时仍在跑）。
+**当前状态（2026-11-05，移交时点）：** 实现与自检完成，PR **#53** 已创建。
+PR 侧 CI run `42049299643` 四作业（`install-lint-build` / `audit` / `traceability` / `smoke`）
+**全部 pass**；其中 `audit` 作业实测 `PASS=9 FAIL=0 WARN=5 SKIP=0` / exit 0
+（A2 / A10 / A14 在单仓 checkout 下降级为 WARN，见 Known Issues #1）。
 `Status` 改为 `REVIEW`、目录移入 `tasks/review/`，等待 **Reviewer 位独立审查 + Security 位审查**
 （Task Rules 增强条，`AGENTS.md` §10）。Developer 不自行批准本交付物。
 
@@ -237,8 +239,11 @@ CI 实测 `audit` / `smoke` / `traceability` 均 pass（`install-lint-build` 建
 
 ## Known Issues
 
-1. **一致性判据在 CI 内必然降级。** CI 单仓 checkout 时中央仓不可达，任何「项目 ↔ 中央仓」
-   比对都只能 WARN（A10 / A2 已实测如此，run `41988096514`）。**A14 同样受此限。**
+1. **一致性判据在 CI 内必然降级（已实测，非推测）。** CI 单仓 checkout 时中央仓不可达，
+   任何「项目 ↔ 中央仓」比对都只能 WARN。PR #53 侧 run `42049299643` 的 `audit` 作业实测输出：
+   `[WARN] A2 无法定位中央规范版本文件…`、`[WARN] A10 中央规范仓不可达…`、
+   `[WARN] A14 中央规范仓不可达；无法校验审计脚本自身一致性（Standalone 限制）`，
+   汇总 `PASS=9 FAIL=0 WARN=5 SKIP=0` / exit 0（A10 / A2 此前已实测如此，run `41988096514`）。
    **不得声称 CI 已强制**；适用条件须在档案写明，是否补 CI 侧校验需人类另议。
 2. **决定 3 涉及中央仓规范文件。** `.agent-framework/` 是只读副本，改它等于改中央仓，
    已走「中央仓先落并推送 → 同步」的顺序（`48e892d` / `4bdca16` 先推送，再 `shutil.copy2` 到项目侧，
@@ -309,6 +314,7 @@ Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
+| PR 侧 CI run | `42049299643`（Continuous Integration / `event=pull_request`）—— 四作业全 pass：`install-lint-build` / `audit` / `traceability` / `smoke` |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
 | 审查记录 | **移交时点：无。** Reviewer 位与 Security 位审查待出具；合并前按实测填入 `handoffs/YYYY-MM-DD-review.md` / `YYYY-MM-DD-security-review.md`，无则如实写「无」，不补写 |

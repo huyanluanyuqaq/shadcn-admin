@@ -134,6 +134,22 @@ exit=0
 （本会话的全局 gitconfig 不可写，实测以 `GIT_CONFIG_COUNT=1 / GIT_CONFIG_KEY_0=safe.directory /
 GIT_CONFIG_VALUE_0=*` 注入后 PASS）。CI 上无此问题（checkout 属同一身份）。
 
+**CI 实测（PR #53，run `42049299643`，`event=pull_request`）：** 四作业全 pass
+（`install-lint-build` 1m25s / `audit` 6s / `traceability` 6s / `smoke` 17s）。
+`audit` 作业日志原文（节选）：
+
+```text
+模式：Standalone 审计（shadcn-admin）
+[WARN] A2  无法定位中央规范版本文件，仅校验本项目版本 v2.0.0 格式合法
+[WARN] A5  编号唯一（63 个）；断档 1 处、已登记豁免 1 组
+[WARN] A6  2 处疑似凭据，需人工复核
+[WARN] A10  中央规范仓不可达；无法校验规范内容一致性（Standalone 限制）
+[WARN] A14  中央规范仓不可达；无法校验审计脚本自身一致性（Standalone 限制）
+PASS=9  FAIL=0  WARN=5  SKIP=0
+```
+
+即 **A10 / A14 在 CI 单仓 checkout 下确实降级为 WARN**（Known Issues #1 的实证，非推测）。
+
 **未执行的测试：** `pnpm test` / `pnpm lint` / `pnpm build` **未执行** —— 本任务不改动
 `src/**`、`server/**`、`shared/src/**`、`package.json`，无前端/后端代码变更；这些作业由 CI 的
 `install-lint-build` 覆盖。`smoke` 作业同理（需真实库快照）。
