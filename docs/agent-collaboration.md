@@ -109,17 +109,22 @@ CI 的触发条件与作业名以 `.github/workflows/ci.yml` 为准。
 
 PR 描述**不产生新信息**，它是层 1 的渲染：
 
+**三处同源，不得各自切分。** 本表与 `.agent-framework/github.md` §3 的字段清单、
+以及 `.github/PULL_REQUEST_TEMPLATE.md` 的章节是**同一套 10 项切分**
+（A9 门禁按这 10 个字面量校验模板）。改动任一处必须同步另两处。
+
 | PR 字段 | 数据来源（层 1） |
 | ------- | --------------- |
 | 关联任务 | `TASK.md` 的 Task ID + 提交 footer 的 `Refs:` |
 | 变更摘要 | `TASK.md` 的 Objective |
-| 实现内容与范围 | `TASK.md` 的 Requirements / File Scope |
+| 包含范围 | `TASK.md` 的 Requirements / File Scope |
+| 排除范围 | `TASK.md` 的 Non-Scope / File Scope 的 Non-Scope (files) |
 | 测试结果 | `TASK.md` 的 Verification + `handoffs/` 中命令的原始输出 |
-| 未执行的测试及原因 | `handoffs/` 的 Tests + `TASK.md` 的 Known Issues |
-| 兼容性 / 安全 / 部署影响 | `handoffs/` 的 Assumptions + Risks |
+| 未执行的测试 | `handoffs/` 的 Tests + `TASK.md` 的 Known Issues |
+| 兼容性 | `handoffs/` 的 Assumptions + Risks（模板中为「兼容性 / 安全 / 部署影响」合并章节） |
 | 回滚方案 | `handoffs/` 的 Risks（回滚段） |
 | 遗留问题 | `TASK.md` 的 Known Issues |
-| 执行者自检 | `handoffs/` 的交接检查清单 |
+| 自检 | `handoffs/` 的交接检查清单 |
 
 **若某字段在层 1 无对应内容 → 补齐层 1，而不是只写在 PR 里。**
 
