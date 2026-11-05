@@ -10,7 +10,7 @@
 Task ID: TASK-064
 Title: 修正审计脚本门禁缺陷并对齐权威副本
 Workflow: bugfix
-Status: ACTIVE
+Status: REVIEW
 Priority: P0
 Level: L
 Owner: "Developer"
@@ -209,6 +209,11 @@ Non-Scope (files):
 `docs/TASK-064-dispatch`**，否则同一内容会两次进入 `main`（内容相同，合并可自动解决，
 但历史会出现重复提交）。
 
+**当前状态（2026-11-05，移交时点）：** 实现与自检完成，PR **#53** 已创建，
+CI 实测 `audit` / `smoke` / `traceability` 均 pass（`install-lint-build` 建单时仍在跑）。
+`Status` 改为 `REVIEW`、目录移入 `tasks/review/`，等待 **Reviewer 位独立审查 + Security 位审查**
+（Task Rules 增强条，`AGENTS.md` §10）。Developer 不自行批准本交付物。
+
 ---
 
 ## Changed Files
@@ -287,18 +292,26 @@ Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
 > 本节由合并前按 `github.md` §5 实测填入（同一 PR 内自填，不延后、不回溯补写）。
 > 合并后才存在的字段（`merged_at` / `merge_commit_sha` / 合并后 runs / 镜像 tag）在合并时点不可得，
 > 按 TASK-063 已确立的先例显式标注「合并后实测回填」，不预先写死猜测值。
+>
+> **跨仓登记（Requirements 5）：** 中央规范仓 `huyanluanyuqaq/agent-framework` 分支
+> `fix/TASK-064-audit-script-authority`，PR [#1](https://github.com/huyanluanyuqaq/agent-framework/pull/1)，
+> 提交 `48e892d63f5f66162bb3ee9d78335698699157d1`（脚本）+
+> `4bdca167faf16a09ea609a413cb9d8c664ef6bd3`（`.agents/github.md`）。
+> **先后关系：中央仓先落地并已推送，之后**才按 `sync-framework.py` 的同一 `shutil.copy2` 语义
+> 复制到项目侧（`cmp` IDENTICAL）。**合并顺序要求：先合并中央仓 PR #1，再合并本 PR**；
+> 若顺序颠倒，A10 会如实报 FAIL（这是正确行为，不是缺陷）。
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
+| PR | [#53](https://github.com/huyanluanyuqaq/shadcn-admin/pull/53)，分支 `fix/TASK-064-gate-fixes-and-authority-alignment`；7 提交 / 9 文件 / +1088 −19；`state=OPEN`（建单时实测） |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
+| 提交数 | 7 |
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
-| 审查记录 | 待回填（L 级必需；指向 `handoffs/YYYY-MM-DD-review.md`，无则如实写「无」，不补写） |
+| 审查记录 | **移交时点：无。** Reviewer 位与 Security 位审查待出具；合并前按实测填入 `handoffs/YYYY-MM-DD-review.md` / `YYYY-MM-DD-security-review.md`，无则如实写「无」，不补写 |
 
 ---
 
