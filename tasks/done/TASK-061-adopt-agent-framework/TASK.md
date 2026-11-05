@@ -10,14 +10,14 @@
 Task ID: TASK-061
 Title: 接入 agent-framework v2.0.0 公共规范
 Workflow: maintenance
-Status: REVIEW
+Status: DONE
 Priority: P1
 Level: L
 Owner: "Coordinator"
 Owner Since: "2026-11-04T00:00:00+08:00"
 Assigned Role: developer
 Created: 2026-11-04
-Updated: 2026-11-04
+Updated: 2026-11-05
 Branch: "chore/framework-sync-2.0.0"
 Requires Human Approval: false
 ```
@@ -113,9 +113,11 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
 - TASK-045 编号重复（两个目录）—— 2026-10-21 已裁决共存，审计脚本中已登记豁免
 - TASK-038 编号断号 —— 归档后移除所致，审计中为 WARN
 - `ci.yml` 原注释称「traceability 尚未成为门禁」，实际已是必需检查 —— 注释与现实漂移，需修正
-- **reviewer 位对本任务（PR #43 / TASK-061）与 TASK-062（PR #45）的独立审查记录未入库**
-  （TASK-063 AC-5 于 2026-11-05 实测登记，`Status` 与下方 DoD 结论均未改写）：
-
+- **✅【2026-11-05 已结案】reviewer 位对本任务（PR #43 / TASK-061）的独立审查记录已入库**
+  —— [`handoffs/2026-11-05-review.md`](handoffs/2026-11-05-review.md)，结论 PASS，DoD 的 I2
+  要求由此满足（详见 Merge Record 节）。⚠️ **但 TASK-062（PR #45）的 reviewer 位独立审查记录
+  仍然缺失**，本项结案只覆盖 TASK-061 自身。下表为**结案前**（2026-11-05 早）的实测检索记录，
+  按「历史记录不回溯重排」保留原文，仅补结案标注：
   | 检索对象 | 实测命令 / 方式 | 结果 |
   |----------|----------------|------|
   | 平台 review | `gh api …/pulls/43/reviews`、`/pulls/45/reviews`、`/pulls/46/reviews` 的 `length` | 均为 `0` |
@@ -123,11 +125,10 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
   | Workspace `.workbuddy/memory/` | 目录列举 | 最新文件为 `2026-11-04.md`，无本项记录 |
   | 项目 `.workbuddy/` | 文件列举 | 无本项记录 |
 
-  人类陈述已完成，但仓库内无可验证载体，**本任务不代为结案**。
-  另需区分：TASK-063 本次补入的
+  当时人类陈述已完成、仓库内无可验证载体，故不代为结案；现审查记录已实际入库，结案。
+  另需区分：TASK-063 补入的
   [`handoffs/2026-11-05-pr46-review.md`](handoffs/2026-11-05-pr46-review.md)
-  对象是 **PR #46 的主控位审查记录归档**，与本条所指的 reviewer 位独立审查不是同一件事，
-  不使 DoD 结案。
+  对象是 **PR #46 的主控位审查记录归档**，与本条所指的 reviewer 位独立审查不是同一件事。
   `handoffs/2026-11-04-coordinator-merge-record-pr43.md` 中「（未提交）」是该记录成文时点的
   状态描述（PR #46 已将其入库），按「历史档案不回溯重排」保留原文，此处仅注明现状。
 
@@ -136,6 +137,13 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
 | # | From | To | 日期 | 摘要 |
 |---|------|----|------|------|
 | 001 | coordinator | developer | 2026-11-04 | 任务创建：按中央仓 v2.0.0 接入本项目 |
+| 002 | reviewer | coordinator | 2026-11-05 | Reviewer 位独立审查结论 **PASS**（4/4 顾虑逐条通过，整体不构成阻断）；未批准、未合并、未改本档案 Status 与 DoD：`handoffs/2026-11-05-review.md` |
+| 003 | coordinator | coordinator | 2026-11-05 | 主控位结案：审查记录入库、`Status: REVIEW → DONE`、目录移入 `tasks/done/`、Merge Record 审查字段回填 |
+
+**Next Action：** 本任务已无待办。结案前置条件（I2 独立审查）已由 `handoffs/2026-11-05-review.md` 满足。
+
+> 审查登记的两项待办**不属本任务可关闭范围**，已转记于 Merge Record 节末尾：`ci.yml` 注释漂移 2 处、
+> A10 在 CI 内降级为 WARN（规范逐字节一致性门禁在 CI 内不强制）。均需另立事项，由主控位知悉。
 
 ---
 
@@ -154,9 +162,26 @@ src/**  server/**  shared/src/**  package.json  pnpm-lock.yaml
 | 合并后 CI run | `41826958562`（push / main / **success**） |
 | 合并后 Docker run | `41826958546`（push / main / **success**，作业 `build-and-push`） |
 | 镜像 tag | `sha-926d353`（`type=sha,format=short`；DockerHub 仓库名取自 secret `DOCKERHUB_USERNAME`，**其在位性未复核**） |
-| 审查记录 | **无独立审查。** 本 PR 由人类直接指令合并，未经任何一轮主控位审查；<br>合并事实与裁决留证见 `handoffs/2026-11-04-coordinator-merge-record-pr43.md`（未提交） |
+| 审查记录 | **有（2026-11-05 补入）。** `handoffs/2026-11-05-review.md` —— Reviewer 位独立审查，结论 **PASS（4/4 顾虑逐条通过，整体不构成阻断）**。<br>该记录由不携带实现上下文的独立审查实例出具（I2 成立），明确未批准、未合并、未改本档案的 `Status` 与 DoD。<br>**补入前为「无独立审查」**：PR #43 由人类直接指令合并，合并前未经任何一轮独立审查；合并事实与裁决留证见 `handoffs/2026-11-04-coordinator-merge-record-pr43.md`。 |
 
-**Definition of Done 状态：未满足。** 缺独立审查（I2）。本记录不构成 PASS。
+**Definition of Done 状态：已满足（2026-11-05）。** I2 所要求的独立审查已由 `handoffs/2026-11-05-review.md` 出具，结论 PASS。
+本任务的九要素回写（PR #43 的合并事实）由 TASK-063 于 2026-11-05 补齐。
+
+> **审查范围说明（防误读）：** 上述独立审查同时逐条回应了
+> `handoffs/2026-11-04-coordinator-merge-record-pr43.md` §1 主控位合并前提出的 4 项顾虑
+> （门禁整体更换 / D13-C 被反转 / S 级不要求交接 / 删除 `.agents/`+`templates/` 改引中央仓），
+> 结论均为 PASS。人类已于 2026-11-05 明确：**这 4 项系经人类同意实施的协作机制重构，已结案，不得重开**。
+> 该 handoff 原文中「未被逐条回应，也未被逐条排除」是 2026-11-04 合并时点的状态描述，
+> 按「历史档案不回溯修改」保留原文，结案事实记于本节。
+
+**审查登记的两项待办（不属本任务可关闭范围，转主控位知悉）：**
+1. `ci.yml` 注释漂移 2 处：第 80–83 行 `audit` 作业注释仍写「A1~A9」（实际 A1–A13）；
+   第 103 行 `traceability` 作业注释仍写「尚未成为门禁」（实际 2026-11-02 起已入必需检查）。
+   均不影响作业执行，需另立文档订正项。
+2. **A10 在 CI 内降级为 WARN**：CI 单仓 checkout 时 `central_agents_dir` 返回 None，
+   实测（run `41988096514` 的 `audit` 作业）输出 `[WARN] A10 中央规范仓不可达`，
+   即**规范逐字节一致性门禁在 CI 内不强制**，仅在 Workspace 本地实跑时强制。
+   中央仓与项目副本若发生漂移，CI 不会红。是否补 CI 侧校验需人类决策。
 
 ---
 
