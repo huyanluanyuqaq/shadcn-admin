@@ -279,15 +279,15 @@ Non-Scope (files):
 
 | 要素 | 值 |
 |------|-----|
-| PR | 待回填 |
+| PR | [#55](https://github.com/huyanluanyuqaq/shadcn-admin/pull/55)，分支 `feat/TASK-065-gate-external-anchor`；`state=OPEN`；提交数不预写死，合并前以 `git rev-list --count origin/main..HEAD` 实测为准（开 PR 时为 3 提交） |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
-| 提交数 | 待回填 |
+| 提交数 | 合并前以 `git rev-list --count origin/main..HEAD` 实测填入（不预写死；开 PR 时为 3） |
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
-| 审查记录 | 待回填（L 级必需；指向 `handoffs/YYYY-MM-DD-review.md`，无则如实写「无」，不补写） |
+| 审查记录 | **移交时点：无。** Reviewer 位与 Security 位双重审查待出具；合并前按实测填入 `handoffs/YYYY-MM-DD-review.md` / `YYYY-MM-DD-security-review.md`，无则如实写「无」，不补写 |
 
 ---
 
