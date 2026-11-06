@@ -144,14 +144,14 @@ TASK-064 已按人类裁决（2026-11-06）**只订正表述、不建锚点**，
 
 ## Acceptance Criteria
 
-- [x] AC-1: （实证：探针 P1 / P2 —— 删除 / 篡改脚本后锚点仍运行并给出预期信号，见 HANDOFF-002 §4） 锚点的校验逻辑**不在** `shared/scripts/audit-project.py` 内（可用「删除/篡改该脚本后锚点仍生效」实测）
-- [x] AC-2: （实证：探针 P3 —— 真实 `sync-framework.py` 回退端到端，锚点 FAIL；回退态旧脚本无 A14 且 exit 0） 锚点能检出「同步执行后两侧同时回退」—— 探针：两侧脚本同时置为中央 `origin/main`（`7c0e49b`）后，锚点报 FAIL
-- [x] AC-3: （实证：探针 P4 / P5 / P6 / P7；三重一致篡改的残留已登记于 Known Issues #5） 锚点能检出「自身被篡改」—— 探针：移除锚点作业、或篡改其期望哈希，均有可观察的失败信号
-- [x] AC-4: （实证：探针 P8 —— dry-run 与真实同步前后锚点文件字节不变） 锚点本身不被 `sync-framework.py` 覆盖（实测：执行 dry-run 与真实同步后，锚点相关文件字节不变）
+- [x] AC-1: 锚点的校验逻辑**不在** `shared/scripts/audit-project.py` 内（可用「删除/篡改该脚本后锚点仍生效」实测）（实证：探针 P1 / P2 —— 删除 / 篡改脚本后锚点仍运行并给出预期信号，见 HANDOFF-002 §4）
+- [x] AC-2: 锚点能检出「同步执行后两侧同时回退」—— 探针：两侧脚本同时置为中央 `origin/main`（`7c0e49b`）后，锚点报 FAIL（实证：探针 P3 —— 真实 `sync-framework.py` 回退端到端，锚点 FAIL；回退态旧脚本无 A14 且 exit 0）
+- [x] AC-3: 锚点能检出「自身被篡改」—— 探针：移除锚点作业、或篡改其期望哈希，均有可观察的失败信号（实证：探针 P4 / P5 / P6 / P7；三重一致篡改的残留已登记于 Known Issues #5）
+- [x] AC-4: 锚点本身不被 `sync-framework.py` 覆盖（实测：执行 dry-run 与真实同步后，锚点相关文件字节不变）（实证：探针 P8 —— dry-run 与真实同步前后锚点文件字节不变）
 - [ ] AC-5: 作业已在默认分支落地并**至少一次成功上报**，且已被主控位加入 `required_status_checks`（**合并后步骤，本项留空不勾**：本 PR 完成「落地」，上报情况由合并后的 `main` push 运行实证；加入必需检查集按硬约束由主控位单独执行、须人类再次批准，且必须遵守 §14.1 的先后顺序）
-- [x] AC-6: （实跑：`PASS=12 FAIL=0 WARN=2 SKIP=0` / exit 0；traceability PASS） `python shared/scripts/audit-project.py` 实跑 exit 0 且 FAIL=0；`check-traceability.py` PASS
-- [x] AC-7: （见 §Scope「方案选定」与 Known Issues） 层 1 档案载明：选定方案及理由、期望哈希/基线的来源与变更方式、与 A14 的职责分工
-- [x] AC-8: （残留能力边界已如实登记，未引入超出判据能力的断言） TASK-064 审查中指出的「Objective/C18 表述过强」已由 TASK-064 整改闭环，本任务不得再引入同类超出判据能力的断言
+- [x] AC-6: `python shared/scripts/audit-project.py` 实跑 exit 0 且 FAIL=0；`check-traceability.py` PASS（实跑：`PASS=12 FAIL=0 WARN=2 SKIP=0` / exit 0；traceability PASS）
+- [x] AC-7: 层 1 档案载明：选定方案及理由、期望哈希/基线的来源与变更方式、与 A14 的职责分工（见 §Scope「方案选定」与 Known Issues）
+- [x] AC-8: TASK-064 审查中指出的「Objective/C18 表述过强」已由 TASK-064 整改闭环，本任务不得再引入同类超出判据能力的断言（残留能力边界已如实登记，未引入超出判据能力的断言）
 
 ---
 
