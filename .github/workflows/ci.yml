@@ -95,6 +95,58 @@ jobs:
       - name: Run project framework audit
         run: python3 shared/scripts/audit-project.py
 
+  # 锚点见证（TASK-065）：监视 .github/workflows/gate-anchor.yml 的锚点作业是否
+  # 在位、配置是否完好。为什么需要见证：A14 的教训是「从 CHECKS 移除判据即无人
+  # 报警」—— 若锚点作业被整份删除，唯一现象是「检查消失」，而消失本身不产生
+  # 失败。本作业与锚点作业位于不同工作流文件：锚点文件被删 / 作业被移除 /
+  # 配置被单独篡改时，本作业 FAIL，给出可观察的失败信号。
+  #
+  # 三重校验：① gate-anchor 作业在位；② 期望哈希与基线文件一致且格式合法；
+  # ③ shared/scripts/gate_anchor_check.py（锚点校验逻辑）哈希与登记值一致 —— 后者使
+  # 「把校验逻辑改为恒真」这类自篡改同样可观察。
+  #
+  # ★ 本作业与 gate-anchor 均尚未加入必需检查集（AGENTS.md §14.1：先落地并
+  #   稳定上报，再由主控位加入；加入须人类再次批准）。
+  anchor-witness:
+    name: anchor-witness
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Witness gate anchor presence and config
+        env:
+          EXPECTED_ANCHOR_LOGIC_SHA256: 43b453af313342623e7174a5e633370c4ef2ac12ed2b74c59ee31398c7cfc2f4
+        run: |
+          set -euo pipefail
+          W=".github/workflows/gate-anchor.yml"
+          B=".github/gate-anchor-baseline.txt"
+          L="shared/scripts/gate_anchor_check.py"
+          fail() { echo "::error::anchor-witness: $1"; exit 1; }
+
+          # ① 锚点作业在位
+          [ -f "$W" ] || fail "锚点工作流缺失：$W（锚点作业被移除？）"
+          grep -q '^  gate-anchor:' "$W" || fail "$W 中不存在 gate-anchor 作业"
+
+          # ② 期望哈希与基线文件一致且格式合法
+          exp="$(grep -Eo 'EXPECTED_AUDIT_SCRIPT_SHA256: *"?[0-9a-f]{64}"?' "$W" \
+            | grep -Eo '[0-9a-f]{64}' | head -n1 || true)"
+          [ -n "$exp" ] || fail "$W 中缺少格式合法的 EXPECTED_AUDIT_SCRIPT_SHA256"
+          [ -f "$B" ] || fail "基线文件缺失：$B"
+          base="$(grep -Eo '[0-9a-f]{64}' "$B" | head -n1 || true)"
+          [ -n "$base" ] || fail "$B 中无可解析哈希"
+          [ "$base" = "$exp" ] || fail "基线哈希与工作流期望哈希不一致（锚点配置漂移）"
+
+          # ③ 锚点校验逻辑未被篡改
+          [ -f "$L" ] || fail "锚点校验逻辑缺失：$L"
+          lh="$(sha256sum "$L" | cut -d' ' -f1)"
+          [ "$lh" = "$EXPECTED_ANCHOR_LOGIC_SHA256" ] \
+            || fail "锚点校验逻辑哈希与登记值不一致（逻辑被篡改？）"
+
+          echo "anchor-witness OK：gate-anchor 在位，配置与逻辑均完好"
+
   # 可追溯性：交付请求内的每个提交必须引用一个**真实存在**的任务（TASK-056 / 审计 F-4a）。
   #
   # 为什么只对 PR 生效：`main` 上已有 83 个缺 `Refs` 的历史提交，追溯它们等于要求改写

@@ -1,0 +1,18 @@
+# TASK-065 外部锚点基线 —— shared/scripts/audit-project.py 的已批准版本。
+#
+# 本文件与 .github/workflows/gate-anchor.yml 的 EXPECTED_AUDIT_SCRIPT_SHA256
+# 必须一致：两处分别登记、由 CI 交叉校验，任一处被单独篡改即 FAIL
+# （shared/scripts/gate_anchor_check.py 的三重一致性判据）。这是对 A14 自引用盲区的
+# 补齐 —— A14 的逻辑在被 sync-framework.py 覆盖的同一文件内；本文件与工作流
+# 均不在其同步范围内（该脚本只写 .agent-framework/**、framework-version.json
+# 与 shared/scripts/audit-project.py）。
+#
+# 变更方式（仅随「已批准的 audit-project.py 变更」在同一 PR 内更新两处）：
+#   1. .github/workflows/gate-anchor.yml 的 EXPECTED_AUDIT_SCRIPT_SHA256；
+#   2. 本文件的 sha256= 行。
+# 并在 tasks/**/TASK-065*/TASK.md 登记来源提交与批准记录（可追溯）。
+#
+# 建立时点（2026-11-06）：TASK-064 合并版 —— 项目 main（b3a260a）与中央规范仓
+# main（33ed636，PR #1 合并）中的 shared/scripts/audit-project.py 逐字节一致，
+# 含 A14、A10 行尾归一化、sk- 在 SECRET_PATTERNS_HARD、A5/A7/A8/A9/A11 修正。
+sha256=7eba9268a9b29554f242c159f1345abc46d2b50384cabea5f73c8f72d9fa463f

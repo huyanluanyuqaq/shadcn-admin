@@ -1,0 +1,54 @@
+name: Gate Anchor
+
+# TASK-065 外部锚点：校验 shared/scripts/audit-project.py 未被回退。
+#
+# 为什么需要它：A14 的校验逻辑位于被 sync-framework.py 全量覆盖的同一文件内
+# （shutil.copy2，SYNC_SCRIPTS=["audit-project.py"]）—— 同步执行后旧脚本连同
+# A14 一并回来，A14 不存在、无需报警，A6 由 FAIL 静默降为 WARN
+# （TASK-064 两份独立审查实证）。本作业的校验逻辑在本文件与
+# shared/scripts/gate_anchor_check.py 中，均不在同步范围内。
+#
+# 期望哈希的唯一合法来源：已批准并合并的 audit-project.py 版本。
+# 变更方式（每次批准脚本变更时，与脚本变更同一 PR 内完成两处更新，缺一即 FAIL）：
+#   1. 本文件的 EXPECTED_AUDIT_SCRIPT_SHA256；
+#   2. .github/gate-anchor-baseline.txt 的 sha256= 行。
+# 两处由 shared/scripts/gate_anchor_check.py 交叉校验；来源提交与批准记录登记在
+# tasks/**/TASK-065*/TASK.md（change-safety：基线变更必须可追溯）。
+#
+# ★ 本作业尚未加入必需检查集。AGENTS.md §14.1 顺序约束：作业必须先随默认分支
+#   落地并确认稳定上报，再由主控位加入必需检查（加入须人类再次批准）。
+#   见证作业 anchor-witness（ci.yml）负责监视本作业的在位性与配置完好性。
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+# 最小权限：只读仓库内容，不写任何平台资源。
+permissions:
+  contents: read
+
+jobs:
+  gate-anchor:
+    name: gate-anchor
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    env:
+      # 已批准的 audit-project.py 基线哈希。
+      # 建立时点（2026-11-06）：TASK-064 合并版 —— 项目 main 与中央规范仓 main
+      # 逐字节一致（sha256 见 .github/gate-anchor-baseline.txt 的登记注释）。
+      EXPECTED_AUDIT_SCRIPT_SHA256: 7eba9268a9b29554f242c159f1345abc46d2b50384cabea5f73c8f72d9fa463f
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      # ubuntu-latest 自带 python3；脚本只用标准库。
+      # 锚点不执行被校验脚本，只计算其字节哈希并做三方一致性比对。
+      - name: Verify audit script against approved baseline
+        run: |
+          python3 shared/scripts/gate_anchor_check.py --script shared/scripts/audit-project.py --baseline .github/gate-anchor-baseline.txt --expected "$EXPECTED_AUDIT_SCRIPT_SHA256"
