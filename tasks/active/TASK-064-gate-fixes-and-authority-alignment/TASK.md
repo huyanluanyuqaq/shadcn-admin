@@ -401,7 +401,7 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
-| PR 侧 CI run | 已实测**三次**四作业全 pass：`42049299643`、`42050504614`（**两者对应更早的 head，保留为历史记录**）与 **`42051018636`（当前 PR 头 `f9aeeba` 对应值，2026-11-06 实测）**（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，合并前以 `gh pr checks 53` 复核 |
+| PR 侧 CI run | 已实测**四次**四作业全 pass：`42049299643`、`42050504614`、`42051018636`（均对应更早的 head，保留为历史记录）与 **`42189119169`（当前 PR 头 `dae4f84` 对应值，2026-11-06 实测：`install-lint-build` 58s / `audit` 6s / `traceability` 6s / `smoke` 19s，四作业全 pass）**（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，合并前以 `gh pr checks 53` 复核 |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
 | 审查记录 | 2026-11-06 已出具并入库：`handoffs/2026-11-06-review.md`（Reviewer 位，结论 **FAIL**：R-1 / R-2 两项 MAJOR 阻断）、`handoffs/2026-11-06-security-review.md`（Security 位，结论**不通过**：S-1 MAJOR / S-2 合并前置）。主控位据此设 `CHANGES_REQUESTED` 并定义整改清单 C-1~C-6 / D-1；Developer 已完成整改（见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md`）。**复审记录待新实例出具**，合并前按实测补记，无则如实写「无」，不补写 |
