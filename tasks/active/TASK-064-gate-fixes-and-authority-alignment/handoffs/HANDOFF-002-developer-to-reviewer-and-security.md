@@ -26,7 +26,7 @@
 | 项 | 改动 | 对应 |
 |---|---|---|
 | **A10** | 行尾归一化后再比对（`.replace(b"\r\n", b"\n")`）；纯行尾差异不判 FAIL，实质字节差异仍 FAIL | R-1 / AC-1 |
-| **A14（新增）** | 比对项目副本与中央权威副本的 `audit-project.py`；逐字节一致 → PASS，仅行尾不同 → PASS（附注），实质不同 → **FAIL**；中央不可达 → WARN | R-2 ② / AC-2 |
+| **A14（新增）** | 比对项目副本与中央权威副本的 `audit-project.py`；逐字节一致 → PASS，仅行尾不同 → PASS（附注），实质不同 → **FAIL**；中央不可达 → WARN。**能力边界（2026-11-06 / C-2 订正）：** A14 只能检出**两仓工作树字节不一致**；「同步把两侧一并回退」（自覆盖）与「针对 A14 自身的篡改」（自篡改）均不能检出，见 TASK-064 Known Issues #12 / #13 | R-2 ② / AC-2 |
 | **A5** | 补 Meta `Task ID` 可解析性校验（`TASK_META_ID`，承旧 F9 的两种 Meta 形态）；不可解析 → **FAIL** | 决定 1 / AC-5 |
 | **A7** | 占位符残留 WARN → **FAIL**；扫描范围维持 8 文件 | 决定 1 / AC-3 |
 | **A8** | glob `*.yml` → `*.y*ml`（补 `.yaml` 盲区） | 决定 1 / AC-4 |
@@ -39,7 +39,7 @@
 
 | 文件 | 改动 |
 |---|---|
-| `.agent-framework/github.md` | §3 字段清单 8 行 → **10 行**，与 PR 模板章节、A9 硬编码清单同切分（决定 3）。由中央仓 `4bdca16` 同步而来，未在项目内手改 |
+| `.agent-framework/github.md` | §3 字段清单 8 行 → **10 行**，与 A9 硬编码清单同切分（决定 3）。由中央仓 `4bdca16` 同步而来，未在项目内手改。**2026-11-06 / C-1 订正：** 原「与 PR 模板章节同切分」为失真 —— 模板实为 8 个 `##` 章节，A9 的 10 项靠裸子串匹配命中（5 个章节标题 + 3 个章节内粗体标签 + 2 个标题子串），PASS 不能证明章节一致；订正见中央仓 `9f11a9d` 与 `docs/agent-collaboration.md` §5 |
 | `docs/agent-collaboration.md` | §5 字段映射表 9 行 → **10 行**，同一切分（决定 3） |
 | `docs/operations/negative-assertion-review.md` | C9 → A10；C12 → A11；C18 → A10 + A14（决定 4） |
 | `tasks/done/TASK-062-restore-audit-gates/TASK.md` | AC-1 尾句订正 + Known Issues 补第 4 条（决定 5） |
@@ -213,7 +213,7 @@ PASS=9  FAIL=0  WARN=5  SKIP=0
 | A14 在 CI 内降级为 WARN | 项目侧脚本在 CI 上不被强制看护 | 已在档案写明适用条件；本地/同工作区可强制 |
 | 门禁强度变化引发既有 CI 假红 | A7/A9/A11 由 WARN 改 FAIL 后，若仓库存在占位符/缺模板/缺声明表会直接红 | 已实跑确认当前树三者均 PASS（exit 0） |
 | A5 新增 Meta 校验可能让历史档案变红 | 阻断合并 | 已实测 64/64 档案含可解析 Meta `Task ID` |
-| 中央仓 PR 未先合并即同步到项目 | 项目 `.agent-framework/` 与中央 `origin/main` 暂时不一致 → A10 假红 | 已在 Handoff 中要求**先合并中央仓 PR**；若顺序颠倒，A10 会如实报 FAIL（这是正确行为） |
+| 中央仓 PR 未先合并即同步到项目 | 项目 `.agent-framework/` 与中央 `origin/main` 暂时不一致 → A10 / A14 假红 | 已在 Handoff 中要求**先合并中央仓 PR**；若顺序颠倒，A10 与 A14 **均**会如实报 FAIL（这是正确行为，不是缺陷；2026-11-06 / C-3 订正：原记录只写 A10）。本地 A10 / A14 的 PASS 另依赖「中央仓工作树 checkout 在 feature 分支」这一非持久条件 |
 | 派单分支被重复合并 | 同一内容两次进入 `main` | 内容相同，合并可自动解决；已在 Current State 中告警 |
 
 ---
