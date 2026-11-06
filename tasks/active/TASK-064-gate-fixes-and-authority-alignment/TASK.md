@@ -10,7 +10,7 @@
 Task ID: TASK-064
 Title: 修正审计脚本门禁缺陷并对齐权威副本
 Workflow: bugfix
-Status: REVIEW
+Status: CHANGES_REQUESTED
 Priority: P0
 Level: L
 Owner: "Developer"
@@ -31,7 +31,12 @@ Requires Human Approval: false
 ## Objective
 
 修正 Reviewer 位对 PR #45 / TASK-062 独立审查（结论 FAIL）提出的 R-1~R-4、R-5、R-6、R-8 各项缺陷，
-使审计脚本的门禁强度与档案自述一致，并消除「权威副本可被同步回退已修正门禁」的风险。
+使审计脚本的门禁强度与档案自述一致。
+
+> ⚠️ **本条已被 2026-11-06 的审查结果修正。** 原表述含「并消除『权威副本可被同步回退已修正门禁』
+> 的风险」——该目标**未达成，且在本机制下不可由本任务达成**：A14 的检查逻辑位于被同步覆盖的
+> 同一文件内，属自引用检查的固有边界（详见 §整改清单 C-2）。要真正闭合需**不随同步被覆盖的
+> 外部锚点**，已另立 **TASK-065**，不由本任务承担。
 
 ---
 
@@ -144,6 +149,54 @@ PR #45（TASK-062）补回了 A10–A13 并恢复 A6/A9，但 Reviewer 位于 20
 
 ---
 
+## 整改清单（Changes Requested，2026-11-06）
+
+> 来源：Reviewer 位独立审查（结论 **FAIL**，`handoffs/2026-11-06-review.md`）与
+> Security 角色审查（结论**不通过**，`handoffs/2026-11-06-security-review.md`）。
+> 两份记录已入库（见 Changed Files）。**整改后须由不携带整改上下文的新实例复审。**
+
+### C 组 —— 订正表述（不扩大范围，不动门禁逻辑）
+
+- [ ] C-1（对应 Reviewer R-1）：`.agent-framework/github.md` §3 与 `docs/agent-collaboration.md` §5
+  新增的「与 `.github/PULL_REQUEST_TEMPLATE.md` 的章节是**同一套 10 项切分**」与事实不符
+  （模板为 **8 个 `##` 章节**；A9 的 10 项靠裸子串匹配命中：5 个章节标题 + 3 个章节内粗体标签
+  + 2 个标题子串，PASS **不能证明**章节一致）。须订正为如实表述；同步订正 HANDOFF-002 §2.2
+  与提交说明中的同一复述。
+- [ ] C-2（对应 Reviewer R-2 / Security S-1）：把 `Objective`（本文件，已由主控位先行订正）、
+  HANDOFF-002 §2.1、`negative-assertion-review.md` C18 中「可检出/可消除**同步回退**」
+  改为「可检出**两仓工作树字节不一致**」；在 Known Issues 补记两个盲区：
+  ① **自覆盖**：`sync-framework.py` 为 `shutil.copy2` 全量覆盖，检查逻辑就在被覆盖的文件内，
+  回退后 A14 随旧脚本一并消失、A6 由 FAIL 静默降为 WARN，全仓 FAIL=0 / exit 0；
+  ② **自篡改**：从 `CHECKS` 移除 a14、或把其 FAIL 分支改为恒真，均无人报警。
+- [ ] C-3（对应 Security S-2 / Reviewer R-3）：Merge Record 补记「顺序颠倒时 **A10 与 A14 均** FAIL」
+  （原只记 A10），并如实标注本地 A10/A14 的 PASS 依赖「中央仓工作树 checkout 在 feature 分支」
+  这一非持久条件。
+- [ ] C-4（对应 Reviewer R-4）：Merge Record 的 PR 侧 CI run 更新为 **`42051018636`**
+  （PR 头 `f9aeeba` 对应值）；原登记的 `42049299643` / `42050504614` 对应更早的 head，保留为历史记录但须注明。
+- [ ] C-5（对应 Reviewer R-8）：C18 判据补写「A14 在中央不可达时为 WARN」的适用条件（C9 已写，C18 未写）。
+- [ ] C-6（对应 Reviewer R-9）：AC-5「现有 63 档案全过」订正口径 —— 实测 `find tasks -name TASK.md | wc -l`
+  = **64**（A4 报 64 个档案、A5 报 63 个**编号**），须区分档案数与编号数。
+
+### D 组 —— 补测试覆盖（不动门禁逻辑）
+
+- [ ] D-1（对应 Reviewer R-5）：补 A14 的探针分支，至少覆盖 WARN（中央不可达）、纯 CRLF 行尾差异、
+  以及「从 `CHECKS` 移除 a14」与「FAIL 分支改恒真」两个自篡改情形；每条附**具体可复现命令**，
+  探针台须以 PR 头文件构造（而非 `origin/main` 沙箱）。
+
+### 明确不做
+
+- **不引入外部锚点** —— 已另立 **TASK-065**，不由本任务承担（人类 2026-11-06 裁决）。
+- 不改任何门禁的严重度、扫描面或判据（C/D 两组均为文档与测试订正）。
+- 不回溯修改 TASK-061 / TASK-062 的历史档案（R-6 的 A6 判据自踩、R-7 的模板 Issues 失真
+  均另立任务处理）。
+
+### 合并前置（整改+复审通过后，由主控位执行）
+
+1. **先合并中央规范仓 PR #1**（当前 `OPEN`，head `fix/TASK-064-audit-script-authority` @ `4bdca16`）；
+2. 再合并本 PR。顺序颠倒会使 `main` 上 A10 与 A14 同时 FAIL，叠加 `enforce_admins=true` 即成自锁。
+
+---
+
 ## File Scope
 
 ```yaml
@@ -199,22 +252,27 @@ Non-Scope (files):
 
 ## Current State
 
-**已领取（2026-11-05 22:34，Developer / 执行位）。** 分支 `fix/TASK-064-gate-fixes-and-authority-alignment`
-派生自 `origin/main` @ `1f931ce`（本地 `main` 已 ff 至该提交）。
+**状态：`CHANGES_REQUESTED`（2026-11-06，主控位依审查结论设置）。**
 
-派单产物入库情况：主控位的派单提交 `15383f7`（分支 `docs/TASK-064-dispatch`）在领取时点
-**尚未合入 `main`**（本地与远端均只在派单分支上）。按本任务 Dependencies「该记录须随本任务或前置 PR
-入库」的授权，本分支以 `cherry-pick` 将 `15383f7` 重放为 `95262a9`（内容逐字不变），
-使任务定义与 `2026-11-05-review.md` 审查记录随本任务入库。**请主控位勿再单独合并
-`docs/TASK-064-dispatch`**，否则同一内容会两次进入 `main`（内容相同，合并可自动解决，
-但历史会出现重复提交）。
+双重审查已出具，**均为不通过**：
 
-**当前状态（2026-11-05，移交时点）：** 实现与自检完成，PR **#53** 已创建。
-PR 侧 CI 已实测两次四作业全 pass（run `42049299643`、`42050504614`；作业
-`install-lint-build` / `audit` / `traceability` / `smoke`）；其中 `audit` 作业实测 `PASS=9 FAIL=0 WARN=5 SKIP=0` / exit 0
-（A2 / A10 / A14 在单仓 checkout 下降级为 WARN，见 Known Issues #1）。
-`Status` 改为 `REVIEW`、目录移入 `tasks/review/`，等待 **Reviewer 位独立审查 + Security 位审查**
-（Task Rules 增强条，`AGENTS.md` §10）。Developer 不自行批准本交付物。
+| 审查位 | 结论 | 记录 |
+|---|---|---|
+| Reviewer 位（独立，不携带实现上下文） | **FAIL**（R-1 / R-2 两项 MAJOR 阻断） | `handoffs/2026-11-06-review.md` |
+| Security 位（`AGENTS.md` §10 增强条） | **不通过**（S-1 MAJOR 阻断 / S-2 合并前置） | `handoffs/2026-11-06-security-review.md` |
+
+两份记录**独立收敛到同一结构性缺陷**（主控位已复现）：**A14 是自引用检查** ——
+其检查逻辑位于被 `sync-framework.py` 全量覆盖的同一文件内，故无法检出「同步回退」与「自身被篡改」。
+实测佐证：中央仓 `origin/main`（`7c0e49b`）的脚本中 `a14`/`A14` 出现 **0** 次。
+
+人类 2026-11-06 裁决：**TASK-064 只订正表述，外部锚点单独立 TASK-065。**
+Objective 中「消除同步回退风险」一句已由主控位先行订正（见该节备注）。
+
+**待执行：§整改清单 的 C-1~C-6 与 D-1。** 整改后须由**不携带整改上下文的新实例复审**。
+
+**派单产物入库情况（历史留痕）：** 主控位的派单提交 `15383f7`（分支 `docs/TASK-064-dispatch`）
+在领取时点尚未合入 `main`，Developer 以 `cherry-pick` 重放为 `95262a9`（内容逐字不变）使其随本任务入库。
+主控位已于 2026-11-05 关闭 PR #52（内容已被本 PR 完整包含，两线并存会冲突），并已在关闭评论中留证。
 
 ---
 
@@ -285,10 +343,14 @@ PR 侧 CI 已实测两次四作业全 pass（run `42049299643`、`42050504614`�
 |---|------|----|------|------|
 | 001 | coordinator | developer | 2026-11-05 | 派单：按 TASK-062 独立审查（FAIL）修正门禁缺陷并对齐权威副本 |
 | 002 | developer | reviewer + security | 2026-11-05 | 实施完成并自检通过；四步实测 10 探针全部符合预期。移交双重审查，记录见 `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` |
+| 003 | reviewer + security | coordinator | 2026-11-06 | 双重审查均**不通过**：Reviewer FAIL（R-1/R-2 MAJOR）、Security 不通过（S-1 MAJOR / S-2 合并前置）。记录见 `handoffs/2026-11-06-review.md`、`handoffs/2026-11-06-security-review.md` |
+| 004 | coordinator | developer | 2026-11-06 | 依审查结论设 `CHANGES_REQUESTED` 并定义 §整改清单（C-1~C-6 / D-1）；Objective 先行订正；外部锚点另立 TASK-065 |
 
-**Next Action：** **Reviewer 位独立审查 + Security 位审查（双重，Task Rules 增强条）。**
-审查入口与要点见 `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` §9。
-Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
+**Next Action：** **Developer 按 §整改清单 实施 C-1~C-6 与 D-1**（均为文档与测试订正，不动门禁逻辑）。
+完成后移交**不携带整改上下文的新实例复审**。Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
+
+**合并前置（复审通过后由主控位执行）：** 先合并中央规范仓 PR #1，再合并本 PR；
+顺序颠倒会使 `main` 上 A10 与 A14 同时 FAIL，叠加 `enforce_admins=true` 即成自锁。
 
 ---
 
