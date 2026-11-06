@@ -294,7 +294,7 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | `tasks/active/TASK-064-gate-fixes-and-authority-alignment/handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` | 新增 | 实施记录与移交（含四步实测输出） |
 | `../agent-framework/shared/scripts/audit-project.py` | 修改（中央仓） | 权威副本落地，提交 `48e892d` |
 | `../agent-framework/.agents/github.md` | 修改（中央仓） | §3 字段清单 10 项，提交 `4bdca16` |
-| `.agent-framework/github.md` | 修改（整改轮同步） | §3 失真表述订正；由中央仓 `9f11a9d` 按 `shutil.copy2` 语义复制，`cmp` IDENTICAL（C-1） |
+| `.agent-framework/github.md` | 修改（整改轮同步） | §3 失真表述订正；由中央仓 `9f11a9d` 按 `shutil.copy2` 语义复制；两仓工作树行尾惯例不同（中央仓 autocrlf 为 CRLF、项目 eol=lf 为 LF），**行尾归一化后逐字节一致**（A10 PASS）（C-1） |
 | `docs/agent-collaboration.md` | 修改（整改轮） | §5「同一套 10 项切分」改如实表述：模板 8 个 `##` 章节、A9 裸子串匹配、PASS 不证明章节一致（C-1） |
 | `docs/operations/negative-assertion-review.md` | 修改（整改轮） | C18 改「两仓工作树字节不一致」+ 能力边界（C-2）；补 A14 中央不可达时为 WARN 的适用条件（C-5） |
 | `tasks/active/TASK-064-gate-fixes-and-authority-alignment/handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` | 修改（整改轮） | §2.1 A14 能力边界、§2.2 同切分复述订正、§8 合并顺序遗漏补记（C-1 / C-2 / C-3） |
