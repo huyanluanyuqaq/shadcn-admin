@@ -252,7 +252,7 @@ Non-Scope (files):
 
 ## Current State
 
-**状态：`CHANGES_REQUESTED`（2026-11-06，主控位依审查结论设置）。**
+**状态：`CHANGES_REQUESTED`（整改已完成，双重复审通过，待主控位合并前核对与合并授权；2026-11-06）。**
 
 双重审查已出具，**均为不通过**：
 
@@ -401,10 +401,10 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
-| PR 侧 CI run | 已实测**五次**四作业全 pass：`42049299643`、`42050504614`、`42051018636`（前三者对应更早的 head，保留为历史记录）；`42189119169`（head `dae4f84`，整改两提交）；**`42189467759`（head `43c13b7`，2026-11-06 实测四作业全 pass：`install-lint-build` 58s / `audit` 5s / `traceability` 5s / `smoke` 21s）**（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，run 与 head 的归属固定不漂移；**合并前由主控位以 `gh pr checks 53` 实测复核为准** |
+| PR 侧 CI run | 已实测**六次**四作业全 pass：`42049299643`、`42050504614`、`42051018636`（前三者对应更早的 head，保留为历史记录）；`42189119169`（head `dae4f84`，整改两提交）；`42189467759`（head `43c13b7`）；**`42190156018`（head `229fcd6`，2026-11-06 主控位实测四作业全 pass：`install-lint-build` 1m12s / `audit` 7s / `traceability` 8s / `smoke` 16s）**（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，run 与 head 的归属固定不漂移；**合并前由主控位以 `gh pr checks 53` 实测复核为准** |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
-| 审查记录 | 2026-11-06 已出具并入库：`handoffs/2026-11-06-review.md`（Reviewer 位，结论 **FAIL**：R-1 / R-2 两项 MAJOR 阻断）、`handoffs/2026-11-06-security-review.md`（Security 位，结论**不通过**：S-1 MAJOR / S-2 合并前置）。主控位据此设 `CHANGES_REQUESTED` 并定义整改清单 C-1~C-6 / D-1；Developer 已完成整改（见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md`）。**复审记录待新实例出具**，合并前按实测补记，无则如实写「无」，不补写 |
+| 审查记录 | **四份，全部入库。**<br>① `handoffs/2026-11-06-review.md` —— Reviewer 位，结论 **FAIL**（R-1 / R-2 两项 MAJOR 阻断）<br>② `handoffs/2026-11-06-security-review.md` —— Security 位，结论**不通过**（S-1 MAJOR / S-2 合并前置）<br>③ `handoffs/2026-11-06-rereview.md` —— Reviewer 位**独立复审**（不携带整改上下文），结论 **PASS**，附 4 项非阻断观察<br>④ `handoffs/2026-11-06-security-rereview.md` —— Security 位**独立复审**，结论**通过**（S-1 撤销），并明确「不因风险仍开放而否决，亦不把已如实登记等同于风险已闭合」<br><br>主控位据此设 `CHANGES_REQUESTED` 并定义整改清单 C-1~C-6 / D-1；Developer 已完成整改（见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md`）。**四份记录均不出具批准、不触发合并；合并授权归主控位。** |
 
 ---
 
