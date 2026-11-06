@@ -17,7 +17,7 @@ Owner: "Developer"
 Owner Since: "2026-11-05T22:34:00+08:00"
 Assigned Role: developer
 Created: 2026-11-05
-Updated: 2026-11-05
+Updated: 2026-11-06
 Branch: "fix/TASK-064-gate-fixes-and-authority-alignment"
 Requires Human Approval: false
 ```
@@ -138,7 +138,7 @@ PR #45（TASK-062）补回了 A10–A13 并恢复 A6/A9，但 Reviewer 位于 20
 - [x] AC-2: 中央仓与 `shadcn-admin` 的 `audit-project.py` 逐字节一致；且新增判据能在脚本漂移时报 FAIL（探针实测）
 - [x] AC-3: A7 占位符残留严重度恢复为 FAIL；扫描范围维持或扩大（不得缩小）
 - [x] AC-4: A8 扫描范围包含 `.yaml` —— 探针：新增无 `on`/`permissions` 的 `.yaml` 工作流 → FAIL
-- [x] AC-5: A5 增加 Meta `Task ID` 校验 —— 探针：Meta 缺 `Task ID` 或不可解析 → FAIL；现有 63 档案全过
+- [x] AC-5: A5 增加 Meta `Task ID` 校验 —— 探针：Meta 缺 `Task ID` 或不可解析 → FAIL；现有档案全过（**C-6 订正**：原「63 档案」混用了档案数与编号数 —— A4 按 `TASK.md` 档案计数、A5 按可解析编号计数，两者不是同一个数；整改时点实测 65 个档案 / 64 个编号，以 `find tasks -name TASK.md | wc -l` 对照 A4 / A5 输出，64 个编号所属档案全部含可解析 Meta `Task ID`，A5 无 FAIL）
 - [x] AC-6: A11 无声明表时 FAIL、A9 模板缺失时 FAIL（探针实测）；A13 无 L 级档案时仍为 SKIP
 - [x] AC-7: 三处 PR 描述字段口径统一为同一套切分，且 A9 的 10 项与模板实际字段仍一致
 - [x] AC-8: `negative-assertion-review.md` C9 / C12 / C18 判据改指向现行检查，不再引用已删除的脚本与目录
@@ -157,29 +157,29 @@ PR #45（TASK-062）补回了 A10–A13 并恢复 A6/A9，但 Reviewer 位于 20
 
 ### C 组 —— 订正表述（不扩大范围，不动门禁逻辑）
 
-- [ ] C-1（对应 Reviewer R-1）：`.agent-framework/github.md` §3 与 `docs/agent-collaboration.md` §5
+- [x] C-1（对应 Reviewer R-1）：`.agent-framework/github.md` §3 与 `docs/agent-collaboration.md` §5
   新增的「与 `.github/PULL_REQUEST_TEMPLATE.md` 的章节是**同一套 10 项切分**」与事实不符
   （模板为 **8 个 `##` 章节**；A9 的 10 项靠裸子串匹配命中：5 个章节标题 + 3 个章节内粗体标签
   + 2 个标题子串，PASS **不能证明**章节一致）。须订正为如实表述；同步订正 HANDOFF-002 §2.2
   与提交说明中的同一复述。
-- [ ] C-2（对应 Reviewer R-2 / Security S-1）：把 `Objective`（本文件，已由主控位先行订正）、
+- [x] C-2（对应 Reviewer R-2 / Security S-1）：把 `Objective`（本文件，已由主控位先行订正）、
   HANDOFF-002 §2.1、`negative-assertion-review.md` C18 中「可检出/可消除**同步回退**」
   改为「可检出**两仓工作树字节不一致**」；在 Known Issues 补记两个盲区：
   ① **自覆盖**：`sync-framework.py` 为 `shutil.copy2` 全量覆盖，检查逻辑就在被覆盖的文件内，
   回退后 A14 随旧脚本一并消失、A6 由 FAIL 静默降为 WARN，全仓 FAIL=0 / exit 0；
   ② **自篡改**：从 `CHECKS` 移除 a14、或把其 FAIL 分支改为恒真，均无人报警。
-- [ ] C-3（对应 Security S-2 / Reviewer R-3）：Merge Record 补记「顺序颠倒时 **A10 与 A14 均** FAIL」
+- [x] C-3（对应 Security S-2 / Reviewer R-3）：Merge Record 补记「顺序颠倒时 **A10 与 A14 均** FAIL」
   （原只记 A10），并如实标注本地 A10/A14 的 PASS 依赖「中央仓工作树 checkout 在 feature 分支」
   这一非持久条件。
-- [ ] C-4（对应 Reviewer R-4）：Merge Record 的 PR 侧 CI run 更新为 **`42051018636`**
+- [x] C-4（对应 Reviewer R-4）：Merge Record 的 PR 侧 CI run 更新为 **`42051018636`**
   （PR 头 `f9aeeba` 对应值）；原登记的 `42049299643` / `42050504614` 对应更早的 head，保留为历史记录但须注明。
-- [ ] C-5（对应 Reviewer R-8）：C18 判据补写「A14 在中央不可达时为 WARN」的适用条件（C9 已写，C18 未写）。
-- [ ] C-6（对应 Reviewer R-9）：AC-5「现有 63 档案全过」订正口径 —— 实测 `find tasks -name TASK.md | wc -l`
+- [x] C-5（对应 Reviewer R-8）：C18 判据补写「A14 在中央不可达时为 WARN」的适用条件（C9 已写，C18 未写）。
+- [x] C-6（对应 Reviewer R-9）：AC-5「现有 63 档案全过」订正口径 —— 实测 `find tasks -name TASK.md | wc -l`
   = **64**（A4 报 64 个档案、A5 报 63 个**编号**），须区分档案数与编号数。
 
 ### D 组 —— 补测试覆盖（不动门禁逻辑）
 
-- [ ] D-1（对应 Reviewer R-5）：补 A14 的探针分支，至少覆盖 WARN（中央不可达）、纯 CRLF 行尾差异、
+- [x] D-1（对应 Reviewer R-5）：补 A14 的探针分支，至少覆盖 WARN（中央不可达）、纯 CRLF 行尾差异、
   以及「从 `CHECKS` 移除 a14」与「FAIL 分支改恒真」两个自篡改情形；每条附**具体可复现命令**，
   探针台须以 PR 头文件构造（而非 `origin/main` 沙箱）。
 
@@ -192,7 +192,7 @@ PR #45（TASK-062）补回了 A10–A13 并恢复 A6/A9，但 Reviewer 位于 20
 
 ### 合并前置（整改+复审通过后，由主控位执行）
 
-1. **先合并中央规范仓 PR #1**（当前 `OPEN`，head `fix/TASK-064-audit-script-authority` @ `4bdca16`）；
+1. **先合并中央规范仓 PR #1**（当前 `OPEN`，head `fix/TASK-064-audit-script-authority` @ `9f11a9d`）；
 2. 再合并本 PR。顺序颠倒会使 `main` 上 A10 与 A14 同时 FAIL，叠加 `enforce_admins=true` 即成自锁。
 
 ---
@@ -268,7 +268,9 @@ Non-Scope (files):
 人类 2026-11-06 裁决：**TASK-064 只订正表述，外部锚点单独立 TASK-065。**
 Objective 中「消除同步回退风险」一句已由主控位先行订正（见该节备注）。
 
-**待执行：§整改清单 的 C-1~C-6 与 D-1。** 整改后须由**不携带整改上下文的新实例复审**。
+**C-1~C-6 与 D-1 已由 Developer 实施完成（2026-11-06）** —— 均为文档与测试订正，
+未动任何门禁的严重度、扫描面或判据；A14 四情形探针（含两个自篡改情形）实测记录见
+`handoffs/HANDOFF-003-developer-remediation-to-reviewer.md`。整改后须由**不携带整改上下文的新实例复审**。
 
 **派单产物入库情况（历史留痕）：** 主控位的派单提交 `15383f7`（分支 `docs/TASK-064-dispatch`）
 在领取时点尚未合入 `main`，Developer 以 `cherry-pick` 重放为 `95262a9`（内容逐字不变）使其随本任务入库。
@@ -292,6 +294,13 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | `tasks/active/TASK-064-gate-fixes-and-authority-alignment/handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` | 新增 | 实施记录与移交（含四步实测输出） |
 | `../agent-framework/shared/scripts/audit-project.py` | 修改（中央仓） | 权威副本落地，提交 `48e892d` |
 | `../agent-framework/.agents/github.md` | 修改（中央仓） | §3 字段清单 10 项，提交 `4bdca16` |
+| `.agent-framework/github.md` | 修改（整改轮同步） | §3 失真表述订正；由中央仓 `9f11a9d` 按 `shutil.copy2` 语义复制，`cmp` IDENTICAL（C-1） |
+| `docs/agent-collaboration.md` | 修改（整改轮） | §5「同一套 10 项切分」改如实表述：模板 8 个 `##` 章节、A9 裸子串匹配、PASS 不证明章节一致（C-1） |
+| `docs/operations/negative-assertion-review.md` | 修改（整改轮） | C18 改「两仓工作树字节不一致」+ 能力边界（C-2）；补 A14 中央不可达时为 WARN 的适用条件（C-5） |
+| `tasks/active/TASK-064-gate-fixes-and-authority-alignment/handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` | 修改（整改轮） | §2.1 A14 能力边界、§2.2 同切分复述订正、§8 合并顺序遗漏补记（C-1 / C-2 / C-3） |
+| `tasks/active/TASK-064-gate-fixes-and-authority-alignment/handoffs/HANDOFF-003-developer-remediation-to-reviewer.md` | 新增（整改轮） | 整改记录 + A14 四情形探针（WARN / 纯 CRLF / 移出 CHECKS / FAIL 恒真），附可复现命令（D-1） |
+| `tasks/active/TASK-064-gate-fixes-and-authority-alignment/TASK.md` | 修改（整改轮） | Known Issues #12/#13、Merge Record（C-3 / C-4）、AC-5 口径（C-6）、整改勾选、Changed Files |
+| `../agent-framework/.agents/github.md` | 修改（中央仓，整改轮） | §3 失真表述订正，提交 `9f11a9d`，推送至中央仓 PR #1 分支 |
 
 ---
 
@@ -336,6 +345,16 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
     Access denied），改用 OS 临时目录 `C:\Users\Admin\AppData\Local\Temp\TASK-064-probe\sandbox\`，
     其中 `shadcn-admin/` 为 `origin/main` 的 git worktree、`agent-framework/` 为中央仓镜像。
     **仓库内零探针残留**（每个探针恢复后 `git status --porcelain` 均为空）。
+12. **A14 不能检出「同步把两侧一并回退」—— 自覆盖盲区（2026-11-06 / C-2 补记，Reviewer R-2 / Security S-1）。**
+    `sync-framework.py` 是 `shutil.copy2` 全量覆盖，而 A14 的检查逻辑就在被覆盖的同一文件内：
+    一旦同步执行（或中央仓被回退）且两侧同为旧版脚本，A14 随旧脚本一并消失、A6 由 FAIL 静默降为 WARN，
+    全仓 FAIL=0 / exit 0，无任何检查报警。实测佐证：中央仓 `origin/main`（`7c0e49b`）的脚本中
+    `a14` / `A14` 出现 0 次。这是**自引用检查的固有边界，不是编码错误**；闭合需不随同步被覆盖的
+    外部锚点，已另立 **TASK-065**，不由本任务承担。
+13. **A14 不能检出「针对自身的篡改」—— 自篡改盲区（2026-11-06 / C-2 补记）。**
+    把 `a14_script_consistency` 从 `CHECKS` 中移除、或把其 FAIL 分支改为恒真，均无人报警
+    （探针实测见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md` §D-1 情形 ③ / ④）。
+    同属自引用检查的固有边界；在外部锚点（TASK-065）落地前，缓解只能靠独立审查与人工复核。
 
 ## Handoff
 
@@ -345,9 +364,11 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | 002 | developer | reviewer + security | 2026-11-05 | 实施完成并自检通过；四步实测 10 探针全部符合预期。移交双重审查，记录见 `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` |
 | 003 | reviewer + security | coordinator | 2026-11-06 | 双重审查均**不通过**：Reviewer FAIL（R-1/R-2 MAJOR）、Security 不通过（S-1 MAJOR / S-2 合并前置）。记录见 `handoffs/2026-11-06-review.md`、`handoffs/2026-11-06-security-review.md` |
 | 004 | coordinator | developer | 2026-11-06 | 依审查结论设 `CHANGES_REQUESTED` 并定义 §整改清单（C-1~C-6 / D-1）；Objective 先行订正；外部锚点另立 TASK-065 |
+| 005 | developer | reviewer（不携带整改上下文的新实例） | 2026-11-06 | 完成 C-1~C-6 与 D-1 七项整改（文档与测试订正，门禁逻辑未动）；A14 四情形探针实测；移交复审，记录见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md` |
 
-**Next Action：** **Developer 按 §整改清单 实施 C-1~C-6 与 D-1**（均为文档与测试订正，不动门禁逻辑）。
-完成后移交**不携带整改上下文的新实例复审**。Developer 不自行批准本交付物（I2 / `github.md` §6 受保护）。
+**Next Action：** **移交不携带整改上下文的新实例复审** C-1~C-6 与 D-1 的整改结果（复审入口见
+`handoffs/HANDOFF-003-developer-remediation-to-reviewer.md` §9）。Developer 不自行批准本交付物
+（I2 / `github.md` §6 受保护）。
 
 **合并前置（复审通过后由主控位执行）：** 先合并中央规范仓 PR #1，再合并本 PR；
 顺序颠倒会使 `main` 上 A10 与 A14 同时 FAIL，叠加 `enforce_admins=true` 即成自锁。
@@ -365,8 +386,12 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 > 提交 `48e892d63f5f66162bb3ee9d78335698699157d1`（脚本）+
 > `4bdca167faf16a09ea609a413cb9d8c664ef6bd3`（`.agents/github.md`）。
 > **先后关系：中央仓先落地并已推送，之后**才按 `sync-framework.py` 的同一 `shutil.copy2` 语义
-> 复制到项目侧（`cmp` IDENTICAL）。**合并顺序要求：先合并中央仓 PR #1，再合并本 PR**；
-> 若顺序颠倒，A10 会如实报 FAIL（这是正确行为，不是缺陷）。
+> 复制到项目侧（`cmp` IDENTICAL）。整改轮（C-1）新增中央仓提交 `9f11a9d`（`.agents/github.md` §3
+> 失真表述订正），同样先落中央、后同步项目。**合并顺序要求：先合并中央仓 PR #1，再合并本 PR**；
+> 若顺序颠倒，**A10 与 A14 均**会如实报 FAIL（这是正确行为，不是缺陷；2026-11-06 / C-3 补记：
+> 原记录只写 A10）。**本地 PASS 的非持久条件（C-3）：** 本地 A10 / A14 的 PASS 依赖「中央仓工作树
+> checkout 在 feature 分支 `fix/TASK-064-audit-script-authority`」—— 中央仓 `origin/main`
+> （`7c0e49b`）仍为回退前脚本，该条件要到中央仓 PR #1 合并后才转为持久。
 
 | 要素 | 值 |
 |------|-----|
@@ -376,10 +401,10 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | merged_at | 合并后实测回填 |
 | merge_commit_sha | 合并后实测回填（全 40 位） |
 | 合并后 CI run | 合并后实测回填 |
-| PR 侧 CI run | 已实测**两次**四作业全 pass：`42049299643`、`42050504614`（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，合并前以 `gh pr checks 53` 复核 |
+| PR 侧 CI run | 已实测**三次**四作业全 pass：`42049299643`、`42050504614`（**两者对应更早的 head，保留为历史记录**）与 **`42051018636`（当前 PR 头 `f9aeeba` 对应值，2026-11-06 实测）**（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，合并前以 `gh pr checks 53` 复核 |
 | 合并后 Docker run | 合并后实测回填 |
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
-| 审查记录 | **移交时点：无。** Reviewer 位与 Security 位审查待出具；合并前按实测填入 `handoffs/YYYY-MM-DD-review.md` / `YYYY-MM-DD-security-review.md`，无则如实写「无」，不补写 |
+| 审查记录 | 2026-11-06 已出具并入库：`handoffs/2026-11-06-review.md`（Reviewer 位，结论 **FAIL**：R-1 / R-2 两项 MAJOR 阻断）、`handoffs/2026-11-06-security-review.md`（Security 位，结论**不通过**：S-1 MAJOR / S-2 合并前置）。主控位据此设 `CHANGES_REQUESTED` 并定义整改清单 C-1~C-6 / D-1；Developer 已完成整改（见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md`）。**复审记录待新实例出具**，合并前按实测补记，无则如实写「无」，不补写 |
 
 ---
 
