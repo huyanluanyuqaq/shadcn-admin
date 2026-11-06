@@ -10,7 +10,7 @@
 Task ID: TASK-064
 Title: 修正审计脚本门禁缺陷并对齐权威副本
 Workflow: bugfix
-Status: CHANGES_REQUESTED
+Status: DONE
 Priority: P0
 Level: L
 Owner: "Developer"
@@ -252,7 +252,7 @@ Non-Scope (files):
 
 ## Current State
 
-**状态：`CHANGES_REQUESTED`（整改已完成，双重复审通过，待主控位合并前核对与合并授权；2026-11-06）。**
+**状态：`DONE`（2026-11-06 合并后结案）。** 双重复审通过 → 中央规范仓 PR #1 先合并 → PR #53 由人类合并（`b3a260a`，`merged_at=2026-11-06T12:23:31Z`）→ 本提交回填 Merge Record 剩余五项并归档目录。
 
 双重审查已出具，**均为不通过**：
 
@@ -364,6 +364,7 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | 002 | developer | reviewer + security | 2026-11-05 | 实施完成并自检通过；四步实测 10 探针全部符合预期。移交双重审查，记录见 `handoffs/HANDOFF-002-developer-to-reviewer-and-security.md` |
 | 003 | reviewer + security | coordinator | 2026-11-06 | 双重审查均**不通过**：Reviewer FAIL（R-1/R-2 MAJOR）、Security 不通过（S-1 MAJOR / S-2 合并前置）。记录见 `handoffs/2026-11-06-review.md`、`handoffs/2026-11-06-security-review.md` |
 | 004 | coordinator | developer | 2026-11-06 | 依审查结论设 `CHANGES_REQUESTED` 并定义 §整改清单（C-1~C-6 / D-1）；Objective 先行订正；外部锚点另立 TASK-065 |
+| 006 | coordinator | coordinator | 2026-11-06 | 双重复审通过后回填 Merge Record 审查字段；PR #53 由人类合并（`b3a260a`）；合并后回填剩余五项并归档至 `tasks/done/` |
 | 005 | developer | reviewer（不携带整改上下文的新实例） | 2026-11-06 | 完成 C-1~C-6 与 D-1 七项整改（文档与测试订正，门禁逻辑未动）；A14 四情形探针实测；移交复审，记录见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md` |
 
 **Next Action：** **移交不携带整改上下文的新实例复审** C-1~C-6 与 D-1 的整改结果（复审入口见
@@ -398,12 +399,12 @@ Objective 中「消除同步回退风险」一句已由主控位先行订正（�
 | PR | [#53](https://github.com/huyanluanyuqaq/shadcn-admin/pull/53)，分支 `fix/TASK-064-gate-fixes-and-authority-alignment`；`state=OPEN`；提交数不预写死，合并前以 `git rev-list --count origin/main..HEAD` 实测为准（建单时为 7 提交 / 9 文件 / +1088 −19） |
 | 合并策略 | rebase-merge（`AGENTS.md` §14.2 默认） |
 | 提交数 | 合并前以 `git rev-list --count origin/main..HEAD` 实测填入（**不预写死**：本档案曾因自引用式计数漂移连续订正三次 7 → 9 → 10，故改为复核口径） |
-| merged_at | 合并后实测回填 |
-| merge_commit_sha | 合并后实测回填（全 40 位） |
-| 合并后 CI run | 合并后实测回填 |
+| merged_at | `2026-11-06T12:23:31Z`（`merged_by=huyanluanyuqaq`） |
+| merge_commit_sha | `b3a260a23e24b25c7d9da189b474197acf1e8aa5`（40 位） |
+| 合并后 CI run | `42217309459` —— Continuous Integration / `event=push` / `head_sha=b3a260a…` / **success**；作业 `install-lint-build` 14m4s（runner 缓慢，非代码问题）/ `audit` / `traceability` / `smoke` 全 success |
 | PR 侧 CI run | 已实测**六次**四作业全 pass：`42049299643`、`42050504614`、`42051018636`（前三者对应更早的 head，保留为历史记录）；`42189119169`（head `dae4f84`，整改两提交）；`42189467759`（head `43c13b7`）；**`42190156018`（head `229fcd6`，2026-11-06 主控位实测四作业全 pass：`install-lint-build` 1m12s / `audit` 7s / `traceability` 8s / `smoke` 16s）**（Continuous Integration / `event=pull_request`；作业 `install-lint-build` / `audit` / `traceability` / `smoke`）。每次推送都会重跑，run 与 head 的归属固定不漂移；**合并前由主控位以 `gh pr checks 53` 实测复核为准** |
-| 合并后 Docker run | 合并后实测回填 |
-| 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
+| 合并后 Docker run | `42217309462` —— Build and Push Docker Image / `event=push` / `head_sha=b3a260a…` / **success**；作业 `build-and-push` |
+| 镜像 tag | `sha-b3a260a` —— 取自该 run 作业 `127890424113` 日志的推送行 `subscription-admin:sha-b3a260a`；manifest digest `sha256:d78eb197567d374eaef506433237f94b4f2a686c686fdb8fe52e957ee151db2c`。`latest` 未推进 |
 | 审查记录 | **四份，全部入库。**<br>① `handoffs/2026-11-06-review.md` —— Reviewer 位，结论 **FAIL**（R-1 / R-2 两项 MAJOR 阻断）<br>② `handoffs/2026-11-06-security-review.md` —— Security 位，结论**不通过**（S-1 MAJOR / S-2 合并前置）<br>③ `handoffs/2026-11-06-rereview.md` —— Reviewer 位**独立复审**（不携带整改上下文），结论 **PASS**，附 4 项非阻断观察<br>④ `handoffs/2026-11-06-security-rereview.md` —— Security 位**独立复审**，结论**通过**（S-1 撤销），并明确「不因风险仍开放而否决，亦不把已如实登记等同于风险已闭合」<br><br>主控位据此设 `CHANGES_REQUESTED` 并定义整改清单 C-1~C-6 / D-1；Developer 已完成整改（见 `handoffs/HANDOFF-003-developer-remediation-to-reviewer.md`）。**四份记录均不出具批准、不触发合并；合并授权归主控位。** |
 
 ---
