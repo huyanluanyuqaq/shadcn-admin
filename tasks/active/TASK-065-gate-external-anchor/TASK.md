@@ -289,6 +289,13 @@ Non-Scope (files):
 | 镜像 tag | 合并后实测回填（`sha-<短SHA>`） |
 | 审查记录 | **移交时点：无。** Reviewer 位与 Security 位双重审查待出具；合并前按实测填入 `handoffs/YYYY-MM-DD-review.md` / `YYYY-MM-DD-security-review.md`，无则如实写「无」，不补写 |
 
+**PR 侧 CI 实证（2026-11-06，`gh pr checks 55` 实测）：** 六作业全 pass ——
+`install-lint-build` 1m32s / `audit` 6s / `traceability` 5s / `smoke` 21s /
+**`gate-anchor` 4s** / **`anchor-witness` 6s**（Continuous Integration run `42243671611`；
+`gate-anchor` 由 Gate Anchor 工作流 run `42243671660` 上报）。即锚点与见证作业**已随本 PR
+落地并在 PR 侧成功上报**；按 `AGENTS.md` §14.1，加入必需检查集仍为合并后由主控位单独执行
+的步骤（须人类再次批准），本段不构成「已入必需检查」的陈述。
+
 ---
 
 ## Task Rules
